@@ -45,10 +45,11 @@ def utility_processor():
 register_routes(app)
 
 
-# تهيئة قاعدة البيانات
+# تهيئة قاعدة البيانات (سيتم استدعاؤها عند بدء التشغيل)
 def init_db():
     with app.app_context():
         db.create_all()
+        print("✅ Database tables created/verified")
 
         # إنشاء مستخدم Admin افتراضي
         if not User.query.filter_by(username='admin').first():
@@ -65,8 +66,11 @@ def init_db():
             print("✅ المستخدم الافتراضي موجود بالفعل")
 
 
+# استدعاء init_db() عند بدء التطبيق (لـ gunicorn)
+init_db()
+
+
 if __name__ == '__main__':
-    init_db()
     # استخدام PORT من متغيرات البيئة لـ Render
     port = int(os.environ.get('PORT', 5000))
     app.run(debug=False, host='0.0.0.0', port=port)
