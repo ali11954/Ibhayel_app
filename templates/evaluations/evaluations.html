@@ -1,0 +1,537 @@
+{% extends "base.html" %}
+
+{% block title %}التقييمات - ابن هائل لأعمال الزراعة{% endblock %}
+
+{% block extra_css %}
+<style>
+    /* تنسيقات متقدمة لصفحة التقييمات */
+    .evaluations-stats {
+        background: linear-gradient(135deg, #9c27b0 0%, #7b1fa2 100%);
+        border-radius: 20px;
+        padding: 1.5rem;
+        margin-bottom: 1.5rem;
+        color: white;
+        position: relative;
+        overflow: hidden;
+    }
+
+    .evaluations-stats::before {
+        content: '';
+        position: absolute;
+        top: -50%;
+        right: -50%;
+        width: 200%;
+        height: 200%;
+        background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, transparent 70%);
+        animation: rotate 20s linear infinite;
+    }
+
+    @keyframes rotate {
+        from { transform: rotate(0deg); }
+        to { transform: rotate(360deg); }
+    }
+
+    .stat-item {
+        text-align: center;
+        border-left: 1px solid rgba(255,255,255,0.2);
+        position: relative;
+        z-index: 1;
+    }
+
+    .stat-item:last-child {
+        border-left: none;
+    }
+
+    .stat-number {
+        font-size: 2rem;
+        font-weight: 800;
+        margin-bottom: 0;
+    }
+
+    .stat-label {
+        font-size: 0.85rem;
+        opacity: 0.9;
+        margin-bottom: 0;
+    }
+
+    .search-section {
+        background: white;
+        border-radius: 15px;
+        padding: 1rem;
+        margin-bottom: 1.5rem;
+        box-shadow: var(--shadow-sm);
+    }
+
+    .rating-stars {
+        display: inline-flex;
+        gap: 2px;
+        direction: ltr;
+    }
+
+    .rating-stars i {
+        font-size: 0.8rem;
+    }
+
+    .evaluation-avatar {
+        width: 40px;
+        height: 40px;
+        border-radius: 12px;
+        background: linear-gradient(135deg, var(--primary-light), var(--primary-color));
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        font-weight: bold;
+        font-size: 1rem;
+    }
+
+    .score-circle {
+        width: 45px;
+        height: 45px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: bold;
+        font-size: 1rem;
+    }
+
+    .score-circle.excellent {
+        background: linear-gradient(135deg, #28a745, #20c997);
+        color: white;
+    }
+
+    .score-circle.good {
+        background: linear-gradient(135deg, #17a2b8, #0dcaf0);
+        color: white;
+    }
+
+    .score-circle.average {
+        background: linear-gradient(135deg, #ffc107, #fd7e14);
+        color: white;
+    }
+
+    .score-circle.poor {
+        background: linear-gradient(135deg, #dc3545, #c82333);
+        color: white;
+    }
+
+    .table-evaluations {
+        margin-bottom: 0;
+    }
+
+    .table-evaluations thead th {
+        background: linear-gradient(135deg, var(--primary-color), var(--primary-dark));
+        color: white;
+        font-weight: 600;
+        padding: 1rem;
+        border: none;
+        font-size: 0.85rem;
+    }
+
+    .table-evaluations thead th i {
+        margin-left: 6px;
+    }
+
+    .table-evaluations tbody tr {
+        transition: all 0.3s ease;
+        border-bottom: 1px solid #f0f0f0;
+    }
+
+    .table-evaluations tbody tr:hover {
+        background: rgba(156, 39, 176, 0.05);
+        transform: translateX(5px);
+    }
+
+    .table-evaluations tbody td {
+        padding: 1rem;
+        vertical-align: middle;
+    }
+
+    .empty-state {
+        text-align: center;
+        padding: 3rem;
+    }
+
+    .empty-state i {
+        font-size: 4rem;
+        color: #dee2e6;
+        margin-bottom: 1rem;
+    }
+
+    .filter-btn {
+        border: 1px solid #e0e0e0;
+        border-radius: 10px;
+        padding: 0.5rem 0.8rem;
+        transition: all 0.3s ease;
+        cursor: pointer;
+        background: white;
+        font-size: 0.8rem;
+    }
+
+    .filter-btn:hover,
+    .filter-btn.active {
+        background: var(--primary-color);
+        color: white;
+        border-color: var(--primary-color);
+    }
+
+    .comment-preview {
+        max-width: 200px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    @keyframes slideIn {
+        from { opacity: 0; transform: translateY(20px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+
+    .evaluations-table-container {
+        animation: slideIn 0.5s ease;
+    }
+
+    .rating-badge {
+        padding: 0.3rem 0.8rem;
+        border-radius: 20px;
+        font-size: 0.7rem;
+        font-weight: 600;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.3rem;
+    }
+
+    .action-buttons-cell {
+        display: flex;
+        gap: 0.5rem;
+    }
+
+    .btn-icon-sm {
+        width: 32px;
+        height: 32px;
+        padding: 0;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 8px;
+        transition: all 0.3s ease;
+    }
+
+    .btn-icon-sm:hover {
+        transform: translateY(-2px);
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+        <div>
+            <h2>
+                <i class="fas fa-star"></i>
+                نظام التقييمات
+            </h2>
+            <p class="text-muted mb-0 mt-2">تقييم أداء العمال والمشرفين في أعمال الزراعة</p>
+        </div>
+        <div class="d-flex gap-2">
+            <a href="{{ url_for('add_evaluation') }}" class="btn btn-success">
+                <i class="fas fa-user-check me-2"></i> تقييم عامل
+            </a>
+            <a href="{{ url_for('add_supervisor_evaluation') }}" class="btn btn-warning">
+                <i class="fas fa-chalkboard-user me-2"></i> تقييم مشرف
+            </a>
+        </div>
+    </div>
+</div>
+
+<!-- إحصائيات التقييمات -->
+<div class="evaluations-stats">
+    <div class="row">
+        <div class="col-md-3 col-6">
+            <div class="stat-item">
+                <p class="stat-number mb-0">{{ evaluations|length }}</p>
+                <p class="stat-label">إجمالي التقييمات</p>
+            </div>
+        </div>
+        <div class="col-md-3 col-6">
+            <div class="stat-item">
+                <p class="stat-number mb-0">{{ evaluations|selectattr('score', 'ge', 8)|list|length }}</p>
+                <p class="stat-label">تقييمات ممتازة</p>
+            </div>
+        </div>
+        <div class="col-md-3 col-6">
+            <div class="stat-item">
+                <p class="stat-number mb-0">{{ (evaluations|sum(attribute='score') / evaluations|length)|round(1) if evaluations else 0 }}</p>
+                <p class="stat-label">متوسط التقييم</p>
+            </div>
+        </div>
+        <div class="col-md-3 col-6">
+            <div class="stat-item">
+                <p class="stat-number mb-0">{{ evaluations|selectattr('evaluation_type', 'equalto', 'supervisor')|list|length }}</p>
+                <p class="stat-label">تقييم العمال</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- شريط البحث والفلترة -->
+<div class="search-section">
+    <div class="row align-items-center">
+        <div class="col-md-4 mb-3 mb-md-0">
+            <div class="input-group">
+                <span class="input-group-text bg-white border-end-0">
+                    <i class="fas fa-search text-muted"></i>
+                </span>
+                <input type="text" id="searchInput" class="form-control border-start-0"
+                       placeholder="بحث باسم الموظف أو المقيّم...">
+            </div>
+        </div>
+        <div class="col-md-3 mb-3 mb-md-0">
+            <select id="typeFilter" class="form-select">
+                <option value="">جميع أنواع التقييم</option>
+                <option value="supervisor">تقييم عامل (من مشرف)</option>
+                <option value="contractor">تقييم مشرف (من متعهد)</option>
+            </select>
+        </div>
+        <div class="col-md-5">
+            <div class="d-flex gap-2 flex-wrap">
+                <button id="filterHigh" class="filter-btn" data-score="high">
+                    <i class="fas fa-star text-warning"></i> ممتاز (8-10)
+                </button>
+                <button id="filterMedium" class="filter-btn" data-score="medium">
+                    <i class="fas fa-star-half-alt text-info"></i> جيد (5-7)
+                </button>
+                <button id="filterLow" class="filter-btn" data-score="low">
+                    <i class="fas fa-star-of-life text-danger"></i> يحتاج تحسين (1-4)
+                </button>
+                <button id="filterAll" class="filter-btn active" data-score="all">
+                    <i class="fas fa-list"></i> الكل
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- جدول التقييمات المحسن -->
+<div class="card evaluations-table-container">
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-evaluations" id="evaluationsTable">
+                <thead>
+                    <tr>
+                        <th style="width: 5%">#</th>
+                        <th style="width: 18%">الموظف / المشرف</th>
+                        <th style="width: 15%">نوع التقييم</th>
+                        <th style="width: 15%">الدرجة</th>
+                        <th style="width: 12%">التقييم</th>
+                        <th style="width: 20%">التعليق</th>
+                        <th style="width: 10%">التاريخ</th>
+                        <th style="width: 5%">المقيم</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for eval in evaluations %}
+                    <tr data-type="{{ eval.evaluation_type }}" data-score="{{ eval.score }}">
+                        <td class="fw-bold">{{ loop.index }}</td>
+                        <td>
+                            <div class="d-flex align-items-center gap-2">
+                                <div class="evaluation-avatar">
+                                    {{ eval.employee.name[0]|upper if eval.employee.name else '?' }}
+                                </div>
+                                <div>
+                                    <strong>{{ eval.employee.name }}</strong>
+                                    <br>
+                                    <small class="text-muted">
+                                        {% if eval.evaluation_type == 'supervisor' %}
+                                        {{ eval.employee.job_title or 'عامل' }}
+                                        {% else %}
+                                        {{ eval.employee.job_title or 'مشرف' }}
+                                        {% endif %}
+                                    </small>
+                                </div>
+                            </div>
+                        </td>
+                        <td>
+                            {% if eval.evaluation_type == 'supervisor' %}
+                            <span class="badge bg-primary bg-opacity-10 text-primary px-3 py-2">
+                                <i class="fas fa-user-check"></i> تقييم عامل
+                            </span>
+                            {% else %}
+                            <span class="badge bg-warning bg-opacity-10 text-warning px-3 py-2">
+                                <i class="fas fa-chalkboard-user"></i> تقييم مشرف
+                            </span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <div class="d-flex align-items-center gap-2">
+                                <div class="score-circle
+                                    {% if eval.score >= 8 %}excellent
+                                    {% elif eval.score >= 5 %}good
+                                    {% elif eval.score >= 3 %}average
+                                    {% else %}poor{% endif %}">
+                                    {{ eval.score }}
+                                </div>
+                                <div class="rating-stars">
+                                    {% for i in range(10) %}
+                                        {% if i < eval.score %}
+                                            <i class="fas fa-star text-warning"></i>
+                                        {% else %}
+                                            <i class="far fa-star text-muted"></i>
+                                        {% endif %}
+                                    {% endfor %}
+                                </div>
+                            </div>
+                        </td>
+                        <td>
+                            <span class="rating-badge
+                                {% if eval.score >= 8 %}bg-success text-white
+                                {% elif eval.score >= 5 %}bg-info text-white
+                                {% elif eval.score >= 3 %}bg-warning text-dark
+                                {% else %}bg-danger text-white{% endif %}">
+                                {% if eval.score >= 9 %}
+                                <i class="fas fa-crown"></i> ممتاز
+                                {% elif eval.score >= 7 %}
+                                <i class="fas fa-smile"></i> جيد جداً
+                                {% elif eval.score >= 5 %}
+                                <i class="fas fa-meh"></i> جيد
+                                {% elif eval.score >= 3 %}
+                                <i class="fas fa-frown"></i> مقبول
+                                {% else %}
+                                <i class="fas fa-angry"></i> ضعيف
+                                {% endif %}
+                            </span>
+                        </td>
+                        <td>
+                            <div class="comment-preview" title="{{ eval.comments or '' }}">
+                                {% if eval.comments %}
+                                <i class="fas fa-quote-right text-muted me-1"></i>
+                                {{ eval.comments[:50] }}{% if eval.comments|length > 50 %}...{% endif %}
+                                {% else %}
+                                <span class="text-muted"><i class="fas fa-minus-circle"></i> لا يوجد تعليق</span>
+                                {% endif %}
+                            </div>
+                        </td>
+                        <td>
+                            <i class="far fa-calendar-alt text-muted me-1"></i>
+                            {{ eval.date.strftime('%Y-%m-%d') }}
+                        </td>
+                        <td>
+                            <div class="d-flex align-items-center gap-1">
+                                <i class="fas fa-user-circle text-primary"></i>
+                                <small>{{ eval.evaluator.full_name.split()[0] if eval.evaluator else '-' }}</small>
+                            </div>
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="8">
+                            <div class="empty-state">
+                                <i class="fas fa-star-of-life"></i>
+                                <h5>لا توجد تقييمات</h5>
+                                <p class="text-muted">قم بإضافة تقييم جديد للعمال أو المشرفين</p>
+                                <div class="d-flex gap-2 justify-content-center mt-3">
+                                    <a href="{{ url_for('add_evaluation') }}" class="btn btn-success">
+                                        <i class="fas fa-user-check"></i> تقييم عامل
+                                    </a>
+                                    <a href="{{ url_for('add_supervisor_evaluation') }}" class="btn btn-warning">
+                                        <i class="fas fa-chalkboard-user"></i> تقييم مشرف
+                                    </a>
+                                </div>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- تذييل مع إحصائيات إضافية -->
+{% if evaluations|length > 0 %}
+<div class="d-flex justify-content-between align-items-center mt-3 flex-wrap gap-2">
+    <small class="text-muted">
+        <i class="fas fa-info-circle me-1"></i>
+        عرض {{ evaluations|length }} من إجمالي {{ evaluations|length }} تقييم
+    </small>
+    <small class="text-muted">
+        <i class="fas fa-chart-line me-1"></i>
+        متوسط التقييم العام: {{ (evaluations|sum(attribute='score') / evaluations|length)|round(1) if evaluations else 0 }}/10
+    </small>
+    <small class="text-muted">
+        <i class="fas fa-chalkboard-user me-1"></i>
+        تقييم المشرفين: {{ evaluations|selectattr('evaluation_type', 'equalto', 'contractor')|list|length }}
+        <i class="fas fa-user-check me-1 ms-2"></i>
+        تقييم العمال: {{ evaluations|selectattr('evaluation_type', 'equalto', 'supervisor')|list|length }}
+    </small>
+</div>
+{% endif %}
+
+<script>
+    $(document).ready(function() {
+        // البحث
+        $('#searchInput').on('keyup', function() {
+            var value = $(this).val().toLowerCase();
+            $('#evaluationsTable tbody tr').filter(function() {
+                var text = $(this).text().toLowerCase();
+                $(this).toggle(text.indexOf(value) > -1);
+            });
+        });
+
+        // تصفية حسب نوع التقييم
+        $('#typeFilter').on('change', function() {
+            var type = $(this).val();
+            $('#evaluationsTable tbody tr').each(function() {
+                if (type === '' || $(this).data('type') === type) {
+                    $(this).show();
+                } else {
+                    $(this).hide();
+                }
+            });
+        });
+
+        // تصفية حسب الدرجة
+        function filterByScore(level) {
+            $('#evaluationsTable tbody tr').each(function() {
+                var score = $(this).data('score');
+                if (level === 'all') {
+                    $(this).show();
+                } else if (level === 'high' && score >= 8) {
+                    $(this).show();
+                } else if (level === 'medium' && score >= 5 && score < 8) {
+                    $(this).show();
+                } else if (level === 'low' && score < 5) {
+                    $(this).show();
+                } else {
+                    $(this).hide();
+                }
+            });
+        }
+
+        $('#filterHigh').on('click', function() {
+            $(this).addClass('active');
+            $('#filterMedium, #filterLow, #filterAll').removeClass('active');
+            filterByScore('high');
+        });
+
+        $('#filterMedium').on('click', function() {
+            $(this).addClass('active');
+            $('#filterHigh, #filterLow, #filterAll').removeClass('active');
+            filterByScore('medium');
+        });
+
+        $('#filterLow').on('click', function() {
+            $(this).addClass('active');
+            $('#filterHigh, #filterMedium, #filterAll').removeClass('active');
+            filterByScore('low');
+        });
+
+        $('#filterAll').on('click', function() {
+            $(this).addClass('active');
+            $('#filterHigh, #filterMedium, #filterLow').removeClass('active');
+            filterByScore('all');
+        });
+    });
+</script>
+{% endblock %}

@@ -1,0 +1,388 @@
+{% extends "base.html" %}
+
+{% block title %}الإغلاق المالي - ابن هائل لأعمال الزراعة{% endblock %}
+
+{% block extra_css %}
+<style>
+    /* تنسيقات متقدمة لصفحة الإغلاق المالي */
+    .close-header {
+        background: linear-gradient(135deg, #6c757d 0%, #495057 100%);
+        border-radius: 20px;
+        padding: 1.5rem;
+        margin-bottom: 1.5rem;
+        color: white;
+        position: relative;
+        overflow: hidden;
+    }
+
+    .close-header::before {
+        content: '';
+        position: absolute;
+        top: -50%;
+        right: -50%;
+        width: 200%;
+        height: 200%;
+        background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, transparent 70%);
+        animation: rotate 20s linear infinite;
+    }
+
+    @keyframes rotate {
+        from { transform: rotate(0deg); }
+        to { transform: rotate(360deg); }
+    }
+
+    .info-card {
+        background: linear-gradient(135deg, #f8f9fa, #e9ecef);
+        border-radius: 20px;
+        padding: 1.5rem;
+        margin-bottom: 1.5rem;
+    }
+
+    .info-title {
+        font-size: 1.2rem;
+        font-weight: 700;
+        color: #495057;
+        margin-bottom: 1rem;
+        border-right: 4px solid #6c757d;
+        padding-right: 1rem;
+    }
+
+    .formula-box {
+        background: white;
+        border-radius: 12px;
+        padding: 1rem;
+        margin-bottom: 1rem;
+        transition: all 0.3s ease;
+        border: 1px solid #e9ecef;
+    }
+
+    .formula-box:hover {
+        transform: translateX(5px);
+        border-color: #6c757d;
+        box-shadow: var(--shadow-sm);
+    }
+
+    .formula-icon {
+        width: 40px;
+        height: 40px;
+        border-radius: 10px;
+        background: linear-gradient(135deg, #6c757d, #495057);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        font-size: 1.2rem;
+    }
+
+    .formula-title {
+        font-weight: 700;
+        color: #495057;
+        margin-bottom: 0.5rem;
+    }
+
+    .formula-text {
+        font-family: monospace;
+        font-size: 0.9rem;
+        color: #6c757d;
+        background: #f8f9fa;
+        padding: 0.3rem 0.6rem;
+        border-radius: 6px;
+        display: inline-block;
+    }
+
+    .example-box {
+        background: linear-gradient(135deg, #fff3e0, #ffe0b2);
+        border-radius: 15px;
+        padding: 1.2rem;
+        margin-top: 1rem;
+    }
+
+    .example-title {
+        font-weight: 700;
+        color: #f57c00;
+        margin-bottom: 0.5rem;
+    }
+
+    .step-number {
+        width: 30px;
+        height: 30px;
+        background: #6c757d;
+        color: white;
+        border-radius: 50%;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: bold;
+        margin-left: 10px;
+    }
+
+    .alert-info-custom {
+        background: linear-gradient(135deg, #e3f2fd, #bbdef5);
+        border: none;
+        border-radius: 15px;
+        padding: 1rem;
+    }
+
+    .month-preview {
+        background: #f8f9fa;
+        border-radius: 12px;
+        padding: 0.8rem;
+        margin-top: 0.5rem;
+        text-align: center;
+        border: 1px dashed #6c757d;
+    }
+
+    .btn-close-custom {
+        background: linear-gradient(135deg, #6c757d, #495057);
+        border: none;
+        transition: all 0.3s ease;
+    }
+
+    .btn-close-custom:hover {
+        transform: translateY(-2px);
+        box-shadow: var(--shadow-md);
+    }
+
+    @keyframes fadeInUp {
+        from {
+            opacity: 0;
+            transform: translateY(20px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    .info-card, .form-card {
+        animation: fadeInUp 0.5s ease;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<!-- رأس الصفحة -->
+<div class="close-header">
+    <div class="row align-items-center">
+        <div class="col-md-8">
+            <h2 class="mb-2">
+                <i class="fas fa-file-invoice-dollar me-2"></i>
+                الإغلاق المالي الشهري
+            </h2>
+            <p class="mb-0 opacity-75">تقرير شامل لإغلاق الشهر المالي مع كافة التفاصيل والحسابات</p>
+        </div>
+        <div class="col-md-4 text-center">
+            <i class="fas fa-chart-line fa-3x opacity-50"></i>
+        </div>
+    </div>
+</div>
+
+<!-- بطاقة اختيار الشهر -->
+<div class="card">
+    <div class="card-body p-4">
+        <div class="row">
+            <div class="col-md-8 mx-auto">
+                <div class="alert alert-info-custom">
+                    <div class="d-flex align-items-start gap-3">
+                        <i class="fas fa-info-circle fa-lg text-info"></i>
+                        <div>
+                            <strong>نظام الشهر المالي</strong><br>
+                            <small class="text-muted">
+                                يتم احتساب الشهر المالي من تاريخ <strong class="text-info">26</strong> من الشهر الحالي
+                                إلى تاريخ <strong class="text-info">25</strong> من الشهر التالي.
+                            </small>
+                        </div>
+                    </div>
+                </div>
+
+                <form method="POST" id="closeForm">
+                    <div class="mb-4">
+                        <label class="form-label fw-bold">
+                            <i class="fas fa-calendar-alt text-secondary"></i>
+                            اختر الشهر المالي <span class="text-danger">*</span>
+                        </label>
+                        <input type="month" class="form-control form-control-lg"
+                               id="month_year" name="month_year" required
+                               style="border-radius: 12px; border: 2px solid #e9ecef;">
+                        <div class="month-preview" id="monthPreview" style="display: none;">
+                            <small class="text-muted">
+                                <i class="fas fa-calendar-alt"></i>
+                                الفترة المالية: <strong id="startDatePreview">-</strong> إلى <strong id="endDatePreview">-</strong>
+                            </small>
+                        </div>
+                        <small class="text-muted mt-2 d-block">
+                            <i class="fas fa-info-circle"></i>
+                            مثال: اختيار يناير 2024 = الفترة من 26 ديسمبر 2023 إلى 25 يناير 2024
+                        </small>
+                    </div>
+
+                    <div class="text-center">
+                        <button type="submit" class="btn btn-close-custom btn-lg px-5"
+                                onclick="return confirm('هل أنت متأكد من إنشاء تقرير الإغلاق المالي؟\\n\\nسيتم عرض كافة تفاصيل الرواتب والمستحقات.')">
+                            <i class="fas fa-clipboard-list me-2"></i>
+                            إنشاء تقرير الإغلاق
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- معلومات عن الإغلاق المالي -->
+<div class="info-card mt-4">
+    <div class="info-title">
+        <i class="fas fa-info-circle me-2"></i>
+        معلومات عن الإغلاق المالي
+    </div>
+
+    <div class="row">
+        <div class="col-md-6">
+            <div class="formula-box">
+                <div class="d-flex align-items-center gap-3">
+                    <div class="formula-icon">
+                        <i class="fas fa-calendar-alt"></i>
+                    </div>
+                    <div>
+                        <div class="formula-title">الشهر المالي</div>
+                        <div class="formula-text">من 26 الشهر الحالي إلى 25 الشهر التالي</div>
+                        <small class="text-muted">مثال: شهر يناير = 26 ديسمبر - 25 يناير</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="formula-box">
+                <div class="d-flex align-items-center gap-3">
+                    <div class="formula-icon">
+                        <i class="fas fa-calculator"></i>
+                    </div>
+                    <div>
+                        <div class="formula-title">راتب الحضور</div>
+                        <div class="formula-text">(الراتب الأساسي ÷ 30) × عدد أيام الحضور</div>
+                        <small class="text-muted">يتم حساب أجر اليوم الواحد</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="formula-box">
+                <div class="d-flex align-items-center gap-3">
+                    <div class="formula-icon">
+                        <i class="fas fa-home"></i>
+                    </div>
+                    <div>
+                        <div class="formula-title">بدل السكن</div>
+                        <div class="formula-text">500 ريال × عدد أيام الحضور</div>
+                        <small class="text-muted">للموظفين الساكنين فقط</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="formula-box">
+                <div class="d-flex align-items-center gap-3">
+                    <div class="formula-icon">
+                        <i class="fas fa-exchange-alt"></i>
+                    </div>
+                    <div>
+                        <div class="formula-title">الإضافات والخصومات</div>
+                        <div class="formula-text">الإضافي + (السلف + الخصميات + الجزاءات)</div>
+                        <small class="text-muted">يتم ترحيل المعاملات تلقائياً</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- مثال توضيحي -->
+    <div class="example-box">
+        <div class="example-title">
+            <i class="fas fa-lightbulb me-2"></i>
+            مثال توضيحي
+        </div>
+        <div class="row">
+            <div class="col-md-6">
+                <p class="mb-1"><strong>بيانات الموظف:</strong></p>
+                <ul class="small text-muted">
+                    <li>الراتب الأساسي: 60,000 ريال</li>
+                    <li>أيام الحضور: 25 يوم</li>
+                    <li>حالة السكن: ساكن</li>
+                    <li>إضافي: 5,000 ريال</li>
+                    <li>سلفة: 10,000 ريال</li>
+                </ul>
+            </div>
+            <div class="col-md-6">
+                <p class="mb-1"><strong>طريقة الحساب:</strong></p>
+                <ul class="small text-muted">
+                    <li>راتب الحضور: (60,000 ÷ 30) × 25 = 50,000 ريال</li>
+                    <li>بدل السكن: 500 × 25 = 12,500 ريال</li>
+                    <li>الإجمالي: 50,000 + 12,500 + 5,000 - 10,000 = <strong class="text-success">57,500 ريال</strong></li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <!-- نصائح هامة -->
+    <div class="alert alert-warning mt-3">
+        <div class="d-flex align-items-start gap-3">
+            <i class="fas fa-exclamation-triangle fa-lg text-warning"></i>
+            <div>
+                <strong>نصائح هامة</strong><br>
+                <small class="text-muted">
+                    <i class="fas fa-check-circle text-success me-1"></i> تأكد من إدخال جميع المعاملات المالية (سلف، إضافي، خصميات) قبل الإغلاق<br>
+                    <i class="fas fa-check-circle text-success me-1"></i> يتم ترحيل المعاملات تلقائياً عند حساب الرواتب<br>
+                    <i class="fas fa-check-circle text-success me-1"></i> يمكن طباعة التقرير أو تصديره إلى Excel بعد الإنشاء<br>
+                    <i class="fas fa-check-circle text-success me-1"></i> لا يمكن تعديل الرواتب بعد إغلاق الشهر المالي
+                </small>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    $(document).ready(function() {
+        // عرض معاينة الفترة عند اختيار الشهر
+        $('#month_year').on('change', function() {
+            var monthYear = $(this).val();
+            if (monthYear) {
+                var parts = monthYear.split('-');
+                var year = parseInt(parts[0]);
+                var month = parseInt(parts[1]);
+
+                // حساب تاريخ البدء (26 من الشهر السابق)
+                var startDate = new Date(year, month - 2, 26);
+                // حساب تاريخ الانتهاء (25 من الشهر الحالي)
+                var endDate = new Date(year, month - 1, 25);
+
+                var startDateStr = startDate.getFullYear() + '-' +
+                                   (startDate.getMonth() + 1).toString().padStart(2, '0') + '-' +
+                                   startDate.getDate().toString().padStart(2, '0');
+                var endDateStr = endDate.getFullYear() + '-' +
+                                 (endDate.getMonth() + 1).toString().padStart(2, '0') + '-' +
+                                 endDate.getDate().toString().padStart(2, '0');
+
+                $('#startDatePreview').text(startDateStr);
+                $('#endDatePreview').text(endDateStr);
+                $('#monthPreview').show();
+            } else {
+                $('#monthPreview').hide();
+            }
+        });
+
+        // تعيين الشهر الحالي كقيمة افتراضية
+        var currentDate = new Date();
+        var currentMonthYear = currentDate.getFullYear() + '-' +
+                               (currentDate.getMonth() + 1).toString().padStart(2, '0');
+        $('#month_year').val(currentMonthYear);
+        $('#month_year').trigger('change');
+
+        // إضافة تأثيرات
+        $('#month_year').on('focus', function() {
+            $(this).css('border-color', '#6c757d');
+        }).on('blur', function() {
+            $(this).css('border-color', '#e9ecef');
+        });
+    });
+</script>
+{% endblock %}

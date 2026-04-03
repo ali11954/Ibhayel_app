@@ -1,0 +1,419 @@
+{% extends "base.html" %}
+
+{% block title %}إضافة عقد - ابن هائل لأعمال الزراعة{% endblock %}
+
+{% block extra_css %}
+<style>
+    /* تنسيقات متقدمة لصفحة إضافة العقد */
+    .add-contract-header {
+        background: linear-gradient(135deg, #9c27b0 0%, #7b1fa2 100%);
+        border-radius: 20px;
+        padding: 1.5rem;
+        margin-bottom: 1.5rem;
+        color: white;
+        position: relative;
+        overflow: hidden;
+    }
+
+    .add-contract-header::before {
+        content: '';
+        position: absolute;
+        top: -50%;
+        right: -50%;
+        width: 200%;
+        height: 200%;
+        background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, transparent 70%);
+        animation: rotate 20s linear infinite;
+    }
+
+    @keyframes rotate {
+        from { transform: rotate(0deg); }
+        to { transform: rotate(360deg); }
+    }
+
+    .contract-icon-large {
+        width: 80px;
+        height: 80px;
+        border-radius: 20px;
+        background: rgba(255,255,255,0.2);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        font-size: 2.5rem;
+        font-weight: bold;
+        margin-bottom: 1rem;
+        backdrop-filter: blur(10px);
+    }
+
+    .form-card {
+        border: none;
+        border-radius: 20px;
+        box-shadow: var(--shadow-lg);
+        overflow: hidden;
+    }
+
+    .form-card-header {
+        background: linear-gradient(135deg, #ffffff, #f8f9fa);
+        border-bottom: 3px solid var(--primary-color);
+        padding: 1.2rem 1.5rem;
+    }
+
+    .form-card-header h4 {
+        margin: 0;
+        color: var(--dark-color);
+        font-weight: 700;
+    }
+
+    .form-card-header h4 i {
+        color: var(--primary-color);
+        margin-left: 10px;
+    }
+
+    .form-group-custom {
+        margin-bottom: 1.5rem;
+    }
+
+    .form-label-custom {
+        font-weight: 600;
+        color: var(--dark-color);
+        margin-bottom: 0.5rem;
+        display: block;
+    }
+
+    .form-label-custom i {
+        color: var(--primary-color);
+        margin-left: 8px;
+        width: 20px;
+    }
+
+    .form-label-custom .required {
+        color: #dc3545;
+        margin-right: 4px;
+    }
+
+    .form-control-custom, .form-select-custom {
+        border-radius: 12px;
+        border: 2px solid #e9ecef;
+        padding: 0.7rem 1rem;
+        transition: all 0.3s ease;
+    }
+
+    .form-control-custom:focus, .form-select-custom:focus {
+        border-color: var(--primary-color);
+        box-shadow: 0 0 0 0.2rem rgba(46, 125, 50, 0.25);
+    }
+
+    .input-icon {
+        position: relative;
+    }
+
+    .input-icon i {
+        position: absolute;
+        right: 15px;
+        top: 50%;
+        transform: translateY(-50%);
+        color: #adb5bd;
+        transition: all 0.3s ease;
+    }
+
+    .input-icon .form-control-custom {
+        padding-right: 40px;
+    }
+
+    .input-icon .form-control-custom:focus + i {
+        color: var(--primary-color);
+    }
+
+    .contract-preview {
+        background: linear-gradient(135deg, #e8f5e9, #c8e6c9);
+        border-radius: 12px;
+        padding: 0.8rem;
+        margin-top: 0.5rem;
+    }
+
+    .info-box {
+        background: linear-gradient(135deg, #e3f2fd, #bbdef5);
+        border-radius: 15px;
+        padding: 1rem;
+        margin-top: 1rem;
+    }
+
+    .action-buttons {
+        display: flex;
+        gap: 1rem;
+        margin-top: 2rem;
+        padding-top: 1rem;
+        border-top: 1px solid #e9ecef;
+    }
+
+    .btn-custom {
+        padding: 0.7rem 1.5rem;
+        border-radius: 12px;
+        font-weight: 600;
+        transition: all 0.3s ease;
+    }
+
+    .btn-custom i {
+        margin-left: 8px;
+    }
+
+    .btn-custom:hover {
+        transform: translateY(-2px);
+    }
+
+    @keyframes fadeInUp {
+        from {
+            opacity: 0;
+            transform: translateY(20px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    .form-card {
+        animation: fadeInUp 0.5s ease;
+    }
+
+    .amount-display {
+        font-size: 1.2rem;
+        font-weight: 700;
+        color: var(--primary-color);
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<!-- رأس الصفحة المميز -->
+<div class="add-contract-header">
+    <div class="row align-items-center">
+        <div class="col-md-8">
+            <h2 class="mb-2">
+                <i class="fas fa-file-contract me-2"></i>
+                إضافة عقد جديد
+            </h2>
+            <p class="mb-0 opacity-75">إضافة عقد جديد مع إحدى الشركات المتعاقدة</p>
+        </div>
+        <div class="col-md-4 text-center">
+            <div class="contract-icon-large mx-auto">
+                <i class="fas fa-file-signature"></i>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- بطاقة النموذج المحسنة -->
+<div class="form-card">
+    <div class="form-card-header">
+        <h4>
+            <i class="fas fa-file-contract"></i>
+            بيانات العقد الجديد
+        </h4>
+        <p class="text-muted mb-0 mt-1">قم بإدخال بيانات العقد الجديد</p>
+    </div>
+
+    <div class="card-body p-4">
+        <form method="POST" id="addContractForm">
+            <div class="row">
+                <!-- الشركة -->
+                <div class="col-md-6 form-group-custom">
+                    <label class="form-label-custom">
+                        <i class="fas fa-building"></i>
+                        الشركة <span class="required">*</span>
+                    </label>
+                    <div class="input-icon">
+                        <i class="fas fa-building"></i>
+                        <select class="form-select form-select-custom" id="company_id" name="company_id" required>
+                            <option value="">-- اختر الشركة --</option>
+                            {% for company in companies %}
+                            <option value="{{ company.id }}">{{ company.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+
+                <!-- نوع العقد -->
+                <div class="col-md-6 form-group-custom">
+                    <label class="form-label-custom">
+                        <i class="fas fa-tag"></i>
+                        نوع العقد <span class="required">*</span>
+                    </label>
+                    <div class="input-icon">
+                        <i class="fas fa-calendar"></i>
+                        <select class="form-select form-select-custom" id="contract_type" name="contract_type" required>
+                            <option value="annual">سنوي</option>
+                            <option value="monthly">شهري</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- قيمة العقد -->
+                <div class="col-md-6 form-group-custom">
+                    <label class="form-label-custom">
+                        <i class="fas fa-money-bill"></i>
+                        قيمة العقد <span class="required">*</span>
+                    </label>
+                    <div class="input-icon">
+                        <i class="fas fa-riyal-sign"></i>
+                        <input type="number" class="form-control form-control-custom"
+                               id="contract_value" name="contract_value"
+                               step="0.01" required
+                               placeholder="أدخل قيمة العقد">
+                    </div>
+                    <div class="contract-preview" id="valuePreview">
+                        <small class="text-muted">
+                            <i class="fas fa-info-circle"></i>
+                            القيمة المدخلة: <strong id="formattedValue">0</strong> ر.ي
+                        </small>
+                    </div>
+                </div>
+
+                <!-- تاريخ البدء -->
+                <div class="col-md-6 form-group-custom">
+                    <label class="form-label-custom">
+                        <i class="fas fa-calendar-alt"></i>
+                        تاريخ البدء <span class="required">*</span>
+                    </label>
+                    <div class="input-icon">
+                        <i class="fas fa-calendar-check"></i>
+                        <input type="date" class="form-control form-control-custom"
+                               id="start_date" name="start_date" required>
+                    </div>
+                </div>
+
+                <!-- تاريخ الانتهاء -->
+                <div class="col-md-6 form-group-custom">
+                    <label class="form-label-custom">
+                        <i class="fas fa-calendar-times"></i>
+                        تاريخ الانتهاء
+                    </label>
+                    <div class="input-icon">
+                        <i class="fas fa-calendar-week"></i>
+                        <input type="date" class="form-control form-control-custom"
+                               id="end_date" name="end_date">
+                    </div>
+                    <small class="text-muted">
+                        <i class="fas fa-info-circle"></i>
+                        اتركه فارغاً إذا كان العقد مفتوحاً
+                    </small>
+                </div>
+
+                <!-- ملاحظات -->
+                <div class="col-12 form-group-custom">
+                    <label class="form-label-custom">
+                        <i class="fas fa-sticky-note"></i>
+                        ملاحظات
+                    </label>
+                    <div class="input-icon">
+                        <i class="fas fa-pen"></i>
+                        <textarea class="form-control form-control-custom"
+                                  id="notes" name="notes"
+                                  rows="4"
+                                  placeholder="أضف أي ملاحظات إضافية حول العقد..."></textarea>
+                    </div>
+                </div>
+            </div>
+
+            <!-- معلومات إضافية -->
+            <div class="info-box">
+                <div class="d-flex align-items-start gap-3">
+                    <i class="fas fa-info-circle fa-lg text-primary"></i>
+                    <div>
+                        <strong>تعليمات هامة</strong><br>
+                        <small class="text-muted">
+                            <i class="fas fa-check-circle text-success me-1"></i> يمكن إضافة فواتير للعقد بعد إنشائه<br>
+                            <i class="fas fa-check-circle text-success me-1"></i> سيتم احتساب المبلغ المستلم تلقائياً عند إضافة الفواتير<br>
+                            <i class="fas fa-check-circle text-success me-1"></i> يمكن تعديل بيانات العقد لاحقاً<br>
+                            <i class="fas fa-check-circle text-success me-1"></i> العقد النشط فقط يمكن إضافة فواتير له
+                        </small>
+                    </div>
+                </div>
+            </div>
+
+            <!-- أزرار الإجراءات -->
+            <div class="action-buttons">
+                <button type="submit" class="btn btn-primary btn-custom">
+                    <i class="fas fa-save"></i>
+                    إضافة العقد
+                </button>
+                <a href="{{ url_for('contracts_list') }}" class="btn btn-secondary btn-custom">
+                    <i class="fas fa-times"></i>
+                    إلغاء
+                </a>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+    $(document).ready(function() {
+        // تنسيق قيمة العقد أثناء الكتابة
+        $('#contract_value').on('input', function() {
+            var value = $(this).val();
+            var formatted = new Intl.NumberFormat('ar-SA').format(value);
+            $('#formattedValue').text(formatted);
+
+            // تغيير اللون حسب القيمة
+            if (value > 100000) {
+                $('#valuePreview').addClass('bg-success bg-opacity-10');
+            } else {
+                $('#valuePreview').removeClass('bg-success bg-opacity-10');
+            }
+        });
+
+        // تعيين الحد الأدنى لتاريخ البدء كاليوم الحالي
+        var today = new Date().toISOString().split('T')[0];
+        document.getElementById('start_date').min = today;
+
+        // التحقق من أن تاريخ الانتهاء بعد تاريخ البدء
+        $('#end_date').on('change', function() {
+            var startDate = $('#start_date').val();
+            var endDate = $(this).val();
+
+            if (startDate && endDate && endDate < startDate) {
+                alert('تاريخ الانتهاء يجب أن يكون بعد تاريخ البدء');
+                $(this).val('');
+            }
+        });
+
+        // التحقق من صحة النموذج
+        $('#addContractForm').on('submit', function(e) {
+            var companyId = $('#company_id').val();
+            var contractValue = $('#contract_value').val();
+            var startDate = $('#start_date').val();
+
+            if (!companyId) {
+                e.preventDefault();
+                alert('الرجاء اختيار الشركة');
+                $('#company_id').focus();
+                return false;
+            }
+
+            if (!contractValue || parseFloat(contractValue) <= 0) {
+                e.preventDefault();
+                alert('الرجاء إدخال قيمة عقد صحيحة');
+                $('#contract_value').focus();
+                return false;
+            }
+
+            if (!startDate) {
+                e.preventDefault();
+                alert('الرجاء إدخال تاريخ بدء العقد');
+                $('#start_date').focus();
+                return false;
+            }
+
+            return true;
+        });
+
+        // تأثيرات على الحقول
+        $('.form-control-custom, .form-select-custom').on('focus', function() {
+            $(this).parent().find('i').css('color', 'var(--primary-color)');
+        }).on('blur', function() {
+            $(this).parent().find('i').css('color', '#adb5bd');
+        });
+    });
+</script>
+{% endblock %}

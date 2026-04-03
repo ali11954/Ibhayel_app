@@ -1,0 +1,340 @@
+{% extends "base.html" %}
+
+{% block title %}تقييم عامل - ابن هائل لأعمال الزراعة{% endblock %}
+
+{% block extra_css %}
+<style>
+    .evaluation-header {
+        background: linear-gradient(135deg, #9c27b0 0%, #7b1fa2 100%);
+        border-radius: 20px;
+        padding: 1.5rem;
+        margin-bottom: 1.5rem;
+        color: white;
+        position: relative;
+        overflow: hidden;
+    }
+
+    .evaluation-header::before {
+        content: '';
+        position: absolute;
+        top: -50%;
+        right: -50%;
+        width: 200%;
+        height: 200%;
+        background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, transparent 70%);
+        animation: rotate 20s linear infinite;
+    }
+
+    .criteria-card {
+        background: white;
+        border-radius: 15px;
+        padding: 1rem;
+        margin-bottom: 1rem;
+        border: 2px solid #e9ecef;
+        transition: all 0.3s ease;
+    }
+
+    .criteria-card:hover {
+        border-color: var(--primary-color);
+        box-shadow: var(--shadow-md);
+    }
+
+    .criteria-title {
+        font-weight: 700;
+        color: var(--dark-color);
+        margin-bottom: 0.5rem;
+    }
+
+    .criteria-desc {
+        font-size: 0.8rem;
+        color: #6c757d;
+        margin-bottom: 0.5rem;
+    }
+
+    .rating-scale {
+        display: flex;
+        gap: 0.5rem;
+        align-items: center;
+        flex-wrap: wrap;
+    }
+
+    .rating-option {
+        text-align: center;
+        cursor: pointer;
+        transition: all 0.3s ease;
+    }
+
+    .rating-option input {
+        display: none;
+    }
+
+    .rating-box {
+        width: 50px;
+        padding: 0.5rem;
+        border-radius: 10px;
+        background: #f8f9fa;
+        border: 2px solid #e9ecef;
+        transition: all 0.3s ease;
+    }
+
+    .rating-option input:checked + .rating-box {
+        background: var(--primary-color);
+        border-color: var(--primary-color);
+        color: white;
+        transform: scale(1.05);
+    }
+
+    .rating-option:hover .rating-box {
+        transform: scale(1.05);
+        border-color: var(--primary-color);
+    }
+
+    .total-score {
+        background: linear-gradient(135deg, var(--primary-color), var(--primary-dark));
+        border-radius: 15px;
+        padding: 1rem;
+        color: white;
+        text-align: center;
+    }
+
+    .total-score-number {
+        font-size: 2.5rem;
+        font-weight: 800;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="evaluation-header">
+    <div class="row align-items-center">
+        <div class="col-md-8">
+            <h2 class="mb-2">
+                <i class="fas fa-star me-2"></i>
+                تقييم أداء العامل
+            </h2>
+            <p class="mb-0 opacity-75">تقييم أداء العمال في أعمال الزراعة حسب المعايير المحددة</p>
+        </div>
+        <div class="col-md-4 text-center">
+            <i class="fas fa-hard-hat fa-3x opacity-50"></i>
+        </div>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-body p-4">
+        <form method="POST" id="evaluationForm">
+            <!-- معلومات أساسية -->
+            <div class="row mb-4">
+                <div class="col-md-6">
+                    <label class="form-label fw-bold">
+                        <i class="fas fa-user"></i> العامل
+                    </label>
+                    <select class="form-select" name="employee_id" required>
+                        <option value="">اختر العامل</option>
+                        {% for emp in employees %}
+                        <option value="{{ emp.id }}">{{ emp.name }} ({{ emp.job_title or 'عامل' }})</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label fw-bold">
+                        <i class="fas fa-calendar"></i> تاريخ التقييم
+                    </label>
+                    <input type="date" class="form-control" name="date" value="{{ now.strftime('%Y-%m-%d') }}" required>
+                </div>
+                <input type="hidden" name="evaluation_type" value="supervisor">
+            </div>
+
+            <!-- معايير التقييم -->
+            <h4 class="mb-3"><i class="fas fa-clipboard-list text-primary"></i> معايير التقييم</h4>
+
+            <div class="criteria-card">
+                <div class="criteria-title">
+                    <i class="fas fa-tractor text-success"></i> 1. مهارات العمل الزراعي
+                </div>
+                <div class="criteria-desc">
+                    دقة وجودة أداء المهام الزراعية (الري، التقليم، التسميد، الحصاد)
+                </div>
+                <div class="rating-scale" data-criteria="farm_skills">
+                    {% for i in range(1, 11) %}
+                    <label class="rating-option">
+                        <input type="radio" name="criteria_1" value="{{ i }}" required>
+                        <div class="rating-box">{{ i }}</div>
+                    </label>
+                    {% endfor %}
+                </div>
+            </div>
+
+            <div class="criteria-card">
+                <div class="criteria-title">
+                    <i class="fas fa-clock text-success"></i> 2. الالتزام بالوقت والحضور
+                </div>
+                <div class="criteria-desc">
+                    الانتظام في الحضور والانصراف، الالتزام بمواعيد العمل
+                </div>
+                <div class="rating-scale" data-criteria="attendance">
+                    {% for i in range(1, 11) %}
+                    <label class="rating-option">
+                        <input type="radio" name="criteria_2" value="{{ i }}" required>
+                        <div class="rating-box">{{ i }}</div>
+                    </label>
+                    {% endfor %}
+                </div>
+            </div>
+
+            <div class="criteria-card">
+                <div class="criteria-title">
+                    <i class="fas fa-shield-alt text-success"></i> 3. الالتزام بمعايير السلامة
+                </div>
+                <div class="criteria-desc">
+                    استخدام معدات السلامة، اتباع إجراءات الأمن والسلامة في العمل
+                </div>
+                <div class="rating-scale" data-criteria="safety">
+                    {% for i in range(1, 11) %}
+                    <label class="rating-option">
+                        <input type="radio" name="criteria_3" value="{{ i }}" required>
+                        <div class="rating-box">{{ i }}</div>
+                    </label>
+                    {% endfor %}
+                </div>
+            </div>
+
+            <div class="criteria-card">
+                <div class="criteria-title">
+                    <i class="fas fa-hand-holding-heart text-success"></i> 4. جودة العمل وإتقانه
+                </div>
+                <div class="criteria-desc">
+                    دقة وجودة العمل المنجز، الاهتمام بالتفاصيل
+                </div>
+                <div class="rating-scale" data-criteria="quality">
+                    {% for i in range(1, 11) %}
+                    <label class="rating-option">
+                        <input type="radio" name="criteria_4" value="{{ i }}" required>
+                        <div class="rating-box">{{ i }}</div>
+                    </label>
+                    {% endfor %}
+                </div>
+            </div>
+
+            <div class="criteria-card">
+                <div class="criteria-title">
+                    <i class="fas fa-users text-success"></i> 5. العمل الجماعي والتعاون
+                </div>
+                <div class="criteria-desc">
+                    التعاون مع الزملاء، المساعدة في المهام الجماعية
+                </div>
+                <div class="rating-scale" data-criteria="teamwork">
+                    {% for i in range(1, 11) %}
+                    <label class="rating-option">
+                        <input type="radio" name="criteria_5" value="{{ i }}" required>
+                        <div class="rating-box">{{ i }}</div>
+                    </label>
+                    {% endfor %}
+                </div>
+            </div>
+
+            <div class="criteria-card">
+                <div class="criteria-title">
+                    <i class="fas fa-tachometer-alt text-success"></i> 6. سرعة الإنجاز والإنتاجية
+                </div>
+                <div class="criteria-desc">
+                    سرعة إنجاز المهام المطلوبة، مستوى الإنتاجية
+                </div>
+                <div class="rating-scale" data-criteria="productivity">
+                    {% for i in range(1, 11) %}
+                    <label class="rating-option">
+                        <input type="radio" name="criteria_6" value="{{ i }}" required>
+                        <div class="rating-box">{{ i }}</div>
+                    </label>
+                    {% endfor %}
+                </div>
+            </div>
+
+            <div class="criteria-card">
+                <div class="criteria-title">
+                    <i class="fas fa-comments text-success"></i> 7. التواصل والسلوك
+                </div>
+                <div class="criteria-desc">
+                    التواصل مع المشرفين، السلوك المهني، احترام التعليمات
+                </div>
+                <div class="rating-scale" data-criteria="communication">
+                    {% for i in range(1, 11) %}
+                    <label class="rating-option">
+                        <input type="radio" name="criteria_7" value="{{ i }}" required>
+                        <div class="rating-box">{{ i }}</div>
+                    </label>
+                    {% endfor %}
+                </div>
+            </div>
+
+            <!-- المجموع والتقييم النهائي -->
+            <div class="row mt-4">
+                <div class="col-md-6">
+                    <div class="total-score">
+                        <div class="total-score-number" id="totalScore">0</div>
+                        <div>الدرجة النهائية</div>
+                        <div class="mt-2" id="scoreRating"></div>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label fw-bold">
+                        <i class="fas fa-comment"></i> تعليقات إضافية
+                    </label>
+                    <textarea class="form-control" name="comments" rows="4"
+                              placeholder="أضف ملاحظات إضافية عن أداء العامل..."></textarea>
+                </div>
+            </div>
+
+            <div class="mt-4 d-flex gap-2">
+                <button type="submit" class="btn btn-primary btn-lg">
+                    <i class="fas fa-save"></i> حفظ التقييم
+                </button>
+                <a href="{{ url_for('evaluations_list') }}" class="btn btn-secondary btn-lg">
+                    <i class="fas fa-times"></i> إلغاء
+                </a>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+    $(document).ready(function() {
+        // حساب المجموع تلقائياً
+        $('input[type="radio"]').on('change', function() {
+            calculateTotal();
+        });
+
+        function calculateTotal() {
+            var total = 0;
+            for(var i = 1; i <= 7; i++) {
+                var selected = $('input[name="criteria_' + i + '"]:checked').val();
+                if(selected) {
+                    total += parseInt(selected);
+                }
+            }
+            $('#totalScore').text(total);
+
+            // تحديد التقييم النهائي
+            var rating = '';
+            var color = '';
+            if(total >= 60) {
+                rating = 'ممتاز ⭐⭐⭐⭐⭐';
+                color = '#28a745';
+            } else if(total >= 50) {
+                rating = 'جيد جداً ⭐⭐⭐⭐';
+                color = '#17a2b8';
+            } else if(total >= 40) {
+                rating = 'جيد ⭐⭐⭐';
+                color = '#ffc107';
+            } else if(total >= 30) {
+                rating = 'مقبول ⭐⭐';
+                color = '#fd7e14';
+            } else {
+                rating = 'يحتاج تحسين ⭐';
+                color = '#dc3545';
+            }
+            $('#scoreRating').html('<span class="badge" style="background: ' + color + '; padding: 0.5rem 1rem;">' + rating + '</span>');
+        }
+    });
+</script>
+{% endblock %}

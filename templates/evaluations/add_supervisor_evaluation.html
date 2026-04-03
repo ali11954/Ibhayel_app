@@ -1,0 +1,281 @@
+{% extends "base.html" %}
+
+{% block title %}تقييم مشرف - ابن هائل لأعمال الزراعة{% endblock %}
+
+{% block extra_css %}
+<style>
+    .evaluation-header-supervisor {
+        background: linear-gradient(135deg, #ff9800 0%, #f57c00 100%);
+        border-radius: 20px;
+        padding: 1.5rem;
+        margin-bottom: 1.5rem;
+        color: white;
+        position: relative;
+        overflow: hidden;
+    }
+
+    .criteria-card {
+        background: white;
+        border-radius: 15px;
+        padding: 1rem;
+        margin-bottom: 1rem;
+        border: 2px solid #e9ecef;
+        transition: all 0.3s ease;
+    }
+
+    .rating-option {
+        text-align: center;
+        cursor: pointer;
+        transition: all 0.3s ease;
+    }
+
+    .rating-option input {
+        display: none;
+    }
+
+    .rating-box {
+        width: 50px;
+        padding: 0.5rem;
+        border-radius: 10px;
+        background: #f8f9fa;
+        border: 2px solid #e9ecef;
+        transition: all 0.3s ease;
+    }
+
+    .rating-option input:checked + .rating-box {
+        background: #ff9800;
+        border-color: #ff9800;
+        color: white;
+        transform: scale(1.05);
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="evaluation-header-supervisor">
+    <div class="row align-items-center">
+        <div class="col-md-8">
+            <h2 class="mb-2">
+                <i class="fas fa-chalkboard-user me-2"></i>
+                تقييم أداء المشرف
+            </h2>
+            <p class="mb-0 opacity-75">تقييم أداء المشرفين في إدارة أعمال الزراعة</p>
+        </div>
+        <div class="col-md-4 text-center">
+            <i class="fas fa-user-tie fa-3x opacity-50"></i>
+        </div>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-body p-4">
+        <form method="POST" id="supervisorEvalForm">
+            <div class="row mb-4">
+                <div class="col-md-6">
+                    <label class="form-label fw-bold">
+                        <i class="fas fa-user-tie"></i> المشرف المراد تقييمه
+                    </label>
+                    <select class="form-select" name="employee_id" required>
+                        <option value="">اختر المشرف</option>
+                        {% for emp in employees %}
+                        {% if emp.job_title and 'مشرف' in emp.job_title %}
+                        <option value="{{ emp.id }}">{{ emp.name }} ({{ emp.job_title }})</option>
+                        {% endif %}
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label fw-bold">
+                        <i class="fas fa-calendar"></i> تاريخ التقييم
+                    </label>
+                    <input type="date" class="form-control" name="date" value="{{ now.strftime('%Y-%m-%d') }}" required>
+                </div>
+                <input type="hidden" name="evaluation_type" value="contractor">
+            </div>
+
+            <h4 class="mb-3"><i class="fas fa-clipboard-list text-warning"></i> معايير تقييم المشرف</h4>
+
+            <div class="criteria-card">
+                <div class="criteria-title">
+                    <i class="fas fa-chalkboard-user text-warning"></i> 1. القيادة والإدارة
+                </div>
+                <div class="criteria-desc">
+                    قدرة المشرف على قيادة الفريق، توزيع المهام، إدارة الوقت
+                </div>
+                <div class="rating-scale">
+                    {% for i in range(1, 11) %}
+                    <label class="rating-option">
+                        <input type="radio" name="criteria_1" value="{{ i }}" required>
+                        <div class="rating-box">{{ i }}</div>
+                    </label>
+                    {% endfor %}
+                </div>
+            </div>
+
+            <div class="criteria-card">
+                <div class="criteria-title">
+                    <i class="fas fa-chart-line text-warning"></i> 2. التخطيط والتنظيم
+                </div>
+                <div class="criteria-desc">
+                    تنظيم المهام الزراعية، التخطيط المسبق للعمل، الجدولة
+                </div>
+                <div class="rating-scale">
+                    {% for i in range(1, 11) %}
+                    <label class="rating-option">
+                        <input type="radio" name="criteria_2" value="{{ i }}" required>
+                        <div class="rating-box">{{ i }}</div>
+                    </label>
+                    {% endfor %}
+                </div>
+            </div>
+
+            <div class="criteria-card">
+                <div class="criteria-title">
+                    <i class="fas fa-comments text-warning"></i> 3. التواصل مع العمال
+                </div>
+                <div class="criteria-desc">
+                    وضوح التعليمات، الاستماع للعمال، حل المشكلات
+                </div>
+                <div class="rating-scale">
+                    {% for i in range(1, 11) %}
+                    <label class="rating-option">
+                        <input type="radio" name="criteria_3" value="{{ i }}" required>
+                        <div class="rating-box">{{ i }}</div>
+                    </label>
+                    {% endfor %}
+                </div>
+            </div>
+
+            <div class="criteria-card">
+                <div class="criteria-title">
+                    <i class="fas fa-seedling text-warning"></i> 4. المعرفة الزراعية
+                </div>
+                <div class="criteria-desc">
+                    المعرفة بالعمليات الزراعية، تقديم الإرشاد الفني للعمال
+                </div>
+                <div class="rating-scale">
+                    {% for i in range(1, 11) %}
+                    <label class="rating-option">
+                        <input type="radio" name="criteria_4" value="{{ i }}" required>
+                        <div class="rating-box">{{ i }}</div>
+                    </label>
+                    {% endfor %}
+                </div>
+            </div>
+
+            <div class="criteria-card">
+                <div class="criteria-title">
+                    <i class="fas fa-chart-simple text-warning"></i> 5. متابعة الإنتاجية
+                </div>
+                <div class="criteria-desc">
+                    متابعة إنتاجية العمال، تحقيق الأهداف المطلوبة
+                </div>
+                <div class="rating-scale">
+                    {% for i in range(1, 11) %}
+                    <label class="rating-option">
+                        <input type="radio" name="criteria_5" value="{{ i }}" required>
+                        <div class="rating-box">{{ i }}</div>
+                    </label>
+                    {% endfor %}
+                </div>
+            </div>
+
+            <div class="criteria-card">
+                <div class="criteria-title">
+                    <i class="fas fa-shield-alt text-warning"></i> 6. تطبيق السلامة المهنية
+                </div>
+                <div class="criteria-desc">
+                    الالتزام بتطبيق معايير السلامة، توعية العمال بالمخاطر
+                </div>
+                <div class="rating-scale">
+                    {% for i in range(1, 11) %}
+                    <label class="rating-option">
+                        <input type="radio" name="criteria_6" value="{{ i }}" required>
+                        <div class="rating-box">{{ i }}</div>
+                    </label>
+                    {% endfor %}
+                </div>
+            </div>
+
+            <div class="criteria-card">
+                <div class="criteria-title">
+                    <i class="fas fa-tasks text-warning"></i> 7. تقارير الأداء والتواصل مع الإدارة
+                </div>
+                <div class="criteria-desc">
+                    دقة التقارير المقدمة، التواصل مع الإدارة العليا
+                </div>
+                <div class="rating-scale">
+                    {% for i in range(1, 11) %}
+                    <label class="rating-option">
+                        <input type="radio" name="criteria_7" value="{{ i }}" required>
+                        <div class="rating-box">{{ i }}</div>
+                    </label>
+                    {% endfor %}
+                </div>
+            </div>
+
+            <div class="row mt-4">
+                <div class="col-md-6">
+                    <div class="total-score" style="background: linear-gradient(135deg, #ff9800, #f57c00);">
+                        <div class="total-score-number" id="totalScore">0</div>
+                        <div>الدرجة النهائية</div>
+                        <div class="mt-2" id="scoreRating"></div>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label fw-bold">
+                        <i class="fas fa-comment"></i> تعليقات وتوصيات
+                    </label>
+                    <textarea class="form-control" name="comments" rows="4"
+                              placeholder="أضف ملاحظاتك وتوصياتك حول أداء المشرف..."></textarea>
+                </div>
+            </div>
+
+            <div class="mt-4 d-flex gap-2">
+                <button type="submit" class="btn btn-warning btn-lg">
+                    <i class="fas fa-save"></i> حفظ التقييم
+                </button>
+                <a href="{{ url_for('evaluations_list') }}" class="btn btn-secondary btn-lg">
+                    <i class="fas fa-times"></i> إلغاء
+                </a>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+    $(document).ready(function() {
+        $('input[type="radio"]').on('change', function() {
+            calculateTotal();
+        });
+
+        function calculateTotal() {
+            var total = 0;
+            for(var i = 1; i <= 7; i++) {
+                var selected = $('input[name="criteria_' + i + '"]:checked').val();
+                if(selected) {
+                    total += parseInt(selected);
+                }
+            }
+            $('#totalScore').text(total);
+
+            var rating = '';
+            var color = '';
+            if(total >= 60) {
+                rating = 'ممتاز ⭐⭐⭐⭐⭐ - مشرف متميز';
+                color = '#28a745';
+            } else if(total >= 50) {
+                rating = 'جيد جداً ⭐⭐⭐⭐ - أداء عالٍ';
+                color = '#17a2b8';
+            } else if(total >= 40) {
+                rating = 'جيد ⭐⭐⭐ - يحتاج بعض التطوير';
+                color = '#ffc107';
+            } else {
+                rating = 'يحتاج تحسين ⭐⭐ - متابعة مكثفة مطلوبة';
+                color = '#dc3545';
+            }
+            $('#scoreRating').html('<span class="badge" style="background: ' + color + '; padding: 0.5rem 1rem;">' + rating + '</span>');
+        }
+    });
+</script>
+{% endblock %}

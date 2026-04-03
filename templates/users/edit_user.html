@@ -1,0 +1,424 @@
+{% extends "base.html" %}
+
+{% block title %}تعديل مستخدم - ابن هائل لأعمال الزراعة{% endblock %}
+
+{% block extra_css %}
+<style>
+    /* تنسيقات متقدمة لصفحة تعديل المستخدم */
+    .edit-user-header {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        border-radius: 20px;
+        padding: 1.5rem;
+        margin-bottom: 1.5rem;
+        color: white;
+        position: relative;
+        overflow: hidden;
+    }
+
+    .edit-user-header::before {
+        content: '';
+        position: absolute;
+        top: -50%;
+        right: -50%;
+        width: 200%;
+        height: 200%;
+        background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, transparent 70%);
+        animation: rotate 20s linear infinite;
+    }
+
+    @keyframes rotate {
+        from { transform: rotate(0deg); }
+        to { transform: rotate(360deg); }
+    }
+
+    .user-avatar-large {
+        width: 80px;
+        height: 80px;
+        border-radius: 20px;
+        background: linear-gradient(135deg, var(--primary-light), var(--primary-color));
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        font-size: 2rem;
+        font-weight: bold;
+        margin-bottom: 1rem;
+    }
+
+    .form-card {
+        border: none;
+        border-radius: 20px;
+        box-shadow: var(--shadow-lg);
+        overflow: hidden;
+    }
+
+    .form-card-header {
+        background: linear-gradient(135deg, #ffffff, #f8f9fa);
+        border-bottom: 3px solid var(--primary-color);
+        padding: 1.2rem 1.5rem;
+    }
+
+    .form-card-header h4 {
+        margin: 0;
+        color: var(--dark-color);
+        font-weight: 700;
+    }
+
+    .form-card-header h4 i {
+        color: var(--primary-color);
+        margin-left: 10px;
+    }
+
+    .form-group-custom {
+        margin-bottom: 1.5rem;
+    }
+
+    .form-label-custom {
+        font-weight: 600;
+        color: var(--dark-color);
+        margin-bottom: 0.5rem;
+        display: block;
+    }
+
+    .form-label-custom i {
+        color: var(--primary-color);
+        margin-left: 8px;
+        width: 20px;
+    }
+
+    .form-control-custom, .form-select-custom {
+        border-radius: 12px;
+        border: 2px solid #e9ecef;
+        padding: 0.7rem 1rem;
+        transition: all 0.3s ease;
+    }
+
+    .form-control-custom:focus, .form-select-custom:focus {
+        border-color: var(--primary-color);
+        box-shadow: 0 0 0 0.2rem rgba(46, 125, 50, 0.25);
+    }
+
+    .form-control-custom[readonly], .form-control-custom:disabled {
+        background-color: #f8f9fa;
+        cursor: not-allowed;
+    }
+
+    .input-icon {
+        position: relative;
+    }
+
+    .input-icon i {
+        position: absolute;
+        right: 15px;
+        top: 50%;
+        transform: translateY(-50%);
+        color: #adb5bd;
+    }
+
+    .input-icon .form-control-custom {
+        padding-right: 40px;
+    }
+
+    .role-options {
+        display: flex;
+        gap: 1rem;
+        flex-wrap: wrap;
+        margin-top: 0.5rem;
+    }
+
+    .role-option {
+        flex: 1;
+        min-width: 120px;
+        cursor: pointer;
+    }
+
+    .role-option input {
+        display: none;
+    }
+
+    .role-card {
+        background: white;
+        border: 2px solid #e9ecef;
+        border-radius: 15px;
+        padding: 1rem;
+        text-align: center;
+        transition: all 0.3s ease;
+        cursor: pointer;
+    }
+
+    .role-option input:checked + .role-card {
+        border-color: var(--primary-color);
+        background: linear-gradient(135deg, rgba(46, 125, 50, 0.05), rgba(76, 175, 80, 0.1));
+        transform: translateY(-3px);
+        box-shadow: var(--shadow-md);
+    }
+
+    .role-card i {
+        font-size: 1.5rem;
+        margin-bottom: 0.5rem;
+        display: block;
+    }
+
+    .role-card .role-title {
+        font-weight: 600;
+        margin-bottom: 0.25rem;
+    }
+
+    .role-card .role-desc {
+        font-size: 0.7rem;
+        color: #6c757d;
+    }
+
+    .action-buttons {
+        display: flex;
+        gap: 1rem;
+        margin-top: 2rem;
+        padding-top: 1rem;
+        border-top: 1px solid #e9ecef;
+    }
+
+    .btn-custom {
+        padding: 0.7rem 1.5rem;
+        border-radius: 12px;
+        font-weight: 600;
+        transition: all 0.3s ease;
+    }
+
+    .btn-custom i {
+        margin-left: 8px;
+    }
+
+    .btn-custom:hover {
+        transform: translateY(-2px);
+    }
+
+    .info-box {
+        background: linear-gradient(135deg, #e3f2fd, #bbdef5);
+        border-radius: 15px;
+        padding: 1rem;
+        margin-top: 1rem;
+    }
+
+    .info-box i {
+        color: #1976d2;
+        font-size: 1.2rem;
+    }
+
+    @keyframes fadeInUp {
+        from {
+            opacity: 0;
+            transform: translateY(20px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    .form-card {
+        animation: fadeInUp 0.5s ease;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<!-- رأس الصفحة المميز -->
+<div class="edit-user-header">
+    <div class="row align-items-center">
+        <div class="col-md-8">
+            <h2 class="mb-2">
+                <i class="fas fa-user-edit me-2"></i>
+                تعديل المستخدم
+            </h2>
+            <p class="mb-0 opacity-75">تحديث معلومات المستخدم وصلاحياته في النظام</p>
+        </div>
+        <div class="col-md-4 text-center">
+            <div class="user-avatar-large mx-auto">
+                {{ user.full_name[0]|upper if user.full_name else user.username[0]|upper }}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- بطاقة النموذج المحسنة -->
+<div class="form-card">
+    <div class="form-card-header">
+        <h4>
+            <i class="fas fa-id-card"></i>
+            معلومات المستخدم
+        </h4>
+        <p class="text-muted mb-0 mt-1">قم بتحديث البيانات المطلوبة أدناه</p>
+    </div>
+
+    <div class="card-body p-4">
+        <form method="POST">
+            <div class="row">
+                <!-- اسم المستخدم - للقراءة فقط -->
+                <div class="col-md-6 form-group-custom">
+                    <label class="form-label-custom">
+                        <i class="fas fa-user-circle"></i>
+                        اسم المستخدم
+                    </label>
+                    <div class="input-icon">
+                        <i class="fas fa-lock"></i>
+                        <input type="text" class="form-control form-control-custom"
+                               value="{{ user.username }}" readonly disabled>
+                    </div>
+                    <small class="text-muted">
+                        <i class="fas fa-info-circle me-1"></i>
+                        لا يمكن تغيير اسم المستخدم
+                    </small>
+                </div>
+
+                <!-- الاسم الكامل -->
+                <div class="col-md-6 form-group-custom">
+                    <label class="form-label-custom">
+                        <i class="fas fa-id-card"></i>
+                        الاسم الكامل <span class="text-danger">*</span>
+                    </label>
+                    <input type="text" class="form-control form-control-custom"
+                           id="full_name" name="full_name"
+                           value="{{ user.full_name }}" required>
+                </div>
+
+                <!-- كلمة المرور الجديدة -->
+                <div class="col-md-6 form-group-custom">
+                    <label class="form-label-custom">
+                        <i class="fas fa-key"></i>
+                        كلمة المرور الجديدة
+                    </label>
+                    <div class="input-icon">
+                        <i class="fas fa-eye-slash toggle-password" style="cursor: pointer; right: 45px; z-index: 10;"></i>
+                        <input type="password" class="form-control form-control-custom"
+                               id="password" name="password"
+                               placeholder="********">
+                    </div>
+                    <small class="text-muted">
+                        <i class="fas fa-info-circle me-1"></i>
+                        اتركه فارغاً للإبقاء على كلمة المرور الحالية
+                    </small>
+                </div>
+
+                <!-- حالة المستخدم -->
+                <div class="col-md-6 form-group-custom">
+                    <label class="form-label-custom">
+                        <i class="fas fa-toggle-on"></i>
+                        حالة المستخدم
+                    </label>
+                    <div class="form-check form-switch">
+                        <input class="form-check-input" type="checkbox" id="is_active"
+                               name="is_active" {% if user.is_active %}checked{% endif %}
+                               style="width: 3rem; height: 1.5rem; cursor: pointer;">
+                        <label class="form-check-label me-2" for="is_active" id="statusLabel">
+                            {% if user.is_active %}
+                            <span class="badge bg-success">نشط</span>
+                            {% else %}
+                            <span class="badge bg-danger">غير نشط</span>
+                            {% endif %}
+                        </label>
+                    </div>
+                    <small class="text-muted">
+                        <i class="fas fa-info-circle me-1"></i>
+                        تعطيل المستخدم يمنعه من تسجيل الدخول
+                    </small>
+                </div>
+            </div>
+
+            <!-- الصلاحيات - بطاقات اختيارية -->
+            <div class="form-group-custom">
+                <label class="form-label-custom">
+                    <i class="fas fa-shield-alt"></i>
+                    الصلاحية <span class="text-danger">*</span>
+                </label>
+                <div class="role-options">
+                    {% for role_key, role_name in roles.items() %}
+                    <label class="role-option">
+                        <input type="radio" name="role" value="{{ role_key }}"
+                               {% if user.role == role_key %}checked{% endif %}>
+                        <div class="role-card">
+                            {% if role_key == 'admin' %}
+                            <i class="fas fa-crown text-danger"></i>
+                            {% elif role_key == 'supervisor' %}
+                            <i class="fas fa-chalkboard-user text-info"></i>
+                            {% elif role_key == 'finance' %}
+                            <i class="fas fa-chart-line text-warning"></i>
+                            {% else %}
+                            <i class="fas fa-eye text-secondary"></i>
+                            {% endif %}
+                            <div class="role-title">{{ role_name }}</div>
+                            <div class="role-desc">
+                                {% if role_key == 'admin' %}
+                                صلاحية كاملة
+                                {% elif role_key == 'supervisor' %}
+                                إدارة الموظفين والحضور
+                                {% elif role_key == 'finance' %}
+                                إدارة الرواتب والمعاملات
+                                {% else %}
+                                عرض البيانات فقط
+                                {% endif %}
+                            </div>
+                        </div>
+                    </label>
+                    {% endfor %}
+                </div>
+            </div>
+
+            <!-- معلومات إضافية -->
+            <div class="info-box">
+                <div class="d-flex align-items-start gap-3">
+                    <i class="fas fa-clock"></i>
+                    <div>
+                        <strong>معلومات إضافية</strong><br>
+                        <small class="text-muted">
+                            تاريخ الإنشاء: {{ user.created_at.strftime('%Y-%m-%d %H:%M') if user.created_at else 'غير محدد' }}
+                        </small>
+                    </div>
+                </div>
+            </div>
+
+            <!-- أزرار الإجراءات -->
+            <div class="action-buttons">
+                <button type="submit" class="btn btn-primary btn-custom">
+                    <i class="fas fa-save"></i>
+                    تحديث المستخدم
+                </button>
+                <a href="{{ url_for('users_list') }}" class="btn btn-secondary btn-custom">
+                    <i class="fas fa-times"></i>
+                    إلغاء
+                </a>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+    // تبديل إظهار كلمة المرور
+    $(document).ready(function() {
+        $('.toggle-password').on('click', function() {
+            var input = $('#password');
+            var icon = $(this);
+            if (input.attr('type') === 'password') {
+                input.attr('type', 'text');
+                icon.removeClass('fa-eye-slash').addClass('fa-eye');
+            } else {
+                input.attr('type', 'password');
+                icon.removeClass('fa-eye').addClass('fa-eye-slash');
+            }
+        });
+
+        // تحديث حالة المستخدم
+        $('#is_active').on('change', function() {
+            if ($(this).is(':checked')) {
+                $('#statusLabel').html('<span class="badge bg-success">نشط</span>');
+            } else {
+                $('#statusLabel').html('<span class="badge bg-danger">غير نشط</span>');
+            }
+        });
+
+        // تأثيرات على بطاقات الصلاحيات
+        $('.role-card').on('click', function() {
+            $(this).closest('.role-option').find('input').prop('checked', true);
+        });
+    });
+</script>
+{% endblock %}

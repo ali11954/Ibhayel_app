@@ -1,0 +1,398 @@
+{% extends "base.html" %}
+
+{% block title %}إضافة شركة - ابن هائل لأعمال الزراعة{% endblock %}
+
+{% block extra_css %}
+<style>
+    /* تنسيقات متقدمة لصفحة إضافة الشركة */
+    .add-company-header {
+        background: linear-gradient(135deg, #17a2b8 0%, #0dcaf0 100%);
+        border-radius: 20px;
+        padding: 1.5rem;
+        margin-bottom: 1.5rem;
+        color: white;
+        position: relative;
+        overflow: hidden;
+    }
+
+    .add-company-header::before {
+        content: '';
+        position: absolute;
+        top: -50%;
+        right: -50%;
+        width: 200%;
+        height: 200%;
+        background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, transparent 70%);
+        animation: rotate 20s linear infinite;
+    }
+
+    @keyframes rotate {
+        from { transform: rotate(0deg); }
+        to { transform: rotate(360deg); }
+    }
+
+    .company-icon-large {
+        width: 80px;
+        height: 80px;
+        border-radius: 20px;
+        background: rgba(255,255,255,0.2);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        font-size: 2.5rem;
+        font-weight: bold;
+        margin-bottom: 1rem;
+        backdrop-filter: blur(10px);
+    }
+
+    .form-card {
+        border: none;
+        border-radius: 20px;
+        box-shadow: var(--shadow-lg);
+        overflow: hidden;
+    }
+
+    .form-card-header {
+        background: linear-gradient(135deg, #ffffff, #f8f9fa);
+        border-bottom: 3px solid #17a2b8;
+        padding: 1.2rem 1.5rem;
+    }
+
+    .form-card-header h4 {
+        margin: 0;
+        color: var(--dark-color);
+        font-weight: 700;
+    }
+
+    .form-card-header h4 i {
+        color: #17a2b8;
+        margin-left: 10px;
+    }
+
+    .form-group-custom {
+        margin-bottom: 1.5rem;
+    }
+
+    .form-label-custom {
+        font-weight: 600;
+        color: var(--dark-color);
+        margin-bottom: 0.5rem;
+        display: block;
+    }
+
+    .form-label-custom i {
+        color: #17a2b8;
+        margin-left: 8px;
+        width: 20px;
+    }
+
+    .form-label-custom .required {
+        color: #dc3545;
+        margin-right: 4px;
+    }
+
+    .form-control-custom, .form-select-custom {
+        border-radius: 12px;
+        border: 2px solid #e9ecef;
+        padding: 0.7rem 1rem;
+        transition: all 0.3s ease;
+    }
+
+    .form-control-custom:focus, .form-select-custom:focus {
+        border-color: #17a2b8;
+        box-shadow: 0 0 0 0.2rem rgba(23, 162, 184, 0.25);
+    }
+
+    .input-icon {
+        position: relative;
+    }
+
+    .input-icon i {
+        position: absolute;
+        right: 15px;
+        top: 50%;
+        transform: translateY(-50%);
+        color: #adb5bd;
+        transition: all 0.3s ease;
+    }
+
+    .input-icon .form-control-custom {
+        padding-right: 40px;
+    }
+
+    .input-icon .form-control-custom:focus + i {
+        color: #17a2b8;
+    }
+
+    .info-box {
+        background: linear-gradient(135deg, #e3f2fd, #bbdef5);
+        border-radius: 15px;
+        padding: 1rem;
+        margin-top: 1rem;
+    }
+
+    .action-buttons {
+        display: flex;
+        gap: 1rem;
+        margin-top: 2rem;
+        padding-top: 1rem;
+        border-top: 1px solid #e9ecef;
+    }
+
+    .btn-custom {
+        padding: 0.7rem 1.5rem;
+        border-radius: 12px;
+        font-weight: 600;
+        transition: all 0.3s ease;
+    }
+
+    .btn-custom i {
+        margin-left: 8px;
+    }
+
+    .btn-custom:hover {
+        transform: translateY(-2px);
+    }
+
+    @keyframes fadeInUp {
+        from {
+            opacity: 0;
+            transform: translateY(20px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    .form-card {
+        animation: fadeInUp 0.5s ease;
+    }
+
+    .preview-card {
+        background: #f8f9fa;
+        border-radius: 12px;
+        padding: 0.8rem;
+        margin-top: 0.5rem;
+        border: 1px dashed #17a2b8;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<!-- رأس الصفحة المميز -->
+<div class="add-company-header">
+    <div class="row align-items-center">
+        <div class="col-md-8">
+            <h2 class="mb-2">
+                <i class="fas fa-plus-circle me-2"></i>
+                إضافة شركة جديدة
+            </h2>
+            <p class="mb-0 opacity-75">إضافة شركة جديدة للتعاقد مع المؤسسة</p>
+        </div>
+        <div class="col-md-4 text-center">
+            <div class="company-icon-large mx-auto">
+                <i class="fas fa-building"></i>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- بطاقة النموذج المحسنة -->
+<div class="form-card">
+    <div class="form-card-header">
+        <h4>
+            <i class="fas fa-building"></i>
+            بيانات الشركة الجديدة
+        </h4>
+        <p class="text-muted mb-0 mt-1">قم بإدخال بيانات الشركة الجديدة</p>
+    </div>
+
+    <div class="card-body p-4">
+        <form method="POST" id="addCompanyForm">
+            <div class="row">
+                <!-- اسم الشركة -->
+                <div class="col-md-6 form-group-custom">
+                    <label class="form-label-custom">
+                        <i class="fas fa-building"></i>
+                        اسم الشركة <span class="required">*</span>
+                    </label>
+                    <div class="input-icon">
+                        <i class="fas fa-building"></i>
+                        <input type="text" class="form-control form-control-custom"
+                               id="name" name="name"
+                               placeholder="أدخل اسم الشركة" required>
+                    </div>
+                    <div class="preview-card" id="namePreview" style="display: none;">
+                        <small class="text-muted">
+                            <i class="fas fa-info-circle"></i>
+                            الاسم المدخل: <strong id="previewName">-</strong>
+                        </small>
+                    </div>
+                </div>
+
+                <!-- المنطقة -->
+                <div class="col-md-6 form-group-custom">
+                    <label class="form-label-custom">
+                        <i class="fas fa-map-marker-alt"></i>
+                        المنطقة
+                    </label>
+                    <div class="input-icon">
+                        <i class="fas fa-location-dot"></i>
+                        <input type="text" class="form-control form-control-custom"
+                               id="region" name="region"
+                               placeholder="أدخل المنطقة">
+                    </div>
+                </div>
+
+                <!-- الموقع -->
+                <div class="col-md-6 form-group-custom">
+                    <label class="form-label-custom">
+                        <i class="fas fa-location-dot"></i>
+                        الموقع
+                    </label>
+                    <div class="input-icon">
+                        <i class="fas fa-map-pin"></i>
+                        <input type="text" class="form-control form-control-custom"
+                               id="location" name="location"
+                               placeholder="أدخل الموقع التفصيلي">
+                    </div>
+                </div>
+
+                <!-- جهة الاتصال -->
+                <div class="col-md-6 form-group-custom">
+                    <label class="form-label-custom">
+                        <i class="fas fa-user-tie"></i>
+                        جهة الاتصال
+                    </label>
+                    <div class="input-icon">
+                        <i class="fas fa-user-circle"></i>
+                        <input type="text" class="form-control form-control-custom"
+                               id="contact_person" name="contact_person"
+                               placeholder="أدخل اسم جهة الاتصال">
+                    </div>
+                </div>
+
+                <!-- الهاتف -->
+                <div class="col-md-6 form-group-custom">
+                    <label class="form-label-custom">
+                        <i class="fas fa-phone-alt"></i>
+                        الهاتف
+                    </label>
+                    <div class="input-icon">
+                        <i class="fas fa-mobile-alt"></i>
+                        <input type="tel" class="form-control form-control-custom"
+                               id="phone" name="phone"
+                               placeholder="أدخل رقم الهاتف">
+                    </div>
+                </div>
+
+                <!-- البريد الإلكتروني -->
+                <div class="col-md-6 form-group-custom">
+                    <label class="form-label-custom">
+                        <i class="fas fa-envelope"></i>
+                        البريد الإلكتروني
+                    </label>
+                    <div class="input-icon">
+                        <i class="fas fa-at"></i>
+                        <input type="email" class="form-control form-control-custom"
+                               id="email" name="email"
+                               placeholder="example@company.com">
+                    </div>
+                </div>
+            </div>
+
+            <!-- معلومات إضافية -->
+            <div class="info-box">
+                <div class="d-flex align-items-start gap-3">
+                    <i class="fas fa-info-circle fa-lg text-info"></i>
+                    <div>
+                        <strong>تعليمات هامة</strong><br>
+                        <small class="text-muted">
+                            <i class="fas fa-check-circle text-success me-1"></i> يمكن تعديل بيانات الشركة لاحقاً<br>
+                            <i class="fas fa-check-circle text-success me-1"></i> المنطقة تحدد توزيع الموظفين في التقارير<br>
+                            <i class="fas fa-check-circle text-success me-1"></i> سيتم ربط الموظفين بالشركة بعد إضافتها<br>
+                            <i class="fas fa-check-circle text-success me-1"></i> يمكن إضافة عقود للشركة بعد إنشائها
+                        </small>
+                    </div>
+                </div>
+            </div>
+
+            <!-- أزرار الإجراءات -->
+            <div class="action-buttons">
+                <button type="submit" class="btn btn-primary btn-custom">
+                    <i class="fas fa-save"></i>
+                    إضافة الشركة
+                </button>
+                <a href="{{ url_for('companies_list') }}" class="btn btn-secondary btn-custom">
+                    <i class="fas fa-times"></i>
+                    إلغاء
+                </a>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+    $(document).ready(function() {
+        // معاينة اسم الشركة
+        $('#name').on('input', function() {
+            var value = $(this).val().trim();
+            if (value) {
+                $('#previewName').text(value);
+                $('#namePreview').show();
+            } else {
+                $('#namePreview').hide();
+            }
+        });
+
+        // التحقق من صحة رقم الهاتف
+        $('#phone').on('blur', function() {
+            var phone = $(this).val();
+            var phoneRegex = /^[0-9\-\+\s]{8,15}$/;
+            if (phone && !phoneRegex.test(phone)) {
+                $(this).addClass('is-invalid');
+                $(this).after('<div class="invalid-feedback">رقم الهاتف غير صحيح</div>');
+            } else {
+                $(this).removeClass('is-invalid');
+                $(this).next('.invalid-feedback').remove();
+            }
+        });
+
+        // التحقق من صحة البريد الإلكتروني
+        $('#email').on('blur', function() {
+            var email = $(this).val();
+            var emailRegex = /^[^\s@]+@([^\s@]+\.)+[^\s@]+$/;
+            if (email && !emailRegex.test(email)) {
+                $(this).addClass('is-invalid');
+                $(this).after('<div class="invalid-feedback">البريد الإلكتروني غير صحيح</div>');
+            } else {
+                $(this).removeClass('is-invalid');
+                $(this).next('.invalid-feedback').remove();
+            }
+        });
+
+        // التحقق من صحة النموذج
+        $('#addCompanyForm').on('submit', function(e) {
+            var name = $('#name').val().trim();
+
+            if (!name) {
+                e.preventDefault();
+                alert('الرجاء إدخال اسم الشركة');
+                $('#name').focus();
+                return false;
+            }
+
+            return true;
+        });
+
+        // تأثيرات على الحقول
+        $('.form-control-custom').on('focus', function() {
+            $(this).parent().find('i').css('color', '#17a2b8');
+        }).on('blur', function() {
+            $(this).parent().find('i').css('color', '#adb5bd');
+        });
+    });
+</script>
+{% endblock %}

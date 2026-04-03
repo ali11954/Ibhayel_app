@@ -1,0 +1,730 @@
+{% extends "base.html" %}
+
+{% block title %}الرئيسية - طلعت هائل للخدمات والاستشارات الزراعية{% endblock %}
+
+{% block extra_css %}
+<link href="https://cdn.jsdelivr.net/npm/apexcharts@3.45.0/dist/apexcharts.css" rel="stylesheet">
+<style>
+    /* تعريف المتغيرات - نفس ألوان الهيدر */
+    :root {
+        --primary-color: #2e7d32;
+        --primary-dark: #1b5e20;
+        --primary-light: #4caf50;
+        --primary-soft: #e8f5e9;
+        --primary-bg: #c8e6c9;
+        --header-bg-start: #e8f5e9;
+        --header-bg-end: #c8e6c9;
+        --shadow-sm: 0 2px 4px rgba(0,0,0,0.05);
+        --shadow-md: 0 4px 6px rgba(0,0,0,0.07);
+        --shadow-lg: 0 10px 15px rgba(0,0,0,0.1);
+        --shadow-xl: 0 20px 25px rgba(0,0,0,0.15);
+    }
+
+    /* إضافة خلفية العلامة المائية للصفحة الرئيسية */
+    .main-content {
+        position: relative;
+        background: linear-gradient(135deg, #f5f7fa 0%, #e8edf2 100%);
+        min-height: calc(100vh - 140px);
+    }
+
+    /* العلامة المائية في الخلفية */
+    .main-content::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background-image: url("{{ url_for('static', filename='images/logo.png') }}");
+        background-repeat: repeat;
+        background-position: center;
+        background-size: 180px;
+        opacity: 0.04;
+        pointer-events: none;
+        z-index: 0;
+    }
+
+    /* العلامة المائية المركزية الكبيرة */
+    .main-content::after {
+        content: '';
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        background-image: url("{{ url_for('static', filename='images/logo.png') }}");
+        background-repeat: no-repeat;
+        background-position: center;
+        background-size: 400px;
+        opacity: 0.03;
+        pointer-events: none;
+        z-index: 0;
+        width: 100%;
+        height: 100%;
+    }
+
+    /* ضمان ظهور المحتوى فوق العلامة المائية */
+    .welcome-card,
+    .row,
+    .chart-container,
+    .card {
+        position: relative;
+        z-index: 1;
+    }
+
+    /* تنسيقات متقدمة للوحة التحكم */
+    .welcome-card {
+        background: linear-gradient(135deg, var(--header-bg-start), var(--header-bg-end));
+        border-radius: 20px;
+        color: var(--primary-dark);
+        padding: 1.5rem;
+        margin-bottom: 1.5rem;
+        position: relative;
+        overflow: hidden;
+        border: 1px solid var(--primary-bg);
+        z-index: 1;
+    }
+
+    .welcome-card::before {
+        content: '';
+        position: absolute;
+        top: -50%;
+        right: -50%;
+        width: 200%;
+        height: 200%;
+        background: radial-gradient(circle, rgba(46,125,50,0.05) 0%, transparent 70%);
+        animation: rotate 20s linear infinite;
+    }
+
+    @keyframes rotate {
+        from { transform: rotate(0deg); }
+        to { transform: rotate(360deg); }
+    }
+
+    .welcome-card h3 {
+        font-size: 1.5rem;
+        font-weight: 700;
+        margin-bottom: 0.5rem;
+        color: var(--primary-dark);
+    }
+
+    /* بطاقات الإحصائيات - نفس ألوان الهيدر */
+    .stat-card-modern {
+        border-radius: 20px;
+        position: relative;
+        overflow: hidden;
+        transition: all 0.3s ease;
+        cursor: pointer;
+        background: linear-gradient(135deg, var(--header-bg-start), var(--header-bg-end));
+        color: var(--primary-dark);
+        border: 1px solid var(--primary-bg);
+        z-index: 1;
+    }
+
+    .stat-card-modern:hover {
+        transform: translateY(-8px);
+        box-shadow: var(--shadow-xl);
+        background: linear-gradient(135deg, var(--primary-soft), var(--primary-bg));
+    }
+
+    .stat-icon {
+        position: absolute;
+        bottom: 1rem;
+        left: 1rem;
+        font-size: 4rem;
+        opacity: 0.1;
+        color: var(--primary-color);
+    }
+
+    .stat-value {
+        font-size: 2.5rem;
+        font-weight: 800;
+        margin-bottom: 0;
+        color: var(--primary-dark);
+    }
+
+    .stat-label {
+        font-size: 0.85rem;
+        opacity: 0.8;
+        margin-bottom: 0;
+        color: var(--primary-dark);
+    }
+
+    /* حاويات الرسوم البيانية */
+    .chart-container {
+        background: white;
+        border-radius: 20px;
+        padding: 1rem;
+        box-shadow: var(--shadow-md);
+        transition: all 0.3s ease;
+        border: 1px solid var(--primary-bg);
+        position: relative;
+        z-index: 1;
+        background: rgba(255, 255, 255, 0.95);
+    }
+
+    .chart-container:hover {
+        box-shadow: var(--shadow-lg);
+    }
+
+    /* بطاقات الإجراءات السريعة */
+    .quick-action-card {
+        background: linear-gradient(135deg, white, var(--primary-soft));
+        border-radius: 15px;
+        padding: 1rem;
+        text-align: center;
+        transition: all 0.3s ease;
+        cursor: pointer;
+        border: 1px solid var(--primary-bg);
+        position: relative;
+        z-index: 1;
+    }
+
+    .quick-action-card:hover {
+        transform: translateY(-5px);
+        background: linear-gradient(135deg, var(--header-bg-start), var(--header-bg-end));
+        color: var(--primary-dark);
+        box-shadow: var(--shadow-md);
+    }
+
+    .quick-action-card:hover i,
+    .quick-action-card:hover h6 {
+        color: var(--primary-dark) !important;
+    }
+
+    .quick-action-card i {
+        font-size: 2rem;
+        margin-bottom: 0.5rem;
+        transition: all 0.3s ease;
+        color: var(--primary-color);
+    }
+
+    .quick-action-card h6 {
+        font-size: 0.85rem;
+        margin: 0;
+        transition: all 0.3s ease;
+        color: var(--primary-dark);
+    }
+
+    /* قائمة النشاطات */
+    .recent-activity {
+        max-height: 400px;
+        overflow-y: auto;
+    }
+
+    .activity-item {
+        padding: 0.75rem;
+        border-bottom: 1px solid var(--primary-bg);
+        transition: all 0.3s ease;
+        background: white;
+    }
+
+    .activity-item:hover {
+        background: var(--primary-soft);
+        transform: translateX(-5px);
+    }
+
+    .activity-icon {
+        width: 40px;
+        height: 40px;
+        border-radius: 10px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin-left: 1rem;
+        background: var(--primary-soft);
+    }
+
+    .activity-icon i {
+        color: var(--primary-color);
+    }
+
+    /* شريط التقدم */
+    .progress-custom {
+        height: 8px;
+        border-radius: 10px;
+        background: rgba(46,125,50,0.2);
+    }
+
+    .progress-bar-custom {
+        background: linear-gradient(90deg, var(--primary-color), var(--primary-light));
+        border-radius: 10px;
+    }
+
+    .text-gradient {
+        background: linear-gradient(135deg, var(--primary-color), var(--primary-light));
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+    }
+
+    @keyframes fadeInUp {
+        from {
+            opacity: 0;
+            transform: translateY(30px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    .fade-in {
+        animation: fadeInUp 0.6s ease;
+    }
+
+    /* تنسيقات إضافية */
+    .card {
+        border: none;
+        border-radius: 20px;
+        box-shadow: var(--shadow-sm);
+        position: relative;
+        z-index: 1;
+        background: rgba(255, 255, 255, 0.95);
+    }
+
+    .card-header {
+        background: white;
+        border-bottom: 2px solid var(--primary-bg);
+        padding: 1rem 1.25rem;
+    }
+
+    .card-header h6 {
+        color: var(--primary-dark);
+    }
+
+    /* صفحة الترحيب للمستخدمين غير المسجلين */
+    .btn-success {
+        background: linear-gradient(135deg, var(--primary-color), var(--primary-dark));
+        border: none;
+    }
+
+    .btn-success:hover {
+        transform: translateY(-2px);
+        box-shadow: var(--shadow-md);
+    }
+
+    /* تنسيقات الجوال */
+    @media (max-width: 768px) {
+        .welcome-card h3 {
+            font-size: 1.2rem;
+        }
+
+        .stat-value {
+            font-size: 1.8rem;
+        }
+
+        .quick-action-card i {
+            font-size: 1.5rem;
+        }
+
+        .quick-action-card h6 {
+            font-size: 0.7rem;
+        }
+
+        .main-content::after {
+            background-size: 250px;
+        }
+
+        .main-content::before {
+            background-size: 120px;
+        }
+    }
+    /* تعديل طبقات العلامة المائية */
+.main-content {
+    position: relative;
+    background: linear-gradient(135deg, #f5f7fa 0%, #e8edf2 100%);
+    min-height: calc(100vh - 140px);
+    isolation: isolate; /* عزل الطبقات */
+}
+
+/* جعل العلامة المائية خلف كل شيء */
+.main-content::before,
+.main-content::after {
+    content: '';
+    position: absolute;
+    pointer-events: none;
+    z-index: -1; /* مهم: بدلاً من 0 */
+}
+
+.main-content::before {
+    background-image: url("{{ url_for('static', filename='images/logo.png') }}");
+    background-repeat: repeat;
+    background-position: center;
+    background-size: 180px;
+    opacity: 0.04;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+}
+
+.main-content::after {
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background-image: url("{{ url_for('static', filename='images/logo.png') }}");
+    background-repeat: no-repeat;
+    background-position: center;
+    background-size: 400px;
+    opacity: 0.03;
+    width: 100%;
+    height: 100%;
+}
+
+</style>
+{% endblock %}
+
+{% block content %}
+{% if current_user.is_authenticated %}
+<!-- المحتوى الرئيسي مع خلفية العلامة المائية -->
+<div class="main-content">
+    <!-- بطاقة الترحيب -->
+    <div class="welcome-card fade-in">
+        <div class="row align-items-center">
+            <div class="col-md-8">
+                <h3>مرحباً بك، {{ current_user.full_name }}!</h3>
+                <p class="mb-0 opacity-75">نظام إدارة أعمال الزراعة - طلعت هائل</p>
+                <p class="mb-0 small opacity-75">آخر دخول: {{ now.strftime('%Y-%m-%d %H:%M') if now else 'اليوم' }}</p>
+            </div>
+            <div class="col-md-4 text-center">
+                <i class="fas fa-leaf fa-4x" style="color: var(--primary-color); opacity: 0.5;"></i>
+            </div>
+        </div>
+    </div>
+
+    <!-- بطاقات الإحصائيات -->
+    <div class="row mb-4">
+        <div class="col-md-3 mb-3">
+            <div class="stat-card-modern" onclick="window.location.href='{{ url_for('employees_list') }}'">
+                <div class="p-3">
+                    <div class="d-flex justify-content-between align-items-start">
+                        <div>
+                            <p class="stat-label mb-1">إجمالي الموظفين</p>
+                            <h3 class="stat-value mb-0">{{ stats.total_employees if stats else 0 }}</h3>
+                            <small class="opacity-75">موظف نشط</small>
+                        </div>
+                        <i class="fas fa-users fa-2x opacity-50" style="color: var(--primary-color);"></i>
+                    </div>
+                </div>
+                <i class="stat-icon fas fa-users"></i>
+            </div>
+        </div>
+        <div class="col-md-3 mb-3">
+            <div class="stat-card-modern" onclick="window.location.href='{{ url_for('attendance_list') }}'">
+                <div class="p-3">
+                    <div class="d-flex justify-content-between align-items-start">
+                        <div>
+                            <p class="stat-label mb-1">حضور اليوم</p>
+                            <h3 class="stat-value mb-0">{{ stats.today_attendance if stats else 0 }}</h3>
+                            <small class="opacity-75">موظف حاضر</small>
+                        </div>
+                        <i class="fas fa-calendar-check fa-2x opacity-50" style="color: var(--primary-color);"></i>
+                    </div>
+                    <div class="mt-2">
+                        <div class="progress-custom">
+                            <div class="progress-bar-custom" style="width: {{ (stats.today_attendance / stats.total_employees * 100) if stats.total_employees else 0 }}%"></div>
+                        </div>
+                        <small class="opacity-75 mt-1 d-block">
+                            نسبة الحضور: {{ "%.1f"|format((stats.today_attendance / stats.total_employees * 100) if stats.total_employees else 0) }}%
+                        </small>
+                    </div>
+                </div>
+                <i class="stat-icon fas fa-calendar-check"></i>
+            </div>
+        </div>
+        <div class="col-md-3 mb-3">
+            <div class="stat-card-modern" onclick="window.location.href='{{ url_for('transactions_list') }}'">
+                <div class="p-3">
+                    <div class="d-flex justify-content-between align-items-start">
+                        <div>
+                            <p class="stat-label mb-1">معاملات معلقة</p>
+                            <h3 class="stat-value mb-0">{{ stats.pending_transactions if stats else 0 }}</h3>
+                            <small class="opacity-75">تنتظر المعالجة</small>
+                        </div>
+                        <i class="fas fa-clock fa-2x opacity-50" style="color: var(--primary-color);"></i>
+                    </div>
+                </div>
+                <i class="stat-icon fas fa-exchange-alt"></i>
+            </div>
+        </div>
+        <div class="col-md-3 mb-3">
+            <div class="stat-card-modern" onclick="window.location.href='{{ url_for('salaries_list') }}'">
+                <div class="p-3">
+                    <div class="d-flex justify-content-between align-items-start">
+                        <div>
+                            <p class="stat-label mb-1">رواتب غير مدفوعة</p>
+                            <h3 class="stat-value mb-0">{{ stats.pending_salaries if stats else 0 }}</h3>
+                            <small class="opacity-75">شهر جاري</small>
+                        </div>
+                        <i class="fas fa-money-bill-wave fa-2x opacity-50" style="color: var(--primary-color);"></i>
+                    </div>
+                </div>
+                <i class="stat-icon fas fa-money-bill-wave"></i>
+            </div>
+        </div>
+    </div>
+
+    <!-- الرسوم البيانية -->
+    <div class="row mb-4">
+        <div class="col-md-7 mb-3">
+            <div class="chart-container">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <h6 class="mb-0 fw-bold"><i class="fas fa-chart-line" style="color: var(--primary-color);"></i> اتجاه الرواتب الشهرية</h6>
+                </div>
+                <div id="salaryTrendChart"></div>
+            </div>
+        </div>
+        <div class="col-md-5 mb-3">
+            <div class="chart-container">
+                <h6 class="mb-3 fw-bold"><i class="fas fa-chart-pie" style="color: var(--primary-color);"></i> توزيع الموظفين حسب المنطقة</h6>
+                <div id="regionDistributionChart"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- الإجراءات السريعة والنشاط الأخير -->
+    <div class="row">
+        <div class="col-md-8 mb-3">
+            <div class="card shadow-sm">
+                <div class="card-header bg-white">
+                    <h6 class="mb-0 fw-bold"><i class="fas fa-bolt" style="color: var(--primary-color);"></i> الإجراءات السريعة</h6>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-3 col-sm-6 mb-3">
+                            <div class="quick-action-card" onclick="window.location.href='{{ url_for('add_employee') }}'">
+                                <i class="fas fa-user-plus"></i>
+                                <h6 class="mt-2">إضافة موظف</h6>
+                            </div>
+                        </div>
+                        <div class="col-md-3 col-sm-6 mb-3">
+                            <div class="quick-action-card" onclick="window.location.href='{{ url_for('attendance_list') }}'">
+                                <i class="fas fa-fingerprint"></i>
+                                <h6 class="mt-2">تسجيل حضور</h6>
+                            </div>
+                        </div>
+                        <div class="col-md-3 col-sm-6 mb-3">
+                            <div class="quick-action-card" onclick="window.location.href='{{ url_for('add_transaction') }}'">
+                                <i class="fas fa-hand-holding-usd"></i>
+                                <h6 class="mt-2">إضافة سلفة</h6>
+                            </div>
+                        </div>
+                        <div class="col-md-3 col-sm-6 mb-3">
+                            <div class="quick-action-card" onclick="window.location.href='{{ url_for('salary_calculation') }}'">
+                                <i class="fas fa-calculator"></i>
+                                <h6 class="mt-2">حساب الرواتب</h6>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4 mb-3">
+            <div class="card shadow-sm">
+                <div class="card-header bg-white">
+                    <h6 class="mb-0 fw-bold"><i class="fas fa-history" style="color: var(--primary-color);"></i> آخر النشاطات</h6>
+                </div>
+                <div class="card-body recent-activity p-0">
+                    {% if recent_attendance %}
+                        {% for att in recent_attendance %}
+                        <div class="activity-item d-flex align-items-center">
+                            <div class="activity-icon">
+                                <i class="fas fa-user-check"></i>
+                            </div>
+                            <div class="flex-grow-1">
+                                <p class="mb-0 fw-bold">{{ att.employee.name if att.employee else '-' }}</p>
+                                <small class="text-muted">تسجيل حضور - {{ att.date.strftime('%Y-%m-%d') }}</small>
+                            </div>
+                            <small class="text-muted">{{ att.attendance_type }}</small>
+                        </div>
+                        {% endfor %}
+                    {% else %}
+                    <div class="text-center py-4 text-muted">
+                        <i class="fas fa-inbox fa-2x mb-2"></i>
+                        <p>لا توجد نشاطات حديثة</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- تذييل إحصائيات إضافية -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card" style="background: linear-gradient(135deg, var(--header-bg-start), var(--header-bg-end)); border: 1px solid var(--primary-bg);">
+                <div class="card-body">
+                    <div class="row text-center">
+                        <div class="col-md-3">
+                            <h6 class="text-muted mb-1">إجمالي الموظفين</h6>
+                            <h4 style="color: var(--primary-dark);" class="mb-0">{{ stats.total_employees if stats else 0 }}</h4>
+                            <small class="text-muted">موظف نشط</small>
+                        </div>
+                        <div class="col-md-3">
+                            <h6 class="text-muted mb-1">حضور اليوم</h6>
+                            <h4 style="color: var(--primary-dark);" class="mb-0">{{ stats.today_attendance if stats else 0 }}</h4>
+                            <small class="text-muted">موظف حاضر</small>
+                        </div>
+                        <div class="col-md-3">
+                            <h6 class="text-muted mb-1">معاملات معلقة</h6>
+                            <h4 style="color: var(--primary-dark);" class="mb-0">{{ stats.pending_transactions if stats else 0 }}</h4>
+                            <small class="text-muted">تنتظر المعالجة</small>
+                        </div>
+                        <div class="col-md-3">
+                            <h6 class="text-muted mb-1">رواتب غير مدفوعة</h6>
+                            <h4 style="color: var(--primary-dark);" class="mb-0">{{ stats.pending_salaries if stats else 0 }}</h4>
+                            <small class="text-muted">للشهر الحالي</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% else %}
+<!-- صفحة الترحيب للمستخدمين غير المسجلين -->
+<div class="text-center fade-in" style="margin-top: 80px;">
+    <div class="mb-4">
+        <i class="fas fa-leaf fa-5x" style="color: var(--primary-color); margin-bottom: 15px;"></i>
+        <h1 class="display-4 fw-bold text-gradient">نظام طلعت هائل</h1>
+        <h2 class="h3 text-muted">لإدارة أعمال الزراعة</h2>
+    </div>
+    <p class="lead text-muted mb-4">نظام متكامل لإدارة الموظفين، الحضور، الرواتب، والعقود</p>
+    <div class="row justify-content-center mb-5">
+        <div class="col-md-8">
+            <div class="row g-4">
+                <div class="col-md-4">
+                    <div class="card border-0 shadow-sm">
+                        <div class="card-body text-center">
+                            <i class="fas fa-users fa-3x" style="color: var(--primary-color); margin-bottom: 15px;"></i>
+                            <h6>إدارة الموظفين</h6>
+                            <small class="text-muted">تتبع كامل بيانات الموظفين</small>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="card border-0 shadow-sm">
+                        <div class="card-body text-center">
+                            <i class="fas fa-calendar-check fa-3x" style="color: var(--primary-color); margin-bottom: 15px;"></i>
+                            <h6>تسجيل الحضور</h6>
+                            <small class="text-muted">حضور يومي فردي وجماعي</small>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="card border-0 shadow-sm">
+                        <div class="card-body text-center">
+                            <i class="fas fa-chart-line fa-3x" style="color: var(--primary-color); margin-bottom: 15px;"></i>
+                            <h6>تقارير متقدمة</h6>
+                            <small class="text-muted">تحليلات وإحصائيات دقيقة</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <a href="{{ url_for('login') }}" class="btn btn-success btn-lg px-5 py-3">
+        <i class="fas fa-sign-in-alt me-2"></i> تسجيل الدخول
+    </a>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/apexcharts@3.45.0/dist/apexcharts.min.js"></script>
+<script>
+    // استخدام البيانات الفعلية من النظام
+    let salariesData = {{ salaries_data|tojson|default('[]') }};
+    let regionsData = {{ regions_data|tojson|default('[]') }};
+
+    // رسم بياني للرواتب
+    if (salariesData.length > 0) {
+        const salaryOptions = {
+            series: [{
+                name: 'إجمالي الرواتب',
+                data: salariesData.map(item => item.total)
+            }],
+            chart: {
+                type: 'area',
+                height: 300,
+                toolbar: { show: false },
+                fontFamily: 'Cairo, sans-serif'
+            },
+            stroke: { curve: 'smooth', width: 2, colors: ['#2e7d32'] },
+            fill: {
+                type: 'gradient',
+                gradient: {
+                    shadeIntensity: 1,
+                    opacityFrom: 0.7,
+                    opacityTo: 0.3,
+                    colorStops: [
+                        { offset: 0, color: '#2e7d32' },
+                        { offset: 100, color: '#81c784' }
+                    ]
+                }
+            },
+            xaxis: {
+                categories: salariesData.map(item => item.month),
+                labels: { rotate: -45, style: { fontSize: '11px' } }
+            },
+            yaxis: {
+                labels: {
+                    formatter: function(val) {
+                        return val.toLocaleString() + ' ر.ي';
+                    }
+                }
+            },
+            tooltip: {
+                y: {
+                    formatter: function(val) {
+                        return val.toLocaleString() + ' ر.ي';
+                    }
+                }
+            },
+            grid: { borderColor: '#e9ecef' }
+        };
+        new ApexCharts(document.querySelector("#salaryTrendChart"), salaryOptions).render();
+    } else {
+        document.querySelector("#salaryTrendChart").innerHTML = '<div class="text-center py-5 text-muted">لا توجد بيانات رواتب لعرضها</div>';
+    }
+
+    // رسم بياني للمناطق
+    if (regionsData.length > 0) {
+        const regionOptions = {
+            series: regionsData.map(item => item.count),
+            chart: {
+                type: 'donut',
+                height: 280,
+                fontFamily: 'Cairo, sans-serif'
+            },
+            labels: regionsData.map(item => item.region),
+            colors: ['#2e7d32', '#4caf50', '#81c784', '#a5d6a7', '#c8e6c9'],
+            legend: {
+                position: 'bottom',
+                fontSize: '12px'
+            },
+            plotOptions: {
+                pie: {
+                    donut: {
+                        size: '60%',
+                        labels: {
+                            show: true,
+                            total: {
+                                show: true,
+                                label: 'الإجمالي',
+                                formatter: function(w) {
+                                    return w.globals.seriesTotals.reduce((a, b) => a + b, 0);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        };
+        new ApexCharts(document.querySelector("#regionDistributionChart"), regionOptions).render();
+    } else {
+        document.querySelector("#regionDistributionChart").innerHTML = '<div class="text-center py-5 text-muted">لا توجد بيانات مناطق لعرضها</div>';
+    }
+</script>
+{% endblock %}

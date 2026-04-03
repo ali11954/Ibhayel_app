@@ -1,0 +1,164 @@
+{% extends "base.html" %}
+
+{% block title %}لوحة الشركات - طلعت هائل للخدمات والاستشارات الزراعية{% endblock %}
+
+{% block extra_css %}
+<style>
+    .company-card {
+        transition: all 0.3s ease;
+        cursor: pointer;
+        border: none;
+        border-radius: 15px;
+        overflow: hidden;
+    }
+
+    .company-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+    }
+
+    .company-logo-icon {
+        width: 70px;
+        height: 70px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin: 0 auto 1rem auto;
+        background: var(--primary-soft);
+    }
+
+    .company-logo-icon i {
+        font-size: 2.5rem;
+        color: var(--primary-color);
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="page-header mb-4">
+        <h2>
+            <i class="fas fa-building"></i>
+            لوحة الشركات والعقود
+        </h2>
+        <p class="text-muted mb-0">إدارة الشركات والعقود والفواتير</p>
+    </div>
+
+    <!-- إحصائيات -->
+    <div class="row mb-4">
+        <div class="col-md-4 mb-3">
+            <div class="quick-stat bg-primary text-white">
+                <i class="fas fa-building fa-2x"></i>
+                <h3 class="mb-0 mt-2">{{ companies_count|default(0) }}</h3>
+                <small>إجمالي الشركات</small>
+            </div>
+        </div>
+        <div class="col-md-4 mb-3">
+            <div class="quick-stat bg-success text-white">
+                <i class="fas fa-file-contract fa-2x"></i>
+                <h3 class="mb-0 mt-2">{{ active_contracts|default(0) }}</h3>
+                <small>العقود النشطة</small>
+            </div>
+        </div>
+        <div class="col-md-4 mb-3">
+            <div class="quick-stat bg-warning text-dark">
+                <i class="fas fa-file-invoice-dollar fa-2x"></i>
+                <h3 class="mb-0 mt-2">{{ total_invoices_amount|default(0) }}</h3>
+                <small>إجمالي الفواتير (ر.ي)</small>
+            </div>
+        </div>
+    </div>
+
+    <!-- الروابط الرئيسية -->
+    <div class="row mb-4">
+        <div class="col-md-4 mb-3">
+            <div class="company-card card" onclick="window.location.href='{{ url_for('companies_list') }}'">
+                <div class="card-body text-center">
+                    <div class="company-logo-icon">
+                        <i class="fas fa-building"></i>
+                    </div>
+                    <h5>الشركات</h5>
+                    <p class="text-muted small">عرض وإدارة جميع الشركات</p>
+                    <span class="badge bg-primary">توجه الآن <i class="fas fa-arrow-left"></i></span>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4 mb-3">
+            <div class="company-card card" onclick="window.location.href='{{ url_for('contracts_list') }}'">
+                <div class="card-body text-center">
+                    <div class="company-logo-icon">
+                        <i class="fas fa-file-contract"></i>
+                    </div>
+                    <h5>العقود</h5>
+                    <p class="text-muted small">عرض وإدارة العقود</p>
+                    <span class="badge bg-primary">توجه الآن <i class="fas fa-arrow-left"></i></span>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4 mb-3">
+            <div class="company-card card" onclick="window.location.href='{{ url_for('invoices_list') }}'">
+                <div class="card-body text-center">
+                    <div class="company-logo-icon">
+                        <i class="fas fa-file-invoice-dollar"></i>
+                    </div>
+                    <h5>الفواتير</h5>
+                    <p class="text-muted small">عرض وإدارة الفواتير</p>
+                    <span class="badge bg-primary">توجه الآن <i class="fas fa-arrow-left"></i></span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- قائمة الشركات -->
+    <div class="card">
+        <div class="card-header">
+            <h5><i class="fas fa-list"></i> قائمة الشركات</h5>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover mb-0">
+                    <thead>
+                        <tr>
+                            <th>#</th>
+                            <th>اسم الشركة</th>
+                            <th>المنطقة</th>
+                            <th>عدد الموظفين</th>
+                            <th>جهة الاتصال</th>
+                            <th>الإجراءات</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% if companies %}
+                            {% for company in companies %}
+                            <tr>
+                                <td>{{ loop.index }}</td>
+                                <td>{{ company.name }}</td>
+                                <td>{{ company.region or '-' }}</td>
+                                <td>
+                                    <span class="badge bg-info">{{ company.employee_count|default(0) }}</span>
+                                </td>
+                                <td>{{ company.contact_person or '-' }}</td>
+                                <td>
+                                    <a href="{{ url_for('contracts_list') }}?company={{ company.id }}" class="btn btn-sm btn-outline-primary">
+                                        <i class="fas fa-file-contract"></i>
+                                    </a>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        {% else %}
+                            <tr>
+                                <td colspan="6" class="text-center text-muted py-4">
+                                    <i class="fas fa-inbox fa-2x mb-2 d-block"></i>
+                                    لا توجد شركات مسجلة
+                                    <a href="{{ url_for('add_company') }}" class="d-block mt-2">إضافة شركة جديدة</a>
+                                </td>
+                            </tr>
+                        {% endif %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

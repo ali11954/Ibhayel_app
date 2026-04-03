@@ -1,0 +1,510 @@
+{% extends "base.html" %}
+
+{% block title %}إضافة فاتورة - ابن هائل لأعمال الزراعة{% endblock %}
+
+{% block extra_css %}
+<style>
+    /* تنسيقات متقدمة لصفحة إضافة الفاتورة */
+    .add-invoice-header {
+        background: linear-gradient(135deg, #ff9800 0%, #f57c00 100%);
+        border-radius: 20px;
+        padding: 1.5rem;
+        margin-bottom: 1.5rem;
+        color: white;
+        position: relative;
+        overflow: hidden;
+    }
+
+    .add-invoice-header::before {
+        content: '';
+        position: absolute;
+        top: -50%;
+        right: -50%;
+        width: 200%;
+        height: 200%;
+        background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, transparent 70%);
+        animation: rotate 20s linear infinite;
+    }
+
+    @keyframes rotate {
+        from { transform: rotate(0deg); }
+        to { transform: rotate(360deg); }
+    }
+
+    .invoice-icon-large {
+        width: 80px;
+        height: 80px;
+        border-radius: 20px;
+        background: rgba(255,255,255,0.2);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        font-size: 2.5rem;
+        font-weight: bold;
+        margin-bottom: 1rem;
+        backdrop-filter: blur(10px);
+    }
+
+    .form-card {
+        border: none;
+        border-radius: 20px;
+        box-shadow: var(--shadow-lg);
+        overflow: hidden;
+    }
+
+    .form-card-header {
+        background: linear-gradient(135deg, #ffffff, #f8f9fa);
+        border-bottom: 3px solid #ff9800;
+        padding: 1.2rem 1.5rem;
+    }
+
+    .form-card-header h4 {
+        margin: 0;
+        color: var(--dark-color);
+        font-weight: 700;
+    }
+
+    .form-card-header h4 i {
+        color: #ff9800;
+        margin-left: 10px;
+    }
+
+    .form-group-custom {
+        margin-bottom: 1.5rem;
+    }
+
+    .form-label-custom {
+        font-weight: 600;
+        color: var(--dark-color);
+        margin-bottom: 0.5rem;
+        display: block;
+    }
+
+    .form-label-custom i {
+        color: #ff9800;
+        margin-left: 8px;
+        width: 20px;
+    }
+
+    .form-label-custom .required {
+        color: #dc3545;
+        margin-right: 4px;
+    }
+
+    .form-control-custom, .form-select-custom {
+        border-radius: 12px;
+        border: 2px solid #e9ecef;
+        padding: 0.7rem 1rem;
+        transition: all 0.3s ease;
+    }
+
+    .form-control-custom:focus, .form-select-custom:focus {
+        border-color: #ff9800;
+        box-shadow: 0 0 0 0.2rem rgba(255, 152, 0, 0.25);
+    }
+
+    .input-icon {
+        position: relative;
+    }
+
+    .input-icon i {
+        position: absolute;
+        right: 15px;
+        top: 50%;
+        transform: translateY(-50%);
+        color: #adb5bd;
+        transition: all 0.3s ease;
+    }
+
+    .input-icon .form-control-custom {
+        padding-right: 40px;
+    }
+
+    .input-icon .form-control-custom:focus + i {
+        color: #ff9800;
+    }
+
+    .contract-info {
+        background: linear-gradient(135deg, #fff3e0, #ffe0b2);
+        border-radius: 12px;
+        padding: 1rem;
+        margin-bottom: 1rem;
+    }
+
+    .contract-info-item {
+        display: flex;
+        justify-content: space-between;
+        padding: 0.5rem 0;
+        border-bottom: 1px dashed rgba(0,0,0,0.1);
+    }
+
+    .contract-info-item:last-child {
+        border-bottom: none;
+    }
+
+    .info-label {
+        font-weight: 600;
+        color: #6c757d;
+    }
+
+    .info-value {
+        font-weight: 700;
+        color: #ff9800;
+    }
+
+    .amount-preview {
+        background: linear-gradient(135deg, #e8f5e9, #c8e6c9);
+        border-radius: 12px;
+        padding: 0.8rem;
+        margin-top: 0.5rem;
+    }
+
+    .info-box {
+        background: linear-gradient(135deg, #e3f2fd, #bbdef5);
+        border-radius: 15px;
+        padding: 1rem;
+        margin-top: 1rem;
+    }
+
+    .action-buttons {
+        display: flex;
+        gap: 1rem;
+        margin-top: 2rem;
+        padding-top: 1rem;
+        border-top: 1px solid #e9ecef;
+    }
+
+    .btn-custom {
+        padding: 0.7rem 1.5rem;
+        border-radius: 12px;
+        font-weight: 600;
+        transition: all 0.3s ease;
+    }
+
+    .btn-custom i {
+        margin-left: 8px;
+    }
+
+    .btn-custom:hover {
+        transform: translateY(-2px);
+    }
+
+    @keyframes fadeInUp {
+        from {
+            opacity: 0;
+            transform: translateY(20px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    .form-card {
+        animation: fadeInUp 0.5s ease;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<!-- رأس الصفحة المميز -->
+<div class="add-invoice-header">
+    <div class="row align-items-center">
+        <div class="col-md-8">
+            <h2 class="mb-2">
+                <i class="fas fa-file-invoice me-2"></i>
+                إضافة فاتورة جديدة
+            </h2>
+            <p class="mb-0 opacity-75">إضافة فاتورة جديدة لعقد قائم</p>
+        </div>
+        <div class="col-md-4 text-center">
+            <div class="invoice-icon-large mx-auto">
+                <i class="fas fa-file-invoice-dollar"></i>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- بطاقة النموذج المحسنة -->
+<div class="form-card">
+    <div class="form-card-header">
+        <h4>
+            <i class="fas fa-file-invoice"></i>
+            بيانات الفاتورة الجديدة
+        </h4>
+        <p class="text-muted mb-0 mt-1">قم بإدخال بيانات الفاتورة الجديدة</p>
+    </div>
+
+    <div class="card-body p-4">
+        <form method="POST" id="addInvoiceForm">
+            <div class="row">
+                <!-- العقد -->
+                <div class="col-md-6 form-group-custom">
+                    <label class="form-label-custom">
+                        <i class="fas fa-file-contract"></i>
+                        العقد <span class="required">*</span>
+                    </label>
+                    <div class="input-icon">
+                        <i class="fas fa-file-contract"></i>
+                        <select class="form-select form-select-custom" id="contract_id" name="contract_id" required>
+                            <option value="">-- اختر العقد --</option>
+                            {% for contract in contracts %}
+                            <option value="{{ contract.id }}"
+                                    data-company="{{ contract.company.name if contract.company else '-' }}"
+                                    data-value="{{ contract.contract_value }}"
+                                    data-remaining="{{ contract.remaining_amount }}">
+                                {{ contract.company.name if contract.company else '-' }} -
+                                {{ "{:,.0f}".format(contract.contract_value) }} ر.ي
+                                {% if contract.remaining_amount > 0 %}
+                                (المتبقي: {{ "{:,.0f}".format(contract.remaining_amount) }} ر.ي)
+                                {% endif %}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+
+                <!-- رقم الفاتورة -->
+                <div class="col-md-6 form-group-custom">
+                    <label class="form-label-custom">
+                        <i class="fas fa-hashtag"></i>
+                        رقم الفاتورة <span class="required">*</span>
+                    </label>
+                    <div class="input-icon">
+                        <i class="fas fa-file-invoice"></i>
+                        <input type="text" class="form-control form-control-custom"
+                               id="invoice_number" name="invoice_number"
+                               placeholder="مثال: INV-2024-001" required>
+                    </div>
+                </div>
+
+                <!-- المبلغ -->
+                <div class="col-md-6 form-group-custom">
+                    <label class="form-label-custom">
+                        <i class="fas fa-money-bill"></i>
+                        المبلغ <span class="required">*</span>
+                    </label>
+                    <div class="input-icon">
+                        <i class="fas fa-riyal-sign"></i>
+                        <input type="number" class="form-control form-control-custom"
+                               id="amount" name="amount"
+                               step="0.01" required
+                               placeholder="أدخل المبلغ">
+                    </div>
+                    <div class="amount-preview" id="amountPreview">
+                        <small class="text-muted">
+                            <i class="fas fa-info-circle"></i>
+                            المبلغ المدخل: <strong id="formattedAmount">0</strong> ر.ي
+                        </small>
+                    </div>
+                </div>
+
+                <!-- تاريخ الفاتورة -->
+                <div class="col-md-6 form-group-custom">
+                    <label class="form-label-custom">
+                        <i class="fas fa-calendar-alt"></i>
+                        تاريخ الفاتورة <span class="required">*</span>
+                    </label>
+                    <div class="input-icon">
+                        <i class="fas fa-calendar-check"></i>
+                        <input type="date" class="form-control form-control-custom"
+                               id="invoice_date" name="invoice_date" required>
+                    </div>
+                </div>
+
+                <!-- تاريخ الاستحقاق -->
+                <div class="col-md-6 form-group-custom">
+                    <label class="form-label-custom">
+                        <i class="fas fa-calendar-times"></i>
+                        تاريخ الاستحقاق
+                    </label>
+                    <div class="input-icon">
+                        <i class="fas fa-calendar-week"></i>
+                        <input type="date" class="form-control form-control-custom"
+                               id="due_date" name="due_date">
+                    </div>
+                    <small class="text-muted">
+                        <i class="fas fa-info-circle"></i>
+                        تاريخ استحقاق الدفع (اختياري)
+                    </small>
+                </div>
+
+                <!-- معلومات العقد (تظهر عند اختيار العقد) -->
+                <div class="col-12 form-group-custom" id="contractInfo" style="display: none;">
+                    <label class="form-label-custom">
+                        <i class="fas fa-info-circle"></i>
+                        معلومات العقد
+                    </label>
+                    <div class="contract-info">
+                        <div class="contract-info-item">
+                            <span class="info-label">الشركة:</span>
+                            <span class="info-value" id="contractCompany">-</span>
+                        </div>
+                        <div class="contract-info-item">
+                            <span class="info-label">قيمة العقد:</span>
+                            <span class="info-value" id="contractValue">-</span>
+                        </div>
+                        <div class="contract-info-item">
+                            <span class="info-label">المبلغ المتبقي:</span>
+                            <span class="info-value" id="contractRemaining">-</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ملاحظات -->
+                <div class="col-12 form-group-custom">
+                    <label class="form-label-custom">
+                        <i class="fas fa-sticky-note"></i>
+                        ملاحظات
+                    </label>
+                    <div class="input-icon">
+                        <i class="fas fa-pen"></i>
+                        <textarea class="form-control form-control-custom"
+                                  id="notes" name="notes"
+                                  rows="3"
+                                  placeholder="أضف أي ملاحظات إضافية حول الفاتورة..."></textarea>
+                    </div>
+                </div>
+            </div>
+
+            <!-- معلومات إضافية -->
+            <div class="info-box">
+                <div class="d-flex align-items-start gap-3">
+                    <i class="fas fa-info-circle fa-lg text-warning"></i>
+                    <div>
+                        <strong>تعليمات هامة</strong><br>
+                        <small class="text-muted">
+                            <i class="fas fa-check-circle text-success me-1"></i> سيتم تحديث المبلغ المستلم للعقد تلقائياً<br>
+                            <i class="fas fa-check-circle text-success me-1"></i> يمكن طباعة الفاتورة بعد إنشائها<br>
+                            <i class="fas fa-check-circle text-success me-1"></i> الفواتير غير المدفوعة تظهر في تقارير المتابعة<br>
+                            <i class="fas fa-check-circle text-success me-1"></i> لا يمكن إضافة فاتورة بقيمة أكبر من المتبقي في العقد
+                        </small>
+                    </div>
+                </div>
+            </div>
+
+            <!-- أزرار الإجراءات -->
+            <div class="action-buttons">
+                <button type="submit" class="btn btn-warning btn-custom">
+                    <i class="fas fa-save"></i>
+                    إضافة الفاتورة
+                </button>
+                <a href="{{ url_for('invoices_list') }}" class="btn btn-secondary btn-custom">
+                    <i class="fas fa-times"></i>
+                    إلغاء
+                </a>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+    $(document).ready(function() {
+        // تنسيق المبلغ أثناء الكتابة
+        $('#amount').on('input', function() {
+            var value = $(this).val();
+            var formatted = new Intl.NumberFormat('ar-SA').format(value);
+            $('#formattedAmount').text(formatted);
+
+            // التحقق من أن المبلغ لا يتجاوز المتبقي في العقد
+            var remaining = $('#contract_id option:selected').data('remaining');
+            if (remaining && parseFloat(value) > remaining) {
+                $('#amountPreview').addClass('bg-danger bg-opacity-10');
+                $('#amountPreview').find('small').html('<i class="fas fa-exclamation-triangle text-danger"></i> المبلغ يتجاوز المتبقي في العقد!');
+            } else {
+                $('#amountPreview').removeClass('bg-danger bg-opacity-10');
+                $('#amountPreview').find('small').html('<i class="fas fa-info-circle"></i> المبلغ المدخل: <strong id="formattedAmount">' + formatted + '</strong> ر.ي');
+            }
+        });
+
+        // عرض معلومات العقد عند اختياره
+        $('#contract_id').on('change', function() {
+            var selected = $(this).find('option:selected');
+            var company = selected.data('company');
+            var value = selected.data('value');
+            var remaining = selected.data('remaining');
+
+            if (this.value) {
+                $('#contractInfo').show();
+                $('#contractCompany').text(company || '-');
+                $('#contractValue').text(new Intl.NumberFormat('ar-SA').format(value) + ' ر.ي');
+                $('#contractRemaining').html('<strong class="text-warning">' + new Intl.NumberFormat('ar-SA').format(remaining) + ' ر.ي</strong>');
+
+                // تعيين الحد الأقصى للمبلغ
+                $('#amount').attr('max', remaining);
+            } else {
+                $('#contractInfo').hide();
+            }
+        });
+
+        // تعيين الحد الأدنى لتاريخ الفاتورة كاليوم الحالي
+        var today = new Date().toISOString().split('T')[0];
+        document.getElementById('invoice_date').min = today;
+
+        // التحقق من أن تاريخ الاستحقاق بعد تاريخ الفاتورة
+        $('#due_date').on('change', function() {
+            var invoiceDate = $('#invoice_date').val();
+            var dueDate = $(this).val();
+
+            if (invoiceDate && dueDate && dueDate < invoiceDate) {
+                alert('تاريخ الاستحقاق يجب أن يكون بعد تاريخ الفاتورة');
+                $(this).val('');
+            }
+        });
+
+        // التحقق من صحة النموذج
+        $('#addInvoiceForm').on('submit', function(e) {
+            var contractId = $('#contract_id').val();
+            var invoiceNumber = $('#invoice_number').val().trim();
+            var amount = $('#amount').val();
+            var invoiceDate = $('#invoice_date').val();
+            var remaining = $('#contract_id option:selected').data('remaining');
+
+            if (!contractId) {
+                e.preventDefault();
+                alert('الرجاء اختيار العقد');
+                $('#contract_id').focus();
+                return false;
+            }
+
+            if (!invoiceNumber) {
+                e.preventDefault();
+                alert('الرجاء إدخال رقم الفاتورة');
+                $('#invoice_number').focus();
+                return false;
+            }
+
+            if (!amount || parseFloat(amount) <= 0) {
+                e.preventDefault();
+                alert('الرجاء إدخال مبلغ صحيح');
+                $('#amount').focus();
+                return false;
+            }
+
+            if (remaining && parseFloat(amount) > remaining) {
+                e.preventDefault();
+                alert('المبلغ المدخل يتجاوز المتبقي في العقد');
+                $('#amount').focus();
+                return false;
+            }
+
+            if (!invoiceDate) {
+                e.preventDefault();
+                alert('الرجاء إدخال تاريخ الفاتورة');
+                $('#invoice_date').focus();
+                return false;
+            }
+
+            return true;
+        });
+
+        // تأثيرات على الحقول
+        $('.form-control-custom, .form-select-custom').on('focus', function() {
+            $(this).parent().find('i').css('color', '#ff9800');
+        }).on('blur', function() {
+            $(this).parent().find('i').css('color', '#adb5bd');
+        });
+    });
+</script>
+{% endblock %}

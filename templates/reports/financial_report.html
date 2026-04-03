@@ -1,0 +1,468 @@
+{% extends "base.html" %}
+
+{% block title %}التقرير المالي - طلعت هائل للخدمات والاستشارات الزراعية{% endblock %}
+
+{% block extra_css %}
+<style>
+    .report-header {
+        background: linear-gradient(135deg, var(--primary-color) 0%, var(--primary-dark) 100%);
+        border-radius: 20px;
+        padding: 1.5rem;
+        margin-bottom: 1.5rem;
+        color: white;
+        position: relative;
+        overflow: hidden;
+    }
+
+    .report-header::before {
+        content: '';
+        position: absolute;
+        top: -50%;
+        right: -50%;
+        width: 200%;
+        height: 200%;
+        background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, transparent 70%);
+        animation: rotate 20s linear infinite;
+    }
+
+    @keyframes rotate {
+        from { transform: rotate(0deg); }
+        to { transform: rotate(360deg); }
+    }
+
+    .filter-section {
+        background: white;
+        border-radius: 20px;
+        padding: 1.2rem;
+        margin-bottom: 1.5rem;
+        box-shadow: var(--shadow-sm);
+    }
+
+    .stats-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 1rem;
+        margin-bottom: 1.5rem;
+    }
+
+    .stat-card {
+        background: white;
+        border-radius: 20px;
+        padding: 1.2rem;
+        text-align: center;
+        transition: all 0.3s ease;
+        box-shadow: var(--shadow-sm);
+        position: relative;
+        overflow: hidden;
+    }
+
+    .stat-card:hover {
+        transform: translateY(-5px);
+        box-shadow: var(--shadow-lg);
+    }
+
+    .stat-card::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 4px;
+        background: linear-gradient(90deg, var(--primary-color), var(--primary-light));
+    }
+
+    .stat-icon {
+        font-size: 2rem;
+        margin-bottom: 0.5rem;
+    }
+
+    .stat-value {
+        font-size: 1.8rem;
+        font-weight: 800;
+        margin-bottom: 0.25rem;
+    }
+
+    .stat-label {
+        font-size: 0.8rem;
+        color: #6c757d;
+    }
+
+    .table-financial {
+        margin-bottom: 0;
+    }
+
+    .table-financial thead th {
+        background: linear-gradient(135deg, var(--primary-color), var(--primary-dark));
+        color: white;
+        font-weight: 600;
+        padding: 1rem;
+        border: none;
+        font-size: 0.85rem;
+        text-align: center;
+        vertical-align: middle;
+    }
+
+    .table-financial thead th i {
+        margin-left: 6px;
+    }
+
+    .table-financial tbody tr {
+        transition: all 0.3s ease;
+        border-bottom: 1px solid #f0f0f0;
+    }
+
+    .table-financial tbody tr:hover {
+        background: rgba(46, 125, 50, 0.05);
+        transform: translateX(5px);
+    }
+
+    .table-financial tbody td {
+        padding: 1rem;
+        vertical-align: middle;
+        text-align: center;
+    }
+
+    .amount-positive {
+        color: #28a745;
+        font-weight: 600;
+    }
+
+    .amount-negative {
+        color: #dc3545;
+        font-weight: 600;
+    }
+
+    .total-row {
+        background: linear-gradient(135deg, #f8f9fa, #e9ecef);
+        font-weight: 700;
+    }
+
+    .total-row td {
+        font-weight: 700;
+        background: #f8f9fa;
+    }
+
+    .empty-state {
+        text-align: center;
+        padding: 3rem;
+    }
+
+    .empty-state i {
+        font-size: 4rem;
+        color: #dee2e6;
+        margin-bottom: 1rem;
+    }
+
+    .export-buttons {
+        display: flex;
+        gap: 0.5rem;
+    }
+
+    @media print {
+        .sidebar, .navbar, .footer, .btn, .filter-section, .no-print, .export-buttons {
+            display: none !important;
+        }
+        .col-md-10 {
+            width: 100% !important;
+            margin: 0 !important;
+            padding: 0 !important;
+        }
+        .card {
+            box-shadow: none !important;
+        }
+        .report-header {
+            background: var(--primary-color);
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+        }
+        .table-financial thead th {
+            background: var(--primary-color);
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<!-- رأس التقرير -->
+<div class="report-header">
+    <div class="row align-items-center">
+        <div class="col-md-8">
+            <h2 class="mb-2">
+                <i class="fas fa-chart-line me-2"></i>
+                التقرير المالي
+            </h2>
+            <p class="mb-0 opacity-75">تقرير شامل للرواتب والإضافات والخصميات حسب الشهر المالي</p>
+        </div>
+        <div class="col-md-4 text-center">
+            <i class="fas fa-chart-pie fa-3x opacity-50"></i>
+        </div>
+    </div>
+</div>
+
+<!-- شريط الفلترة -->
+<div class="filter-section">
+    <form method="GET" class="row g-3">
+        <div class="col-md-4">
+            <label class="form-label fw-bold">
+                <i class="fas fa-calendar-alt text-success"></i> اختر الشهر المالي
+            </label>
+            <select class="form-select" id="month_year" name="month_year">
+                <option value="all" {% if selected_month == 'all' %}selected{% endif %}>📅 جميع الأشهر</option>
+                {% for month in available_months %}
+                <option value="{{ month }}" {% if selected_month == month %}selected{% endif %}>
+                    {{ month }}
+                </option>
+                {% endfor %}
+            </select>
+            <small class="text-muted">الشهر المالي: من 26 إلى 25 من الشهر التالي</small>
+        </div>
+        <div class="col-md-4 d-flex align-items-end">
+            <button type="submit" class="btn btn-primary w-100">
+                <i class="fas fa-search me-2"></i> عرض التقرير
+            </button>
+        </div>
+        <div class="col-md-4 d-flex align-items-end">
+            <div class="export-buttons w-100">
+                <button type="button" id="exportExcel" class="btn btn-success w-50" title="تصدير إلى Excel">
+                    <i class="fas fa-file-excel"></i> Excel
+                </button>
+                <button type="button" onclick="window.print()" class="btn btn-secondary w-50" title="طباعة التقرير">
+                    <i class="fas fa-print"></i> طباعة
+                </button>
+            </div>
+        </div>
+    </form>
+</div>
+
+{% if report and report.salaries %}
+<!-- بطاقات الإحصائيات -->
+<div class="stats-grid">
+    <div class="stat-card">
+        <div class="stat-icon">
+            <i class="fas fa-users text-primary"></i>
+        </div>
+        <div class="stat-value">{{ report.total_employees }}</div>
+        <div class="stat-label">إجمالي الموظفين</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-icon">
+            <i class="fas fa-calendar-check text-success"></i>
+        </div>
+        <div class="stat-value">{{ report.total_attendance_days }}</div>
+        <div class="stat-label">إجمالي أيام الحضور</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-icon">
+            <i class="fas fa-money-bill-wave text-danger"></i>
+        </div>
+        <div class="stat-value">{{ "{:,.0f}".format(report.total_salaries) }}</div>
+        <div class="stat-label">إجمالي الرواتب (ر.ي)</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-icon">
+            <i class="fas fa-check-circle text-info"></i>
+        </div>
+        <div class="stat-value">{{ report.paid_salaries }}/{{ report.total_employees }}</div>
+        <div class="stat-label">الرواتب المدفوعة</div>
+    </div>
+</div>
+
+<!-- جدول الرواتب التفصيلي -->
+<div class="card">
+    <div class="card-header bg-white">
+        <div class="d-flex justify-content-between align-items-center">
+            <h5 class="mb-0">
+                <i class="fas fa-table text-success me-2"></i>
+                تفاصيل الرواتب
+                {% if selected_month and selected_month != 'all' %}
+                - شهر {{ selected_month }}
+                {% else %}
+                - جميع الأشهر
+                {% endif %}
+            </h5>
+            <div>
+                <span class="badge bg-secondary">
+                    <i class="fas fa-calendar-alt"></i>
+                    {% if report.start_date and report.end_date %}
+                    {{ report.start_date.strftime('%Y-%m-%d') }} - {{ report.end_date.strftime('%Y-%m-%d') }}
+                    {% else %}
+                    جميع الأشهر المالية
+                    {% endif %}
+                </span>
+            </div>
+        </div>
+    </div>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-financial" id="financialTable">
+                <thead>
+                    <tr>
+                        <th style="width: 5%">#</th>
+                        <th style="width: 12%">الموظف</th>
+                        <th style="width: 8%">الشهر</th>
+                        <th style="width: 8%">أيام الحضور</th>
+                        <th style="width: 10%">راتب الحضور</th>
+                        <th style="width: 8%">بدل السكن</th>
+                        <th style="width: 8%">إضافي</th>
+                        <th style="width: 8%">سلف</th>
+                        <th style="width: 8%">خصم/جزاء</th>
+                        <th style="width: 10%">الإجمالي</th>
+                        <th style="width: 7%">الحالة</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for salary in report.salaries %}
+                    <tr>
+                        <td class="fw-bold">{{ loop.index }}</td>
+                        <td class="text-center">
+                            <div class="d-flex align-items-center gap-2 justify-content-center">
+                                <i class="fas fa-user-circle text-primary"></i>
+                                <strong>{{ salary.employee.name }}</strong>
+                            </div>
+                            <small class="text-muted">{{ salary.employee.job_title or 'موظف' }}</small>
+                        </td>
+                        <td>
+                            <span class="badge bg-secondary">{{ salary.month_year }}</span>
+                        </td>
+                        <td>
+                            <span class="badge bg-info">{{ salary.attendance_days }} يوم</span>
+                        </td>
+                        <td class="amount-positive">
+                            {{ "{:,.0f}".format(salary.attendance_amount) }} ر.ي
+                        </td>
+                        <td class="amount-positive">
+                            {{ "{:,.0f}".format(salary.daily_allowance_amount) }} ر.ي
+                        </td>
+                        <td class="amount-positive">
+                            + {{ "{:,.0f}".format(salary.overtime_amount) }} ر.ي
+                        </td>
+                        <td class="amount-negative">
+                            - {{ "{:,.0f}".format(salary.advance_amount) }} ر.ي
+                        </td>
+                        <td class="amount-negative">
+                            - {{ "{:,.0f}".format(salary.deduction_amount + salary.penalty_amount) }} ر.ي
+                        </td>
+                        <td class="fw-bold {% if salary.total_salary > 0 %}text-success{% else %}text-danger{% endif %}">
+                            {{ "{:,.0f}".format(salary.total_salary) }} ر.ي
+                        </td>
+                        <td>
+                            {% if salary.is_paid %}
+                            <span class="badge bg-success">
+                                <i class="fas fa-check-circle"></i> مدفوع
+                            </span>
+                            {% else %}
+                            <span class="badge bg-warning">
+                                <i class="fas fa-clock"></i> غير مدفوع
+                            </span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+                <tfoot class="table-light">
+                    <tr class="total-row">
+                        <td colspan="3" class="fw-bold">الإجمالي</td>
+                        <td class="fw-bold">{{ report.total_attendance_days }}</td>
+                        <td class="fw-bold">{{ "{:,.0f}".format(report.salaries|sum(attribute='attendance_amount')) }} ر.ي</td>
+                        <td class="fw-bold">{{ "{:,.0f}".format(report.salaries|sum(attribute='daily_allowance_amount')) }} ر.ي</td>
+                        <td class="fw-bold text-success">{{ "{:,.0f}".format(report.salaries|sum(attribute='overtime_amount')) }} ر.ي</td>
+                        <td class="fw-bold text-danger">{{ "{:,.0f}".format(report.salaries|sum(attribute='advance_amount')) }} ر.ي</td>
+                        <td class="fw-bold text-danger">{{ "{:,.0f}".format(report.salaries|sum(attribute='deduction_amount') + report.salaries|sum(attribute='penalty_amount')) }} ر.ي</td>
+                        <td class="fw-bold">{{ "{:,.0f}".format(report.total_salaries) }} ر.ي</td>
+                        <td></td>
+                    </tr>
+                </tfoot>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- ملخص إضافي -->
+<div class="row mt-4">
+    <div class="col-md-4">
+        <div class="card bg-light">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <small class="text-muted">متوسط الراتب</small>
+                        <h5 class="mb-0">{{ (report.total_salaries / report.total_employees)|round|int if report.total_employees else 0 }} ر.ي</h5>
+                    </div>
+                    <i class="fas fa-chart-line fa-2x text-muted"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card bg-light">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <small class="text-muted">متوسط أيام الحضور</small>
+                        <h5 class="mb-0">{{ (report.total_attendance_days / report.total_employees)|round(1) if report.total_employees else 0 }} يوم</h5>
+                    </div>
+                    <i class="fas fa-calendar-check fa-2x text-muted"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card bg-light">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <small class="text-muted">نسبة المدفوعات</small>
+                        <h5 class="mb-0">{{ (report.paid_salaries / report.total_employees * 100)|round(1) if report.total_employees else 0 }}%</h5>
+                    </div>
+                    <i class="fas fa-percent fa-2x text-muted"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="text-center mt-3">
+    <small class="text-muted">
+        <i class="fas fa-info-circle me-1"></i>
+        تاريخ إنشاء التقرير: {{ now.strftime('%Y-%m-%d %H:%M') }}
+    </small>
+</div>
+
+{% else %}
+<!-- حالة عدم وجود بيانات -->
+<div class="card">
+    <div class="card-body">
+        <div class="empty-state">
+            <i class="fas fa-chart-line"></i>
+            <h5>لا توجد بيانات</h5>
+            <p class="text-muted">الرجاء اختيار شهر لعرض التقرير المالي</p>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<script>
+    $(document).ready(function() {
+        // تصدير إلى Excel
+        $('#exportExcel').on('click', function() {
+            var table = document.getElementById('financialTable');
+            var html = table.outerHTML;
+            var style = '<style>th, td { border: 1px solid #ddd; padding: 8px; text-align: center; } th { background: #2e7d32; color: white; } .total-row { background: #f8f9fa; font-weight: bold; }</style>';
+            var title = 'التقرير المالي';
+            {% if selected_month and selected_month != 'all' %}
+                title = title + ' - {{ selected_month }}';
+            {% else %}
+                title = title + ' - جميع الأشهر';
+            {% endif %}
+            var fullHtml = '<html><head><meta charset="UTF-8"><title>' + title + '</title>' + style + '</head><body>' + html + '</body></html>';
+            var blob = new Blob([fullHtml], {type: 'application/vnd.ms-excel'});
+            var link = document.createElement('a');
+            link.href = URL.createObjectURL(blob);
+            link.download = 'financial_report_{{ selected_month if selected_month and selected_month != "all" else "all_months" }}.xls';
+            link.click();
+            URL.revokeObjectURL(link.href);
+        });
+    });
+</script>
+{% endblock %}

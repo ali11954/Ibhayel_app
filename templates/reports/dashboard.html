@@ -1,0 +1,153 @@
+{% extends "base.html" %}
+
+{% block title %}لوحة التقارير - طلعت هائل للخدمات والاستشارات الزراعية{% endblock %}
+
+{% block extra_css %}
+<style>
+    .report-card {
+        transition: all 0.3s ease;
+        cursor: pointer;
+        border: none;
+        border-radius: 15px;
+        overflow: hidden;
+        height: 100%;
+    }
+
+    .report-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+    }
+
+    .report-icon {
+        width: 70px;
+        height: 70px;
+        border-radius: 15px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin-bottom: 1rem;
+    }
+
+    .report-icon i {
+        font-size: 2rem;
+    }
+
+    .report-section {
+        background: var(--primary-soft);
+        border-radius: 15px;
+        padding: 1rem;
+        margin-bottom: 1rem;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="page-header mb-4">
+        <h2>
+            <i class="fas fa-chart-line"></i>
+            لوحة التقارير
+        </h2>
+        <p class="text-muted mb-0">تقارير وإحصائيات شاملة</p>
+    </div>
+
+    <!-- التقارير الرئيسية -->
+    <div class="row mb-4">
+        <div class="col-md-6 col-lg-4 mb-3">
+            <div class="report-card card" onclick="window.location.href='{{ url_for('attendance_report') }}'">
+                <div class="card-body text-center">
+                    <div class="report-icon bg-success bg-opacity-10 mx-auto">
+                        <i class="fas fa-calendar-check text-success"></i>
+                    </div>
+                    <h5>تقرير الحضور</h5>
+                    <p class="text-muted small">تقرير حضور وانصراف الموظفين</p>
+                    <span class="badge bg-success">عرض التقرير <i class="fas fa-arrow-left"></i></span>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6 col-lg-4 mb-3">
+            <div class="report-card card" onclick="window.location.href='{{ url_for('financial_report') }}'">
+                <div class="card-body text-center">
+                    <div class="report-icon bg-primary bg-opacity-10 mx-auto">
+                        <i class="fas fa-chart-line text-primary"></i>
+                    </div>
+                    <h5>تقرير مالي</h5>
+                    <p class="text-muted small">تقارير الرواتب والمعاملات المالية</p>
+                    <span class="badge bg-primary">عرض التقرير <i class="fas fa-arrow-left"></i></span>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6 col-lg-4 mb-3">
+            <div class="report-card card" onclick="window.location.href='{{ url_for('employees_report') }}'">
+                <div class="card-body text-center">
+                    <div class="report-icon bg-info bg-opacity-10 mx-auto">
+                        <i class="fas fa-users text-info"></i>
+                    </div>
+                    <h5>تقرير الموظفين</h5>
+                    <p class="text-muted small">بيانات وإحصائيات الموظفين</p>
+                    <span class="badge bg-info">عرض التقرير <i class="fas fa-arrow-left"></i></span>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6 col-lg-4 mb-3">
+            <div class="report-card card" onclick="window.location.href='{{ url_for('regions_report') }}'">
+                <div class="card-body text-center">
+                    <div class="report-icon bg-warning bg-opacity-10 mx-auto">
+                        <i class="fas fa-map-marker-alt text-warning"></i>
+                    </div>
+                    <h5>تقرير المناطق</h5>
+                    <p class="text-muted small">توزيع الشركات والموظفين حسب المناطق</p>
+                    <span class="badge bg-warning">عرض التقرير <i class="fas fa-arrow-left"></i></span>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6 col-lg-4 mb-3">
+            <div class="report-card card" onclick="window.location.href='{{ url_for('monthly_close') }}'">
+                <div class="card-body text-center">
+                    <div class="report-icon bg-danger bg-opacity-10 mx-auto">
+                        <i class="fas fa-file-invoice-dollar text-danger"></i>
+                    </div>
+                    <h5>الإغلاق الشهري</h5>
+                    <p class="text-muted small">تقرير الإغلاق المالي الشهري</p>
+                    <span class="badge bg-danger">عرض التقرير <i class="fas fa-arrow-left"></i></span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- إحصائيات سريعة -->
+    <div class="report-section">
+        <h5 class="mb-3"><i class="fas fa-chart-pie"></i> إحصائيات سريعة</h5>
+        <div class="row">
+            <div class="col-md-3 col-sm-6 mb-2">
+                <div class="text-center">
+                    <i class="fas fa-users fa-2x text-primary"></i>
+                    <h4 class="mb-0 mt-2">{{ total_employees|default(0) }}</h4>
+                    <small class="text-muted">إجمالي الموظفين</small>
+                </div>
+            </div>
+            <div class="col-md-3 col-sm-6 mb-2">
+                <div class="text-center">
+                    <i class="fas fa-building fa-2x text-success"></i>
+                    <h4 class="mb-0 mt-2">{{ total_companies|default(0) }}</h4>
+                    <small class="text-muted">إجمالي الشركات</small>
+                </div>
+            </div>
+            <div class="col-md-3 col-sm-6 mb-2">
+                <div class="text-center">
+                    <i class="fas fa-money-bill-wave fa-2x text-warning"></i>
+                    <h4 class="mb-0 mt-2">{{ total_salaries_month|default(0) }}</h4>
+                    <small class="text-muted">رواتب الشهر الحالي</small>
+                </div>
+            </div>
+            <div class="col-md-3 col-sm-6 mb-2">
+                <div class="text-center">
+                    <i class="fas fa-calendar-check fa-2x text-info"></i>
+                    <h4 class="mb-0 mt-2">{{ attendance_rate|default(0) }}%</h4>
+                    <small class="text-muted">نسبة الحضور اليومية</small>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

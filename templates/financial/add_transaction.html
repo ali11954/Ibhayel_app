@@ -1,0 +1,481 @@
+{% extends "base.html" %}
+
+{% block title %}إضافة معاملة - ابن هائل لأعمال الزراعة{% endblock %}
+
+{% block extra_css %}
+<style>
+    /* تنسيقات متقدمة لصفحة إضافة المعاملة */
+    .add-transaction-header {
+        background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+        border-radius: 20px;
+        padding: 1.5rem;
+        margin-bottom: 1.5rem;
+        color: white;
+        position: relative;
+        overflow: hidden;
+    }
+
+    .add-transaction-header::before {
+        content: '';
+        position: absolute;
+        top: -50%;
+        right: -50%;
+        width: 200%;
+        height: 200%;
+        background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, transparent 70%);
+        animation: rotate 20s linear infinite;
+    }
+
+    @keyframes rotate {
+        from { transform: rotate(0deg); }
+        to { transform: rotate(360deg); }
+    }
+
+    .transaction-icon-large {
+        width: 80px;
+        height: 80px;
+        border-radius: 20px;
+        background: rgba(255,255,255,0.2);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        font-size: 2.5rem;
+        font-weight: bold;
+        margin-bottom: 1rem;
+        backdrop-filter: blur(10px);
+    }
+
+    .form-card {
+        border: none;
+        border-radius: 20px;
+        box-shadow: var(--shadow-lg);
+        overflow: hidden;
+    }
+
+    .form-card-header {
+        background: linear-gradient(135deg, #ffffff, #f8f9fa);
+        border-bottom: 3px solid #28a745;
+        padding: 1.2rem 1.5rem;
+    }
+
+    .form-card-header h4 {
+        margin: 0;
+        color: var(--dark-color);
+        font-weight: 700;
+    }
+
+    .form-card-header h4 i {
+        color: #28a745;
+        margin-left: 10px;
+    }
+
+    .form-group-custom {
+        margin-bottom: 1.5rem;
+    }
+
+    .form-label-custom {
+        font-weight: 600;
+        color: var(--dark-color);
+        margin-bottom: 0.5rem;
+        display: block;
+    }
+
+    .form-label-custom i {
+        color: #28a745;
+        margin-left: 8px;
+        width: 20px;
+    }
+
+    .form-label-custom .required {
+        color: #dc3545;
+        margin-right: 4px;
+    }
+
+    .form-control-custom, .form-select-custom {
+        border-radius: 12px;
+        border: 2px solid #e9ecef;
+        padding: 0.7rem 1rem;
+        transition: all 0.3s ease;
+    }
+
+    .form-control-custom:focus, .form-select-custom:focus {
+        border-color: #28a745;
+        box-shadow: 0 0 0 0.2rem rgba(40, 167, 69, 0.25);
+    }
+
+    .input-icon {
+        position: relative;
+    }
+
+    .input-icon i {
+        position: absolute;
+        right: 15px;
+        top: 50%;
+        transform: translateY(-50%);
+        color: #adb5bd;
+        transition: all 0.3s ease;
+    }
+
+    .input-icon .form-control-custom {
+        padding-right: 40px;
+    }
+
+    .input-icon .form-control-custom:focus + i {
+        color: #28a745;
+    }
+
+    .amount-preview {
+        background: linear-gradient(135deg, #e8f5e9, #c8e6c9);
+        border-radius: 12px;
+        padding: 0.8rem;
+        margin-top: 0.5rem;
+    }
+
+    .info-box {
+        background: linear-gradient(135deg, #e3f2fd, #bbdef5);
+        border-radius: 15px;
+        padding: 1rem;
+        margin-top: 1rem;
+    }
+
+    .action-buttons {
+        display: flex;
+        gap: 1rem;
+        margin-top: 2rem;
+        padding-top: 1rem;
+        border-top: 1px solid #e9ecef;
+    }
+
+    .btn-custom {
+        padding: 0.7rem 1.5rem;
+        border-radius: 12px;
+        font-weight: 600;
+        transition: all 0.3s ease;
+    }
+
+    .btn-custom i {
+        margin-left: 8px;
+    }
+
+    .btn-custom:hover {
+        transform: translateY(-2px);
+    }
+
+    @keyframes fadeInUp {
+        from {
+            opacity: 0;
+            transform: translateY(20px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    .form-card {
+        animation: fadeInUp 0.5s ease;
+    }
+
+    .transaction-type-badge {
+        display: inline-block;
+        padding: 0.2rem 0.5rem;
+        border-radius: 8px;
+        font-size: 0.7rem;
+        margin-top: 0.5rem;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<!-- رأس الصفحة المميز -->
+<div class="add-transaction-header">
+    <div class="row align-items-center">
+        <div class="col-md-8">
+            <h2 class="mb-2">
+                <i class="fas fa-plus-circle me-2"></i>
+                إضافة معاملة مالية
+            </h2>
+            <p class="mb-0 opacity-75">إضافة سلفة، إضافي، خصم أو جزاء للموظفين</p>
+        </div>
+        <div class="col-md-4 text-center">
+            <div class="transaction-icon-large mx-auto">
+                <i class="fas fa-money-bill-wave"></i>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- بطاقة النموذج المحسنة -->
+<div class="form-card">
+    <div class="form-card-header">
+        <h4>
+            <i class="fas fa-exchange-alt"></i>
+            بيانات المعاملة المالية
+        </h4>
+        <p class="text-muted mb-0 mt-1">قم بإدخال بيانات المعاملة المالية</p>
+    </div>
+
+    <div class="card-body p-4">
+        <form method="POST" id="addTransactionForm">
+            <div class="row">
+                <!-- الموظف -->
+                <div class="col-md-6 form-group-custom">
+                    <label class="form-label-custom">
+                        <i class="fas fa-user"></i>
+                        الموظف <span class="required">*</span>
+                    </label>
+                    <div class="input-icon">
+                        <i class="fas fa-user-circle"></i>
+                        <select class="form-select form-select-custom" id="employee_id" name="employee_id" required>
+                            <option value="">-- اختر الموظف --</option>
+                            {% for emp in employees %}
+                            <option value="{{ emp.id }}"
+                                    data-salary="{{ emp.salary }}"
+                                    data-name="{{ emp.name }}"
+                                    data-code="{{ emp.code }}">
+                                {{ emp.name }} ({{ emp.code }}) - {{ "{:,.0f}".format(emp.salary) }} ر.ي
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+
+                <!-- نوع المعاملة -->
+                <div class="col-md-6 form-group-custom">
+                    <label class="form-label-custom">
+                        <i class="fas fa-tag"></i>
+                        نوع المعاملة <span class="required">*</span>
+                    </label>
+                    <div class="input-icon">
+                        <i class="fas fa-exchange-alt"></i>
+                        <select class="form-select form-select-custom" id="transaction_type" name="transaction_type" required>
+                            <option value="">-- اختر النوع --</option>
+                            {% for key, name in transaction_types.items() %}
+                            <option value="{{ key }}"
+                                    {% if key == 'advance' %}data-color="warning"
+                                    {% elif key == 'overtime' %}data-color="success"
+                                    {% elif key == 'deduction' %}data-color="danger"
+                                    {% elif key == 'penalty' %}data-color="danger"{% endif %}>
+                                {{ name }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div id="typeHelp" class="form-text"></div>
+                </div>
+
+                <!-- المبلغ -->
+                <div class="col-md-6 form-group-custom">
+                    <label class="form-label-custom">
+                        <i class="fas fa-money-bill"></i>
+                        المبلغ <span class="required">*</span>
+                    </label>
+                    <div class="input-icon">
+                        <i class="fas fa-riyal-sign"></i>
+                        <input type="number" class="form-control form-control-custom"
+                               id="amount" name="amount"
+                               step="0.01" required
+                               placeholder="أدخل المبلغ">
+                    </div>
+                    <div class="amount-preview" id="amountPreview">
+                        <small class="text-muted">
+                            <i class="fas fa-info-circle"></i>
+                            المبلغ المدخل: <strong id="formattedAmount">0</strong> ر.ي
+                        </small>
+                    </div>
+                </div>
+
+                <!-- التاريخ -->
+                <div class="col-md-6 form-group-custom">
+                    <label class="form-label-custom">
+                        <i class="fas fa-calendar-alt"></i>
+                        التاريخ <span class="required">*</span>
+                    </label>
+                    <div class="input-icon">
+                        <i class="fas fa-calendar-check"></i>
+                        <input type="date" class="form-control form-control-custom"
+                               id="date" name="date"
+                               value="{{ now.strftime('%Y-%m-%d') }}" required>
+                    </div>
+                </div>
+
+                <!-- معلومات الموظف (تظهر عند اختيار الموظف) -->
+                <div class="col-12 form-group-custom" id="employeeInfo" style="display: none;">
+                    <label class="form-label-custom">
+                        <i class="fas fa-info-circle"></i>
+                        معلومات الموظف
+                    </label>
+                    <div class="contract-info" style="background: linear-gradient(135deg, #e8f5e9, #c8e6c9); border-radius: 12px; padding: 1rem;">
+                        <div class="row">
+                            <div class="col-md-4">
+                                <small class="text-muted">الموظف:</small>
+                                <div><strong id="empName">-</strong></div>
+                            </div>
+                            <div class="col-md-4">
+                                <small class="text-muted">الكود:</small>
+                                <div><strong id="empCode">-</strong></div>
+                            </div>
+                            <div class="col-md-4">
+                                <small class="text-muted">الراتب الأساسي:</small>
+                                <div><strong id="empSalary">-</strong></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- الوصف -->
+                <div class="col-12 form-group-custom">
+                    <label class="form-label-custom">
+                        <i class="fas fa-sticky-note"></i>
+                        الوصف
+                    </label>
+                    <div class="input-icon">
+                        <i class="fas fa-pen"></i>
+                        <textarea class="form-control form-control-custom"
+                                  id="description" name="description"
+                                  rows="3"
+                                  placeholder="أضف وصفاً تفصيلياً للمعاملة..."></textarea>
+                    </div>
+                </div>
+            </div>
+
+            <!-- معلومات إضافية -->
+            <div class="info-box">
+                <div class="d-flex align-items-start gap-3">
+                    <i class="fas fa-info-circle fa-lg text-success"></i>
+                    <div>
+                        <strong>تعليمات هامة</strong><br>
+                        <small class="text-muted">
+                            <i class="fas fa-check-circle text-success me-1"></i> <strong>السلفة:</strong> يتم خصمها من الراتب الشهري<br>
+                            <i class="fas fa-check-circle text-success me-1"></i> <strong>الإضافي:</strong> يضاف إلى الراتب الشهري<br>
+                            <i class="fas fa-check-circle text-success me-1"></i> <strong>الخصم:</strong> يتم خصمه من الراتب<br>
+                            <i class="fas fa-check-circle text-success me-1"></i> <strong>الجزاء:</strong> يتم خصمه من الراتب<br>
+                            <i class="fas fa-check-circle text-success me-1"></i> يتم ترحيل المعاملة تلقائياً عند حساب الراتب
+                        </small>
+                    </div>
+                </div>
+            </div>
+
+            <!-- أزرار الإجراءات -->
+            <div class="action-buttons">
+                <button type="submit" class="btn btn-success btn-custom">
+                    <i class="fas fa-save"></i>
+                    إضافة المعاملة
+                </button>
+                <a href="{{ url_for('transactions_list') }}" class="btn btn-secondary btn-custom">
+                    <i class="fas fa-times"></i>
+                    إلغاء
+                </a>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+    $(document).ready(function() {
+        // تنسيق المبلغ أثناء الكتابة
+        $('#amount').on('input', function() {
+            var value = $(this).val();
+            var formatted = new Intl.NumberFormat('ar-SA').format(value);
+            $('#formattedAmount').text(formatted);
+
+            // تغيير اللون حسب نوع المعاملة
+            var type = $('#transaction_type').val();
+            if (type === 'advance' || type === 'deduction' || type === 'penalty') {
+                $('#amountPreview').addClass('bg-danger bg-opacity-10');
+            } else if (type === 'overtime') {
+                $('#amountPreview').addClass('bg-success bg-opacity-10');
+            } else {
+                $('#amountPreview').removeClass('bg-danger bg-opacity-10 bg-success bg-opacity-10');
+            }
+        });
+
+        // عرض معلومات الموظف عند اختياره
+        $('#employee_id').on('change', function() {
+            var selected = $(this).find('option:selected');
+            var name = selected.data('name');
+            var code = selected.data('code');
+            var salary = selected.data('salary');
+
+            if (this.value) {
+                $('#employeeInfo').show();
+                $('#empName').text(name || '-');
+                $('#empCode').text(code || '-');
+                $('#empSalary').text(new Intl.NumberFormat('ar-SA').format(salary) + ' ر.ي');
+            } else {
+                $('#employeeInfo').hide();
+            }
+        });
+
+        // عرض رسالة مساعدة عند اختيار نوع المعاملة
+        $('#transaction_type').on('change', function() {
+            var type = $(this).val();
+            var helpText = '';
+
+            if (type === 'advance') {
+                helpText = '<i class="fas fa-info-circle text-warning"></i> السلفة: يتم خصمها من الراتب الشهري للموظف';
+                $('#amountPreview').addClass('bg-danger bg-opacity-10');
+            } else if (type === 'overtime') {
+                helpText = '<i class="fas fa-info-circle text-success"></i> الإضافي: يضاف إلى الراتب الشهري للموظف';
+                $('#amountPreview').addClass('bg-success bg-opacity-10');
+            } else if (type === 'deduction') {
+                helpText = '<i class="fas fa-info-circle text-danger"></i> الخصم: يتم خصمه من الراتب الشهري للموظف';
+                $('#amountPreview').addClass('bg-danger bg-opacity-10');
+            } else if (type === 'penalty') {
+                helpText = '<i class="fas fa-info-circle text-danger"></i> الجزاء: يتم خصمه من الراتب الشهري للموظف';
+                $('#amountPreview').addClass('bg-danger bg-opacity-10');
+            } else {
+                $('#amountPreview').removeClass('bg-danger bg-opacity-10 bg-success bg-opacity-10');
+            }
+
+            $('#typeHelp').html(helpText);
+        });
+
+        // تعيين الحد الأدنى للتاريخ
+        var today = new Date().toISOString().split('T')[0];
+        document.getElementById('date').max = today;
+
+        // التحقق من صحة النموذج
+        $('#addTransactionForm').on('submit', function(e) {
+            var employeeId = $('#employee_id').val();
+            var transactionType = $('#transaction_type').val();
+            var amount = $('#amount').val();
+
+            if (!employeeId) {
+                e.preventDefault();
+                alert('الرجاء اختيار الموظف');
+                $('#employee_id').focus();
+                return false;
+            }
+
+            if (!transactionType) {
+                e.preventDefault();
+                alert('الرجاء اختيار نوع المعاملة');
+                $('#transaction_type').focus();
+                return false;
+            }
+
+            if (!amount || parseFloat(amount) <= 0) {
+                e.preventDefault();
+                alert('الرجاء إدخال مبلغ صحيح');
+                $('#amount').focus();
+                return false;
+            }
+
+            // التأكيد قبل الإضافة
+            var typeName = $('#transaction_type option:selected').text();
+            var confirmMsg = `هل أنت متأكد من إضافة ${typeName} بقيمة ${new Intl.NumberFormat('ar-SA').format(amount)} ريال للموظف ${$('#employee_id option:selected').text()}؟`;
+
+            return confirm(confirmMsg);
+        });
+
+        // تأثيرات على الحقول
+        $('.form-control-custom, .form-select-custom').on('focus', function() {
+            $(this).parent().find('i').css('color', '#28a745');
+        }).on('blur', function() {
+            $(this).parent().find('i').css('color', '#adb5bd');
+        });
+    });
+</script>
+{% endblock %}

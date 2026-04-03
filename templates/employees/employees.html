@@ -1,0 +1,557 @@
+{% extends "base.html" %}
+
+{% block title %}الموظفين - ابن هائل لأعمال الزراعة{% endblock %}
+
+{% block extra_css %}
+<style>
+    /* تنسيقات متقدمة لصفحة الموظفين */
+    .employees-stats {
+        background: linear-gradient(135deg, #2e7d32 0%, #1b5e20 100%);
+        border-radius: 20px;
+        padding: 1.5rem;
+        margin-bottom: 1.5rem;
+        color: white;
+        position: relative;
+        overflow: hidden;
+    }
+
+    .employees-stats::before {
+        content: '';
+        position: absolute;
+        top: -50%;
+        right: -50%;
+        width: 200%;
+        height: 200%;
+        background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, transparent 70%);
+        animation: rotate 20s linear infinite;
+    }
+
+    @keyframes rotate {
+        from { transform: rotate(0deg); }
+        to { transform: rotate(360deg); }
+    }
+
+    .stat-item {
+        text-align: center;
+        border-left: 1px solid rgba(255,255,255,0.2);
+        position: relative;
+        z-index: 1;
+    }
+
+    .stat-item:last-child {
+        border-left: none;
+    }
+
+    .stat-number {
+        font-size: 2rem;
+        font-weight: 800;
+        margin-bottom: 0;
+    }
+
+    .stat-label {
+        font-size: 0.85rem;
+        opacity: 0.9;
+        margin-bottom: 0;
+    }
+
+    .search-section {
+        background: white;
+        border-radius: 15px;
+        padding: 1rem;
+        margin-bottom: 1.5rem;
+        box-shadow: var(--shadow-sm);
+    }
+
+    .employee-avatar {
+        width: 40px;
+        height: 40px;
+        border-radius: 12px;
+        background: linear-gradient(135deg, var(--primary-light), var(--primary-color));
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        font-weight: bold;
+        font-size: 1rem;
+    }
+
+    .status-badge {
+        padding: 0.3rem 0.8rem;
+        border-radius: 20px;
+        font-size: 0.7rem;
+        font-weight: 600;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.3rem;
+    }
+
+    .action-buttons {
+        display: flex;
+        gap: 0.5rem;
+    }
+
+    .btn-icon {
+        width: 32px;
+        height: 32px;
+        padding: 0;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 10px;
+        transition: all 0.3s ease;
+    }
+
+    .btn-icon:hover {
+        transform: translateY(-2px);
+    }
+
+    .table-employees {
+        margin-bottom: 0;
+    }
+
+    .table-employees thead th {
+        background: linear-gradient(135deg, var(--primary-color), var(--primary-dark));
+        color: white;
+        font-weight: 600;
+        padding: 1rem;
+        border: none;
+        font-size: 0.85rem;
+    }
+
+    .table-employees thead th i {
+        margin-left: 6px;
+    }
+
+    .table-employees tbody tr {
+        transition: all 0.3s ease;
+        border-bottom: 1px solid #f0f0f0;
+    }
+
+    .table-employees tbody tr:hover {
+        background: rgba(46, 125, 50, 0.05);
+        transform: translateX(5px);
+    }
+
+    .table-employees tbody td {
+        padding: 1rem;
+        vertical-align: middle;
+    }
+
+    .empty-state {
+        text-align: center;
+        padding: 3rem;
+    }
+
+    .empty-state i {
+        font-size: 4rem;
+        color: #dee2e6;
+        margin-bottom: 1rem;
+    }
+
+    .filter-btn {
+        border: 1px solid #e0e0e0;
+        border-radius: 10px;
+        padding: 0.5rem 1rem;
+        transition: all 0.3s ease;
+        cursor: pointer;
+        background: white;
+    }
+
+    .filter-btn:hover,
+    .filter-btn.active {
+        background: var(--primary-color);
+        color: white;
+        border-color: var(--primary-color);
+    }
+
+    .salary-cell {
+        font-weight: 600;
+        color: var(--primary-color);
+    }
+
+    @keyframes slideIn {
+        from {
+            opacity: 0;
+            transform: translateY(20px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    .employees-table-container {
+        animation: slideIn 0.5s ease;
+    }
+
+    .quick-stats {
+        display: flex;
+        gap: 1rem;
+        flex-wrap: wrap;
+    }
+
+    .quick-stat-card {
+        background: rgba(255,255,255,0.15);
+        border-radius: 12px;
+        padding: 0.5rem 1rem;
+        text-align: center;
+        min-width: 100px;
+    }
+
+    .quick-stat-number {
+        font-size: 1.2rem;
+        font-weight: 700;
+    }
+
+    .quick-stat-label {
+        font-size: 0.7rem;
+        opacity: 0.8;
+    }
+
+    .company-badge {
+        background: rgba(23, 162, 184, 0.1);
+        color: #17a2b8;
+        padding: 0.3rem 0.6rem;
+        border-radius: 12px;
+        font-size: 0.7rem;
+        font-weight: 600;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.3rem;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div class="d-flex justify-content-between align-items-center">
+        <div>
+            <h2>
+                <i class="fas fa-user-hard-hat"></i>
+                إدارة الموظفين
+            </h2>
+            <p class="text-muted mb-0 mt-2">إدارة بيانات الموظفين والعمال في المؤسسة</p>
+        </div>
+        <div class="d-flex gap-2">
+            <a href="{{ url_for('import_employees') }}" class="btn btn-info">
+                <i class="fas fa-file-excel me-2"></i> استيراد من Excel
+            </a>
+            <a href="{{ url_for('add_employee') }}" class="btn btn-success">
+                <i class="fas fa-plus-circle me-2"></i> موظف جديد
+            </a>
+        </div>
+    </div>
+</div>
+
+<!-- إحصائيات الموظفين -->
+<div class="employees-stats">
+    <div class="row">
+        <div class="col-md-3 col-6">
+            <div class="stat-item">
+                <p class="stat-number mb-0">{{ employees|length }}</p>
+                <p class="stat-label">إجمالي الموظفين</p>
+            </div>
+        </div>
+        <div class="col-md-3 col-6">
+            <div class="stat-item">
+                <p class="stat-number mb-0">{{ employees|selectattr('is_resident')|list|length }}</p>
+                <p class="stat-label">الموظفين الساكنين</p>
+            </div>
+        </div>
+        <div class="col-md-3 col-6">
+            <div class="stat-item">
+                <p class="stat-number mb-0">{{ employees|rejectattr('is_resident')|list|length }}</p>
+                <p class="stat-label">غير الساكنين</p>
+            </div>
+        </div>
+        <div class="col-md-3 col-6">
+            <div class="stat-item">
+                <p class="stat-number mb-0">{{ regions|length }}</p>
+                <p class="stat-label">المناطق</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- إحصائيات سريعة إضافية -->
+    <div class="quick-stats mt-3">
+        <div class="quick-stat-card">
+            <div class="quick-stat-number">{{ employees|sum(attribute='salary')|round|int }} ر.ي</div>
+            <div class="quick-stat-label">إجمالي الرواتب</div>
+        </div>
+        <div class="quick-stat-card">
+            <div class="quick-stat-number">{{ (employees|sum(attribute='salary') / employees|length)|round|int if employees else 0 }} ر.ي</div>
+            <div class="quick-stat-label">متوسط الراتب</div>
+        </div>
+        <div class="quick-stat-card">
+            <div class="quick-stat-number">{{ employees|selectattr('is_resident')|list|length * 500 }} ر.ي</div>
+            <div class="quick-stat-label">بدل السكن اليومي</div>
+        </div>
+    </div>
+</div>
+
+<!-- شريط البحث والفلترة -->
+<div class="search-section">
+    <div class="row align-items-center">
+        <div class="col-md-4 mb-3 mb-md-0">
+            <div class="input-group">
+                <span class="input-group-text bg-white border-end-0">
+                    <i class="fas fa-search text-muted"></i>
+                </span>
+                <input type="text" id="searchInput" class="form-control border-start-0"
+                       placeholder="بحث باسم الموظف أو رقم البطاقة أو الكود...">
+            </div>
+        </div>
+        <div class="col-md-3 mb-3 mb-md-0">
+            <select id="companyFilter" class="form-select">
+                <option value="">جميع الشركات</option>
+                {% for company in companies %}
+                <option value="{{ company.id }}">{{ company.name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="col-md-3 mb-3 mb-md-0">
+            <select id="regionFilter" class="form-select">
+                <option value="">جميع المناطق</option>
+                {% for region in regions %}
+                <option value="{{ region }}">{{ region }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="col-md-2">
+            <div class="d-flex gap-2">
+                <button id="filterAll" class="filter-btn active flex-grow-1 text-center" data-status="all">
+                    <i class="fas fa-list"></i> الكل
+                </button>
+                <button id="filterResident" class="filter-btn flex-grow-1 text-center" data-status="resident">
+                    <i class="fas fa-home"></i> ساكن
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- جدول الموظفين المحسن -->
+<div class="card employees-table-container">
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-employees" id="employeesTable">
+                <thead>
+                    <tr>
+                        <th style="width: 5%">
+                            <i class="fas fa-hashtag"></i> #
+                        </th>
+                        <th style="width: 18%">
+                            <i class="fas fa-user"></i> الاسم
+                        </th>
+                        <th style="width: 10%">
+                            <i class="fas fa-id-card"></i> رقم البطاقة
+                        </th>
+                        <th style="width: 8%">
+                            <i class="fas fa-barcode"></i> الكود
+                        </th>
+                        <th style="width: 12%">
+                            <i class="fas fa-briefcase"></i> الوظيفة
+                        </th>
+                        <th style="width: 12%">
+                            <i class="fas fa-building"></i> الشركة
+                        </th>
+                        <th style="width: 10%">
+                            <i class="fas fa-map-marker-alt"></i> المنطقة
+                        </th>
+                        <th style="width: 10%">
+                            <i class="fas fa-home"></i> الحالة
+                        </th>
+                        <th style="width: 10%">
+                            <i class="fas fa-money-bill"></i> الراتب
+                        </th>
+                        <th style="width: 5%">
+                            <i class="fas fa-cog"></i> الإجراءات
+                        </th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for emp in employees %}
+                    <tr data-company="{{ emp.company_id }}" data-region="{{ emp.region }}" data-resident="{{ emp.is_resident|lower }}">
+                        <td class="fw-bold">{{ loop.index }}</td>
+                        <td>
+                            <div class="d-flex align-items-center gap-2">
+                                <div class="employee-avatar">
+                                    {{ emp.name[0]|upper if emp.name else '?' }}
+                                </div>
+                                <div>
+                                    <strong>{{ emp.name }}</strong>
+                                    {% if emp.phone %}
+                                    <br>
+                                    <small class="text-muted">
+                                        <i class="fas fa-phone-alt fa-xs"></i> {{ emp.phone }}
+                                    </small>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </td>
+                        <td>
+                            <span class="badge bg-light text-dark">
+                                <i class="fas fa-id-card"></i> {{ emp.card_number }}
+                            </span>
+                        </td>
+                        <td>
+                            <code>{{ emp.code }}</code>
+                        </td>
+                        <td>
+                            {% if emp.job_title %}
+                            <span class="badge bg-info bg-opacity-10 text-info">
+                                <i class="fas fa-tools"></i> {{ emp.job_title }}
+                            </span>
+                            {% else %}
+                            <span class="text-muted">-</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <span class="company-badge">
+                                <i class="fas fa-building"></i> {{ emp.company.name if emp.company else 'ابن هائل' }}
+                            </span>
+                        </td>
+                        <td>
+                            {% if emp.region %}
+                            <span class="badge bg-primary bg-opacity-10 text-primary">
+                                <i class="fas fa-location-dot"></i> {{ emp.region }}
+                            </span>
+                            {% else %}
+                            <span class="text-muted">-</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if emp.is_resident %}
+                            <span class="status-badge bg-success bg-opacity-10 text-success">
+                                <i class="fas fa-home"></i> ساكن
+                                <small class="me-1">(+500/يوم)</small>
+                            </span>
+                            {% else %}
+                            <span class="status-badge bg-secondary bg-opacity-10 text-secondary">
+                                <i class="fas fa-plane-departure"></i> غير ساكن
+                            </span>
+                            {% endif %}
+                        </td>
+                        <td class="salary-cell">
+                            <i class="fas fa-riyal-sign"></i> {{ "{:,.0f}".format(emp.salary) }}
+                        </td>
+                        <td>
+                            <div class="action-buttons">
+                                <a href="{{ url_for('edit_employee', emp_id=emp.id) }}"
+                                   class="btn btn-icon btn-outline-primary" title="تعديل">
+                                    <i class="fas fa-edit"></i>
+                                </a>
+                                <a href="{{ url_for('delete_employee', emp_id=emp.id) }}"
+                                   class="btn btn-icon btn-outline-danger" title="حذف"
+                                   onclick="return confirmDelete('هل أنت متأكد من حذف هذا الموظف؟')">
+                                    <i class="fas fa-trash-alt"></i>
+                                </a>
+                            </div>
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="10">
+                            <div class="empty-state">
+                                <i class="fas fa-user-hard-hat"></i>
+                                <h5>لا يوجد موظفين</h5>
+                                <p class="text-muted">قم بإضافة موظف جديد للبدء</p>
+                                <div class="d-flex gap-2 justify-content-center">
+                                    <a href="{{ url_for('add_employee') }}" class="btn btn-primary mt-2">
+                                        <i class="fas fa-plus-circle"></i> إضافة موظف
+                                    </a>
+                                    <a href="{{ url_for('import_employees') }}" class="btn btn-info mt-2">
+                                        <i class="fas fa-file-excel"></i> استيراد من Excel
+                                    </a>
+                                </div>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- تذييل مع إحصائيات إضافية -->
+{% if employees|length > 0 %}
+<div class="d-flex justify-content-between align-items-center mt-3">
+    <small class="text-muted">
+        <i class="fas fa-info-circle me-1"></i>
+        عرض {{ employees|length }} من إجمالي {{ employees|length }} موظف
+    </small>
+    <small class="text-muted">
+        <i class="fas fa-chart-line me-1"></i>
+        إجمالي الرواتب: {{ employees|sum(attribute='salary')|round|int }} ر.ي
+    </small>
+    <small class="text-muted">
+        <i class="fas fa-clock me-1"></i>
+        آخر تحديث: {{ now.strftime('%Y-%m-%d %H:%M') }}
+    </small>
+</div>
+{% endif %}
+
+<script>
+    $(document).ready(function() {
+        // البحث المتقدم
+        $('#searchInput').on('keyup', function() {
+            var value = $(this).val().toLowerCase();
+            $('#employeesTable tbody tr').filter(function() {
+                var text = $(this).text().toLowerCase();
+                $(this).toggle(text.indexOf(value) > -1);
+            });
+        });
+
+        // تصفية حسب الشركة
+        $('#companyFilter').on('change', function() {
+            var company = $(this).val();
+            $('#employeesTable tbody tr').each(function() {
+                if (company === '' || $(this).data('company') == company) {
+                    $(this).show();
+                } else {
+                    $(this).hide();
+                }
+            });
+        });
+
+        // تصفية حسب المنطقة
+        $('#regionFilter').on('change', function() {
+            var region = $(this).val();
+            $('#employeesTable tbody tr').each(function() {
+                if (region === '' || $(this).data('region') === region) {
+                    $(this).show();
+                } else {
+                    $(this).hide();
+                }
+            });
+        });
+
+        // تصفية حسب حالة السكن
+        function filterByResident(status) {
+            $('#employeesTable tbody tr').each(function() {
+                var isResident = $(this).data('resident') === 'true';
+                if (status === 'all') {
+                    $(this).show();
+                } else if (status === 'resident' && isResident) {
+                    $(this).show();
+                } else {
+                    $(this).hide();
+                }
+            });
+        }
+
+        $('#filterAll').on('click', function() {
+            $(this).addClass('active');
+            $('#filterResident').removeClass('active');
+            filterByResident('all');
+        });
+
+        $('#filterResident').on('click', function() {
+            $(this).addClass('active');
+            $('#filterAll').removeClass('active');
+            filterByResident('resident');
+        });
+    });
+</script>
+{% endblock %}

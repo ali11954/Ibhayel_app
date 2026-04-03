@@ -1,0 +1,371 @@
+{% extends "base.html" %}
+
+{% block title %}التقارير - ابن هائل لأعمال الزراعة{% endblock %}
+
+{% block extra_css %}
+<style>
+    /* تنسيقات متقدمة لصفحة التقارير */
+    .reports-header {
+        background: linear-gradient(135deg, #17a2b8 0%, #0dcaf0 100%);
+        border-radius: 20px;
+        padding: 1.5rem;
+        margin-bottom: 2rem;
+        color: white;
+        position: relative;
+        overflow: hidden;
+    }
+
+    .reports-header::before {
+        content: '';
+        position: absolute;
+        top: -50%;
+        right: -50%;
+        width: 200%;
+        height: 200%;
+        background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, transparent 70%);
+        animation: rotate 20s linear infinite;
+    }
+
+    @keyframes rotate {
+        from { transform: rotate(0deg); }
+        to { transform: rotate(360deg); }
+    }
+
+    .reports-stats {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 1rem;
+        margin-bottom: 2rem;
+    }
+
+    .stat-card {
+        background: white;
+        border-radius: 20px;
+        padding: 1.2rem;
+        text-align: center;
+        transition: all 0.3s ease;
+        box-shadow: var(--shadow-sm);
+        position: relative;
+        overflow: hidden;
+    }
+
+    .stat-card:hover {
+        transform: translateY(-5px);
+        box-shadow: var(--shadow-lg);
+    }
+
+    .stat-card::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 4px;
+        background: linear-gradient(90deg, #17a2b8, #0dcaf0);
+    }
+
+    .stat-number {
+        font-size: 2rem;
+        font-weight: 800;
+        color: #17a2b8;
+        margin-bottom: 0.25rem;
+    }
+
+    .report-card {
+        background: white;
+        border-radius: 20px;
+        overflow: hidden;
+        transition: all 0.3s ease;
+        box-shadow: var(--shadow-sm);
+        height: 100%;
+        position: relative;
+    }
+
+    .report-card:hover {
+        transform: translateY(-8px);
+        box-shadow: var(--shadow-lg);
+    }
+
+    .report-icon {
+        width: 80px;
+        height: 80px;
+        border-radius: 20px;
+        background: linear-gradient(135deg, #17a2b8, #0dcaf0);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin: 1.5rem auto 1rem;
+        color: white;
+        font-size: 2rem;
+        transition: all 0.3s ease;
+    }
+
+    .report-card:hover .report-icon {
+        transform: scale(1.1) rotate(5deg);
+    }
+
+    .report-title {
+        font-size: 1.2rem;
+        font-weight: 700;
+        color: #495057;
+        margin-bottom: 0.5rem;
+    }
+
+    .report-description {
+        color: #6c757d;
+        font-size: 0.85rem;
+        margin-bottom: 1rem;
+        padding: 0 1rem;
+    }
+
+    .report-footer {
+        background: #f8f9fa;
+        padding: 1rem;
+        border-top: 1px solid #e9ecef;
+        margin-top: 1rem;
+    }
+
+    .btn-report {
+        background: linear-gradient(135deg, #17a2b8, #0dcaf0);
+        border: none;
+        padding: 0.5rem 1.5rem;
+        border-radius: 25px;
+        transition: all 0.3s ease;
+    }
+
+    .btn-report:hover {
+        transform: translateY(-2px);
+        box-shadow: var(--shadow-md);
+    }
+
+    .report-badge {
+        position: absolute;
+        top: 1rem;
+        right: 1rem;
+        background: #17a2b8;
+        color: white;
+        border-radius: 20px;
+        padding: 0.2rem 0.6rem;
+        font-size: 0.7rem;
+        font-weight: 600;
+    }
+
+    @keyframes fadeInUp {
+        from {
+            opacity: 0;
+            transform: translateY(20px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    .report-card {
+        animation: fadeInUp 0.5s ease;
+        animation-fill-mode: both;
+    }
+
+    .report-card:nth-child(1) { animation-delay: 0.1s; }
+    .report-card:nth-child(2) { animation-delay: 0.2s; }
+    .report-card:nth-child(3) { animation-delay: 0.3s; }
+    .report-card:nth-child(4) { animation-delay: 0.4s; }
+    .report-card:nth-child(5) { animation-delay: 0.5s; }
+    .report-card:nth-child(6) { animation-delay: 0.6s; }
+
+    @media print {
+        .sidebar, .navbar, .footer, .btn, .reports-header, .reports-stats {
+            display: none !important;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<!-- رأس الصفحة -->
+<div class="reports-header">
+    <div class="row align-items-center">
+        <div class="col-md-8">
+            <h2 class="mb-2">
+                <i class="fas fa-chart-line me-2"></i>
+                مركز التقارير
+            </h2>
+            <p class="mb-0 opacity-75">اختر التقرير المطلوب لعرض البيانات والإحصائيات المفصلة</p>
+        </div>
+        <div class="col-md-4 text-center">
+            <i class="fas fa-chart-pie fa-3x opacity-50"></i>
+        </div>
+    </div>
+</div>
+
+<!-- إحصائيات سريعة -->
+<div class="reports-stats">
+    <div class="stat-card">
+        <i class="fas fa-calendar-check fa-2x text-info mb-2"></i>
+        <div class="stat-number">12</div>
+        <small class="text-muted">تقرير متاح</small>
+    </div>
+    <div class="stat-card">
+        <i class="fas fa-download fa-2x text-info mb-2"></i>
+        <div class="stat-number">0</div>
+        <small class="text-muted">تم التصدير هذا الشهر</small>
+    </div>
+    <div class="stat-card">
+        <i class="fas fa-chart-line fa-2x text-info mb-2"></i>
+        <div class="stat-number">6</div>
+        <small class="text-muted">أنواع التقارير</small>
+    </div>
+    <div class="stat-card">
+        <i class="fas fa-print fa-2x text-info mb-2"></i>
+        <div class="stat-number">0</div>
+        <small class="text-muted">تمت الطباعة</small>
+    </div>
+</div>
+
+<!-- بطاقات التقارير -->
+<div class="row">
+    <div class="col-lg-4 col-md-6 mb-4">
+        <div class="report-card">
+            <div class="report-badge">
+                <i class="fas fa-chart-line"></i> جديد
+            </div>
+            <div class="report-icon">
+                <i class="fas fa-calendar-check"></i>
+            </div>
+            <div class="text-center">
+                <h5 class="report-title">تقرير الحضور</h5>
+                <p class="report-description">تقرير شامل بأيام الحضور والانصراف للموظفين حسب الفترة المحددة</p>
+            </div>
+            <div class="report-footer text-center">
+                <a href="{{ url_for('attendance_report') }}" class="btn btn-report text-white">
+                    <i class="fas fa-chart-bar me-2"></i> عرض التقرير
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-4 col-md-6 mb-4">
+        <div class="report-card">
+            <div class="report-icon">
+                <i class="fas fa-money-bill-wave"></i>
+            </div>
+            <div class="text-center">
+                <h5 class="report-title">تقرير مالي</h5>
+                <p class="report-description">تحليل الرواتب والإضافات والخصميات مع إحصائيات مفصلة</p>
+            </div>
+            <div class="report-footer text-center">
+                <a href="{{ url_for('financial_report') }}" class="btn btn-report text-white">
+                    <i class="fas fa-chart-line me-2"></i> عرض التقرير
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-4 col-md-6 mb-4">
+        <div class="report-card">
+            <div class="report-icon">
+                <i class="fas fa-users"></i>
+            </div>
+            <div class="text-center">
+                <h5 class="report-title">تقرير الموظفين</h5>
+                <p class="report-description">قائمة شاملة بجميع الموظفين مع تفاصيلهم وتوزيعهم الجغرافي</p>
+            </div>
+            <div class="report-footer text-center">
+                <a href="{{ url_for('employees_report') }}" class="btn btn-report text-white">
+                    <i class="fas fa-table me-2"></i> عرض التقرير
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-4 col-md-6 mb-4">
+        <div class="report-card">
+            <div class="report-icon">
+                <i class="fas fa-map-marker-alt"></i>
+            </div>
+            <div class="text-center">
+                <h5 class="report-title">تقرير المناطق</h5>
+                <p class="report-description">تحليل توزيع الموظفين حسب المناطق مع رسوم بيانية تفاعلية</p>
+            </div>
+            <div class="report-footer text-center">
+                <a href="{{ url_for('regions_report') }}" class="btn btn-report text-white">
+                    <i class="fas fa-chart-pie me-2"></i> عرض التقرير
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-4 col-md-6 mb-4">
+        <div class="report-card">
+            <div class="report-icon">
+                <i class="fas fa-star"></i>
+            </div>
+            <div class="text-center">
+                <h5 class="report-title">تقرير التقييمات</h5>
+                <p class="report-description">تقييمات أداء العمال والمشرفين مع تحليل النتائج</p>
+            </div>
+            <div class="report-footer text-center">
+                <a href="{{ url_for('evaluations_list') }}" class="btn btn-report text-white">
+                    <i class="fas fa-chart-simple me-2"></i> عرض التقرير
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-4 col-md-6 mb-4">
+        <div class="report-card">
+            <div class="report-badge">
+                <i class="fas fa-lock"></i> هام
+            </div>
+            <div class="report-icon">
+                <i class="fas fa-file-invoice-dollar"></i>
+            </div>
+            <div class="text-center">
+                <h5 class="report-title">الإغلاق المالي</h5>
+                <p class="report-description">تقرير شامل لإغلاق الشهر المالي مع كافة التفاصيل والحسابات</p>
+            </div>
+            <div class="report-footer text-center">
+                <a href="{{ url_for('monthly_close') }}" class="btn btn-report text-white">
+                    <i class="fas fa-clipboard-list me-2"></i> عرض التقرير
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- نصائح سريعة -->
+<div class="row mt-4">
+    <div class="col-12">
+        <div class="card bg-light">
+            <div class="card-body">
+                <div class="d-flex align-items-center gap-3 flex-wrap">
+                    <i class="fas fa-info-circle fa-2x text-info"></i>
+                    <div>
+                        <strong class="text-info">نصائح سريعة</strong><br>
+                        <small class="text-muted">
+                            <i class="fas fa-check-circle text-success me-1"></i> يمكنك تصدير أي تقرير إلى Excel أو طباعته مباشرة<br>
+                            <i class="fas fa-check-circle text-success me-1"></i> استخدم الفلاتر لتحديد الفترة الزمنية المناسبة<br>
+                            <i class="fas fa-check-circle text-success me-1"></i> التقارير المالية تتطلب حساب الرواتب أولاً<br>
+                            <i class="fas fa-check-circle text-success me-1"></i> تقرير الإغلاق المالي يحتوي على جميع تفاصيل الشهر
+                        </small>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // إضافة تأثيرات إضافية
+    $(document).ready(function() {
+        // تحديث الإحصائيات (يمكن ربطها ببيانات حقيقية)
+        function updateStats() {
+            // يمكن إضافة طلب AJAX لجلب الإحصائيات الحقيقية
+            // $('.stat-number').each(function() { ... });
+        }
+
+        // تحديث الإحصائيات كل 30 ثانية
+        // setInterval(updateStats, 30000);
+    });
+</script>
+{% endblock %}

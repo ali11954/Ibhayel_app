@@ -1,0 +1,454 @@
+{% extends "base.html" %}
+
+{% block title %}الشركات - ابن هائل لأعمال الزراعة{% endblock %}
+
+{% block extra_css %}
+<style>
+    /* تنسيقات متقدمة لصفحة الشركات */
+    .companies-header {
+        background: linear-gradient(135deg, #17a2b8 0%, #0dcaf0 100%);
+        border-radius: 20px;
+        padding: 1.5rem;
+        margin-bottom: 1.5rem;
+        color: white;
+        position: relative;
+        overflow: hidden;
+    }
+
+    .companies-header::before {
+        content: '';
+        position: absolute;
+        top: -50%;
+        right: -50%;
+        width: 200%;
+        height: 200%;
+        background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, transparent 70%);
+        animation: rotate 20s linear infinite;
+    }
+
+    @keyframes rotate {
+        from { transform: rotate(0deg); }
+        to { transform: rotate(360deg); }
+    }
+
+    .companies-stats {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+        gap: 1rem;
+        margin-bottom: 1.5rem;
+    }
+
+    .stat-card {
+        background: white;
+        border-radius: 20px;
+        padding: 1rem;
+        text-align: center;
+        transition: all 0.3s ease;
+        box-shadow: var(--shadow-sm);
+        position: relative;
+        overflow: hidden;
+    }
+
+    .stat-card:hover {
+        transform: translateY(-5px);
+        box-shadow: var(--shadow-lg);
+    }
+
+    .stat-card::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 4px;
+        background: linear-gradient(90deg, #17a2b8, #0dcaf0);
+    }
+
+    .stat-number {
+        font-size: 2rem;
+        font-weight: 800;
+        color: #17a2b8;
+        margin-bottom: 0.25rem;
+    }
+
+    .search-section {
+        background: white;
+        border-radius: 15px;
+        padding: 1rem;
+        margin-bottom: 1.5rem;
+        box-shadow: var(--shadow-sm);
+    }
+
+    .company-card {
+        background: white;
+        border-radius: 15px;
+        transition: all 0.3s ease;
+        border: 1px solid #e9ecef;
+        overflow: hidden;
+    }
+
+    .company-card:hover {
+        transform: translateY(-5px);
+        box-shadow: var(--shadow-lg);
+        border-color: #17a2b8;
+    }
+
+    .company-logo {
+        width: 60px;
+        height: 60px;
+        border-radius: 15px;
+        background: linear-gradient(135deg, #17a2b8, #0dcaf0);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        font-size: 1.5rem;
+        font-weight: bold;
+    }
+
+    .table-companies {
+        margin-bottom: 0;
+    }
+
+    .table-companies thead th {
+        background: linear-gradient(135deg, #17a2b8, #0dcaf0);
+        color: white;
+        font-weight: 600;
+        padding: 1rem;
+        border: none;
+        font-size: 0.85rem;
+        text-align: center;
+        vertical-align: middle;
+    }
+
+    .table-companies thead th i {
+        margin-left: 6px;
+    }
+
+    .table-companies tbody tr {
+        transition: all 0.3s ease;
+        border-bottom: 1px solid #f0f0f0;
+    }
+
+    .table-companies tbody tr:hover {
+        background: rgba(23, 162, 184, 0.05);
+        transform: translateX(5px);
+    }
+
+    .table-companies tbody td {
+        padding: 1rem;
+        vertical-align: middle;
+        text-align: center;
+    }
+
+    .company-name-cell {
+        font-weight: 700;
+        color: #495057;
+        text-align: right;
+    }
+
+    .company-badge {
+        padding: 0.3rem 0.8rem;
+        border-radius: 20px;
+        font-size: 0.7rem;
+        font-weight: 600;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.3rem;
+    }
+
+    .action-buttons {
+        display: flex;
+        gap: 0.5rem;
+        justify-content: center;
+    }
+
+    .btn-icon {
+        width: 32px;
+        height: 32px;
+        padding: 0;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 10px;
+        transition: all 0.3s ease;
+    }
+
+    .btn-icon:hover {
+        transform: translateY(-2px);
+    }
+
+    .empty-state {
+        text-align: center;
+        padding: 3rem;
+    }
+
+    .empty-state i {
+        font-size: 4rem;
+        color: #dee2e6;
+        margin-bottom: 1rem;
+    }
+
+    .region-badge {
+        background: rgba(255, 152, 0, 0.1);
+        color: #ff9800;
+        padding: 0.3rem 0.8rem;
+        border-radius: 20px;
+        font-size: 0.7rem;
+        font-weight: 600;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.3rem;
+    }
+
+    @keyframes fadeInUp {
+        from {
+            opacity: 0;
+            transform: translateY(20px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    .table-container {
+        animation: fadeInUp 0.5s ease;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+        <div>
+            <h2>
+                <i class="fas fa-building"></i>
+                إدارة الشركات
+            </h2>
+            <p class="text-muted mb-0 mt-2">قائمة الشركات المتعاقدة مع المؤسسة</p>
+        </div>
+        <a href="{{ url_for('add_company') }}" class="btn btn-success">
+            <i class="fas fa-plus-circle me-2"></i> شركة جديدة
+        </a>
+    </div>
+</div>
+
+<!-- إحصائيات الشركات -->
+<div class="companies-stats">
+    <div class="stat-card">
+        <i class="fas fa-building fa-2x text-info mb-2"></i>
+        <div class="stat-number">{{ companies|length }}</div>
+        <small class="text-muted">إجمالي الشركات</small>
+    </div>
+    <div class="stat-card">
+        <i class="fas fa-map-marker-alt fa-2x text-info mb-2"></i>
+        <div class="stat-number">{{ companies|selectattr('region')|list|length }}</div>
+        <small class="text-muted">مناطق نشاط</small>
+    </div>
+    <div class="stat-card">
+        <i class="fas fa-phone-alt fa-2x text-info mb-2"></i>
+        <div class="stat-number">{{ companies|selectattr('phone')|list|length }}</div>
+        <small class="text-muted">لديها رقم اتصال</small>
+    </div>
+    <div class="stat-card">
+        <i class="fas fa-users fa-2x text-info mb-2"></i>
+        {% set total_employees = 0 %}
+        {% for company in companies %}
+            {% set total_employees = total_employees + company.employees|length %}
+        {% endfor %}
+        <div class="stat-number">{{ total_employees }}</div>
+        <small class="text-muted">إجمالي الموظفين</small>
+    </div>
+</div>
+
+<!-- شريط البحث والفلترة -->
+<div class="search-section">
+    <div class="row align-items-center">
+        <div class="col-md-6 mb-3 mb-md-0">
+            <div class="input-group">
+                <span class="input-group-text bg-white border-end-0">
+                    <i class="fas fa-search text-muted"></i>
+                </span>
+                <input type="text" id="searchInput" class="form-control border-start-0"
+                       placeholder="بحث باسم الشركة أو المنطقة...">
+            </div>
+        </div>
+        <div class="col-md-6">
+            <select id="regionFilter" class="form-select">
+                <option value="">جميع المناطق</option>
+                {% set regions = companies|map(attribute='region')|select('string')|unique|list %}
+                {% for region in regions %}
+                <option value="{{ region }}">{{ region }}</option>
+                {% endfor %}
+            </select>
+        </div>
+    </div>
+</div>
+
+<!-- جدول الشركات المحسن -->
+<div class="card table-container">
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-companies" id="companiesTable">
+                <thead>
+                    <tr>
+                        <th style="width: 5%">
+                            <i class="fas fa-hashtag"></i> #
+                        </th>
+                        <th style="width: 25%">
+                            <i class="fas fa-building"></i> اسم الشركة
+                        </th>
+                        <th style="width: 15%">
+                            <i class="fas fa-map-marker-alt"></i> المنطقة
+                        </th>
+                        <th style="width: 20%">
+                            <i class="fas fa-location-dot"></i> الموقع
+                        </th>
+                        <th style="width: 15%">
+                            <i class="fas fa-user-tie"></i> جهة الاتصال
+                        </th>
+                        <th style="width: 15%">
+                            <i class="fas fa-phone-alt"></i> الهاتف
+                        </th>
+                        <th style="width: 5%">
+                            <i class="fas fa-cog"></i> الإجراءات
+                        </th>
+                    </thead>
+                <tbody>
+                    {% for company in companies %}
+                    <tr data-region="{{ company.region }}">
+                        <td class="fw-bold">{{ loop.index }}<td
+                        <td class="company-name-cell">
+                            <div class="d-flex align-items-center gap-2">
+                                <div class="company-logo" style="width: 40px; height: 40px; font-size: 1rem;">
+                                    {{ company.name[0]|upper if company.name else '?' }}
+                                </div>
+                                <div class="text-start">
+                                    <strong>{{ company.name }}</strong>
+                                    {% if company.email %}
+                                    <br>
+                                    <small class="text-muted">
+                                        <i class="fas fa-envelope"></i> {{ company.email }}
+                                    </small>
+                                    {% endif %}
+                                </div>
+                            </div>
+                         </td
+                         <td>
+                            {% if company.region %}
+                            <span class="region-badge">
+                                <i class="fas fa-map-marker-alt"></i> {{ company.region }}
+                            </span>
+                            {% else %}
+                            <span class="text-muted">-</span>
+                            {% endif %}
+                         </td
+                         <td>
+                            {% if company.location %}
+                            <i class="fas fa-location-dot text-muted me-1"></i>
+                            {{ company.location }}
+                            {% else %}
+                            <span class="text-muted">-</span>
+                            {% endif %}
+                         </td
+                         <td>
+                            {% if company.contact_person %}
+                            <div>
+                                <i class="fas fa-user-circle text-primary"></i>
+                                {{ company.contact_person }}
+                            </div>
+                            {% else %}
+                            <span class="text-muted">-</span>
+                            {% endif %}
+                         </td
+                         <td>
+                            {% if company.phone %}
+                            <div>
+                                <i class="fas fa-phone-alt text-success"></i>
+                                {{ company.phone }}
+                            </div>
+                            {% else %}
+                            <span class="text-muted">-</span>
+                            {% endif %}
+                         </td
+                         <td>
+                            <div class="action-buttons">
+                                <a href="#" class="btn btn-icon btn-outline-primary" title="تعديل">
+                                    <i class="fas fa-edit"></i>
+                                </a>
+                                <button class="btn btn-icon btn-outline-danger"
+                                        onclick="confirmDelete('{{ company.name }}')"
+                                        title="حذف" disabled>
+                                    <i class="fas fa-trash-alt"></i>
+                                </button>
+                            </div>
+                         </td
+                     </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="7">
+                            <div class="empty-state">
+                                <i class="fas fa-building"></i>
+                                <h5>لا توجد شركات</h5>
+                                <p class="text-muted">قم بإضافة شركة جديدة للبدء</p>
+                                <a href="{{ url_for('add_company') }}" class="btn btn-primary mt-2">
+                                    <i class="fas fa-plus-circle"></i> إضافة شركة
+                                </a>
+                            </div>
+                         </td>
+                     </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- تذييل مع إحصائيات إضافية -->
+{% if companies|length > 0 %}
+<div class="d-flex justify-content-between align-items-center mt-3">
+    <small class="text-muted">
+        <i class="fas fa-info-circle me-1"></i>
+        عرض {{ companies|length }} من إجمالي {{ companies|length }} شركة
+    </small>
+    <small class="text-muted">
+        <i class="fas fa-chart-line me-1"></i>
+        عدد المناطق: {{ companies|map(attribute='region')|select('string')|unique|list|length }}
+    </small>
+</div>
+{% endif %}
+
+<script>
+    $(document).ready(function() {
+        // البحث
+        $('#searchInput').on('keyup', function() {
+            var value = $(this).val().toLowerCase();
+            $('#companiesTable tbody tr').filter(function() {
+                var text = $(this).text().toLowerCase();
+                $(this).toggle(text.indexOf(value) > -1);
+            });
+        });
+
+        // تصفية حسب المنطقة
+        $('#regionFilter').on('change', function() {
+            var region = $(this).val();
+            $('#companiesTable tbody tr').each(function() {
+                if (region === '' || $(this).data('region') === region) {
+                    $(this).show();
+                } else {
+                    $(this).hide();
+                }
+            });
+        });
+
+        // دالة تأكيد الحذف
+        window.confirmDelete = function(companyName) {
+            if (confirm(`هل أنت متأكد من حذف شركة "${companyName}"؟`)) {
+                // سيتم إضافة وظيفة الحذف لاحقاً
+                alert('سيتم إضافة وظيفة الحذف قريباً');
+            }
+        };
+    });
+</script>
+{% endblock %}

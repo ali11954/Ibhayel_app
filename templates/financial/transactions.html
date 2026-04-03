@@ -1,0 +1,547 @@
+{% extends "base.html" %}
+
+{% block title %}المعاملات المالية - طلعت هائل للخدمات والاستشارات الزراعية{% endblock %}
+
+{% block extra_css %}
+<style>
+    .transactions-stats {
+        background: linear-gradient(135deg, var(--primary-color) 0%, var(--primary-dark) 100%);
+        border-radius: 20px;
+        padding: 1.5rem;
+        margin-bottom: 1.5rem;
+        color: white;
+        position: relative;
+        overflow: hidden;
+    }
+
+    .transactions-stats::before {
+        content: '';
+        position: absolute;
+        top: -50%;
+        right: -50%;
+        width: 200%;
+        height: 200%;
+        background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, transparent 70%);
+        animation: rotate 20s linear infinite;
+    }
+
+    @keyframes rotate {
+        from { transform: rotate(0deg); }
+        to { transform: rotate(360deg); }
+    }
+
+    .stat-item {
+        text-align: center;
+        border-left: 1px solid rgba(255,255,255,0.2);
+        position: relative;
+        z-index: 1;
+    }
+
+    .stat-item:last-child {
+        border-left: none;
+    }
+
+    .stat-number {
+        font-size: 2rem;
+        font-weight: 800;
+        margin-bottom: 0;
+    }
+
+    .stat-label {
+        font-size: 0.85rem;
+        opacity: 0.9;
+        margin-bottom: 0;
+    }
+
+    .search-section {
+        background: white;
+        border-radius: 15px;
+        padding: 1rem;
+        margin-bottom: 1.5rem;
+        box-shadow: var(--shadow-sm);
+    }
+
+    .table-transactions {
+        margin-bottom: 0;
+    }
+
+    .table-transactions thead th {
+        background: linear-gradient(135deg, var(--primary-color), var(--primary-dark));
+        color: white;
+        font-weight: 600;
+        padding: 1rem;
+        border: none;
+        font-size: 0.85rem;
+        text-align: center;
+        vertical-align: middle;
+    }
+
+    .table-transactions tbody tr {
+        transition: all 0.3s ease;
+        border-bottom: 1px solid #f0f0f0;
+    }
+
+    .table-transactions tbody tr:hover {
+        background: rgba(46, 125, 50, 0.05);
+        transform: translateX(5px);
+    }
+
+    .table-transactions tbody td {
+        padding: 1rem;
+        vertical-align: middle;
+        text-align: center;
+    }
+
+    .transaction-type-badge {
+        padding: 0.3rem 0.8rem;
+        border-radius: 20px;
+        font-size: 0.7rem;
+        font-weight: 600;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.3rem;
+    }
+
+    .type-advance { background: #ffc107; color: #333; }
+    .type-overtime { background: #28a745; color: white; }
+    .type-deduction { background: #dc3545; color: white; }
+    .type-penalty { background: #6c757d; color: white; }
+
+    .amount-positive { color: #28a745; font-weight: 700; }
+    .amount-negative { color: #dc3545; font-weight: 700; }
+
+    .action-buttons {
+        display: flex;
+        gap: 0.5rem;
+        justify-content: center;
+        flex-wrap: wrap;
+    }
+
+    .btn-icon {
+        width: 32px;
+        height: 32px;
+        padding: 0;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 10px;
+        transition: all 0.3s ease;
+    }
+
+    .btn-icon:hover {
+        transform: translateY(-2px);
+    }
+
+    .btn-transfer {
+        background: linear-gradient(135deg, var(--primary-color), var(--primary-dark));
+        color: white;
+        border: none;
+        border-radius: 20px;
+        padding: 0.3rem 0.8rem;
+        font-size: 0.75rem;
+        transition: all 0.3s ease;
+    }
+
+    .btn-transfer:hover {
+        transform: translateY(-2px);
+        box-shadow: var(--shadow-sm);
+    }
+
+    .empty-state {
+        text-align: center;
+        padding: 3rem;
+    }
+
+    .empty-state i {
+        font-size: 4rem;
+        color: #dee2e6;
+        margin-bottom: 1rem;
+    }
+
+    .filter-btn {
+        border: 1px solid #e0e0e0;
+        border-radius: 10px;
+        padding: 0.5rem 1rem;
+        transition: all 0.3s ease;
+        cursor: pointer;
+        background: white;
+    }
+
+    .filter-btn:hover,
+    .filter-btn.active {
+        background: var(--primary-color);
+        color: white;
+        border-color: var(--primary-color);
+    }
+
+    .total-card {
+        background: white;
+        border-radius: 15px;
+        padding: 0.8rem;
+        margin-bottom: 1rem;
+        text-align: center;
+        box-shadow: var(--shadow-sm);
+    }
+
+    .total-amount {
+        font-size: 1.2rem;
+        font-weight: 700;
+    }
+
+    .bulk-actions {
+        background: white;
+        border-radius: 15px;
+        padding: 1rem;
+        margin-bottom: 1.5rem;
+        display: none;
+        box-shadow: var(--shadow-sm);
+    }
+
+    .bulk-actions.show {
+        display: block;
+    }
+
+    .select-checkbox {
+        width: 20px;
+        height: 20px;
+        cursor: pointer;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+        <div>
+            <h2>
+                <i class="fas fa-money-bill-wave"></i>
+                الإضافي والخصميات
+            </h2>
+            <p class="text-muted mb-0 mt-2">إدارة السلف، الإضافي، الخصميات والجزاءات للموظفين</p>
+        </div>
+        <div class="d-flex gap-2">
+            <button id="bulkTransferBtn" class="btn btn-success" style="display: none;">
+                <i class="fas fa-exchange-alt me-2"></i> ترحيل المحدد إلى الراتب
+            </button>
+            <a href="{{ url_for('add_transaction') }}" class="btn btn-primary">
+                <i class="fas fa-plus-circle me-2"></i> إضافة معاملة
+            </a>
+        </div>
+    </div>
+</div>
+
+<!-- إحصائيات المعاملات -->
+<div class="transactions-stats">
+    <div class="row">
+        <div class="col-md-3 col-6">
+            <div class="stat-item">
+                <p class="stat-number mb-0">{{ transactions|length }}</p>
+                <p class="stat-label">إجمالي المعاملات</p>
+            </div>
+        </div>
+        <div class="col-md-3 col-6">
+            <div class="stat-item">
+                <p class="stat-number mb-0 text-warning">{{ transactions|selectattr('transaction_type', 'equalto', 'advance')|list|length }}</p>
+                <p class="stat-label">سلف</p>
+            </div>
+        </div>
+        <div class="col-md-3 col-6">
+            <div class="stat-item">
+                <p class="stat-number mb-0 text-success">{{ transactions|selectattr('transaction_type', 'equalto', 'overtime')|list|length }}</p>
+                <p class="stat-label">إضافي</p>
+            </div>
+        </div>
+        <div class="col-md-3 col-6">
+            <div class="stat-item">
+                <p class="stat-number mb-0 text-danger">{{ transactions|selectattr('transaction_type', 'in', ['deduction', 'penalty'])|list|length }}</p>
+                <p class="stat-label">خصم/جزاء</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- شريط البحث والفلترة -->
+<div class="search-section">
+    <div class="row align-items-center">
+        <div class="col-md-4 mb-3 mb-md-0">
+            <div class="input-group">
+                <span class="input-group-text bg-white border-end-0">
+                    <i class="fas fa-search text-muted"></i>
+                </span>
+                <input type="text" id="searchInput" class="form-control border-start-0"
+                       placeholder="بحث بالوصف أو الموظف...">
+            </div>
+        </div>
+        <div class="col-md-3 mb-3 mb-md-0">
+            <select id="typeFilter" class="form-select">
+                <option value="all">جميع الأنواع</option>
+                <option value="advance">سلفة</option>
+                <option value="overtime">إضافي</option>
+                <option value="deduction">خصم</option>
+                <option value="penalty">جزاء</option>
+            </select>
+        </div>
+        <div class="col-md-3 mb-3 mb-md-0">
+            <select id="employeeFilter" class="form-select">
+                <option value="">جميع الموظفين</option>
+                {% for emp in employees %}
+                <option value="{{ emp.id }}">{{ emp.name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="col-md-2">
+            <div class="d-flex gap-2">
+                <button id="filterPending" class="filter-btn flex-grow-1 text-center" data-status="pending">
+                    <i class="fas fa-clock"></i> معلقة
+                </button>
+                <button id="filterAll" class="filter-btn active flex-grow-1 text-center" data-status="all">
+                    <i class="fas fa-list"></i> الكل
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- إجمالي المبالغ -->
+<div class="row mb-3">
+    <div class="col-md-4">
+        <div class="total-card">
+            <small class="text-muted">إجمالي السلف</small>
+            <div class="total-amount text-warning">
+                {{ transactions|selectattr('transaction_type', 'equalto', 'advance')|sum(attribute='amount')|round|int }} ر.ي
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="total-card">
+            <small class="text-muted">إجمالي الإضافي</small>
+            <div class="total-amount text-success">
+                + {{ transactions|selectattr('transaction_type', 'equalto', 'overtime')|sum(attribute='amount')|round|int }} ر.ي
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="total-card">
+            <small class="text-muted">إجمالي الخصم والجزاء</small>
+            <div class="total-amount text-danger">
+                - {{ transactions|selectattr('transaction_type', 'in', ['deduction', 'penalty'])|sum(attribute='amount')|round|int }} ر.ي
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- جدول المعاملات -->
+<div class="card">
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-transactions" id="transactionsTable">
+                <thead>
+                    <tr>
+                        <th style="width: 3%">
+                            <input type="checkbox" id="selectAll" class="select-checkbox">
+                        </th>
+                        <th style="width: 5%">#</th>
+                        <th style="width: 18%">الموظف</th>
+                        <th style="width: 12%">النوع</th>
+                        <th style="width: 12%">المبلغ</th>
+                        <th style="width: 20%">الوصف</th>
+                        <th style="width: 10%">التاريخ</th>
+                        <th style="width: 8%">الحالة</th>
+                        <th style="width: 12%">الإجراءات</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for trans in transactions %}
+                    <tr data-id="{{ trans.id }}" data-type="{{ trans.transaction_type }}"
+                        data-employee="{{ trans.employee_id }}" data-settled="{{ trans.is_settled|lower }}">
+                        <td>
+                            {% if not trans.is_settled %}
+                            <input type="checkbox" class="transaction-checkbox select-checkbox" value="{{ trans.id }}">
+                            {% endif %}
+                        </td>
+                        <td class="fw-bold">{{ loop.index }}</td>
+                        <td class="text-center">
+                            <div class="d-flex align-items-center gap-2 justify-content-center">
+                                <i class="fas fa-user-circle text-primary"></i>
+                                <strong>{{ trans.employee.name }}</strong>
+                            </div>
+                            <small class="text-muted">{{ trans.employee.code }}</small>
+                        </td>
+                        <td>
+                            <span class="transaction-type-badge type-{{ trans.transaction_type }}">
+                                <i class="fas {% if trans.transaction_type == 'advance' %}fa-hand-holding-usd{% elif trans.transaction_type == 'overtime' %}fa-clock{% elif trans.transaction_type == 'deduction' %}fa-minus-circle{% else %}fa-gavel{% endif %}"></i>
+                                {{ trans.get_type_name() }}
+                            </span>
+                        </td>
+                        <td class="{% if trans.transaction_type in ['advance', 'deduction', 'penalty'] %}amount-negative{% else %}amount-positive{% endif %}">
+                            {% if trans.transaction_type in ['advance', 'deduction', 'penalty'] %}-{% else %}+{% endif %}
+                            {{ "{:,.0f}".format(trans.amount) }} ر.ي
+                        </td>
+                        <td>
+                            {% if trans.description %}
+                            <div class="text-truncate" style="max-width: 200px;" title="{{ trans.description }}">
+                                <i class="fas fa-quote-right text-muted me-1"></i>
+                                {{ trans.description }}
+                            </div>
+                            {% else %}
+                            <span class="text-muted"><i class="fas fa-minus-circle"></i> لا يوجد وصف</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <i class="far fa-calendar-alt text-muted me-1"></i>
+                            {{ trans.date.strftime('%Y-%m-%d') }}
+                        </td>
+                        <td>
+                            {% if trans.is_settled %}
+                            <span class="badge bg-success">
+                                <i class="fas fa-check-circle"></i> مرحل
+                            </span>
+                            {% else %}
+                            <span class="badge bg-warning">
+                                <i class="fas fa-clock"></i> معلقة
+                            </span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <div class="action-buttons">
+                                {% if not trans.is_settled %}
+                                <button class="btn btn-icon btn-success" onclick="transferToSalary({{ trans.id }})" title="ترحيل إلى الراتب">
+                                    <i class="fas fa-exchange-alt"></i>
+                                </button>
+                                <a href="{{ url_for('delete_transaction', trans_id=trans.id) }}"
+                                   class="btn btn-icon btn-outline-danger"
+                                   onclick="return confirmDelete('هل أنت متأكد من حذف هذه المعاملة؟')"
+                                   title="حذف المعاملة">
+                                    <i class="fas fa-trash-alt"></i>
+                                </a>
+                                {% else %}
+                                <span class="text-muted"><i class="fas fa-check-circle"></i> مرحل</span>
+                                {% endif %}
+                            </div>
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="9">
+                            <div class="empty-state">
+                                <i class="fas fa-exchange-alt"></i>
+                                <h5>لا توجد معاملات مالية</h5>
+                                <p class="text-muted">قم بإضافة معاملة مالية جديدة</p>
+                                <a href="{{ url_for('add_transaction') }}" class="btn btn-primary mt-2">
+                                    <i class="fas fa-plus-circle"></i> إضافة معاملة
+                                </a>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<script>
+    // تحديد الكل
+    $('#selectAll').on('change', function() {
+        $('.transaction-checkbox').prop('checked', $(this).prop('checked'));
+        $('#bulkTransferBtn').toggle($('.transaction-checkbox:checked').length > 0);
+    });
+
+    // عند تغيير أي checkbox
+    $(document).on('change', '.transaction-checkbox', function() {
+        $('#bulkTransferBtn').toggle($('.transaction-checkbox:checked').length > 0);
+        $('#selectAll').prop('checked', $('.transaction-checkbox:checked').length === $('.transaction-checkbox').length);
+    });
+
+    // ترحيل معاملة واحدة
+    function transferToSalary(transactionId) {
+        if (confirm('هل أنت متأكد من ترحيل هذه المعاملة إلى الراتب؟')) {
+            $.ajax({
+                url: '{{ url_for("transfer_transaction_to_salary") }}',
+                type: 'POST',
+                data: JSON.stringify({ transaction_id: transactionId }),
+                contentType: 'application/json',
+                success: function(response) {
+                    if (response.success) {
+                        location.reload();
+                    } else {
+                        alert(response.error || 'حدث خطأ أثناء الترحيل');
+                    }
+                },
+                error: function() {
+                    alert('حدث خطأ في الاتصال');
+                }
+            });
+        }
+    }
+
+    // ترحيل معاملات متعددة
+    $('#bulkTransferBtn').on('click', function() {
+        var selectedIds = [];
+        $('.transaction-checkbox:checked').each(function() {
+            selectedIds.push($(this).val());
+        });
+
+        if (selectedIds.length === 0) {
+            alert('الرجاء تحديد معاملة واحدة على الأقل');
+            return;
+        }
+
+        if (confirm('هل أنت متأكد من ترحيل ' + selectedIds.length + ' معاملة إلى الراتب؟')) {
+            $.ajax({
+                url: '{{ url_for("bulk_transfer_transactions") }}',
+                type: 'POST',
+                data: JSON.stringify({ transaction_ids: selectedIds }),
+                contentType: 'application/json',
+                success: function(response) {
+                    if (response.success) {
+                        location.reload();
+                    } else {
+                        alert(response.error || 'حدث خطأ أثناء الترحيل');
+                    }
+                },
+                error: function() {
+                    alert('حدث خطأ في الاتصال');
+                }
+            });
+        }
+    });
+
+    // وظائف الفلترة
+    function filterTable() {
+        var type = $('#typeFilter').val();
+        var employee = $('#employeeFilter').val();
+        var search = $('#searchInput').val().toLowerCase();
+        var status = $('.filter-btn.active').data('status');
+
+        $('#transactionsTable tbody tr').each(function() {
+            var show = true;
+            var transType = $(this).data('type');
+            var transEmployee = $(this).data('employee');
+            var isSettled = $(this).data('settled') === 'true';
+            var text = $(this).text().toLowerCase();
+
+            if (type !== 'all' && transType !== type) show = false;
+            if (employee && transEmployee != employee) show = false;
+            if (search && text.indexOf(search) === -1) show = false;
+            if (status === 'pending' && isSettled) show = false;
+
+            $(this).toggle(show);
+        });
+    }
+
+    $('#typeFilter, #employeeFilter, #searchInput').on('change keyup', filterTable);
+
+    $('#filterPending').on('click', function() {
+        $(this).addClass('active');
+        $('#filterAll').removeClass('active');
+        filterTable();
+    });
+
+    $('#filterAll').on('click', function() {
+        $(this).addClass('active');
+        $('#filterPending').removeClass('active');
+        filterTable();
+    });
+</script>
+{% endblock %}

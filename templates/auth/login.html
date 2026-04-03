@@ -1,0 +1,276 @@
+{% extends "base.html" %}
+
+{% block title %}تسجيل الدخول - طلعت هائل للخدمات والاستشارات الزراعية{% endblock %}
+
+{% block full_content %}
+<style>
+    .login-wrapper {
+        min-height: 100vh;
+        background: linear-gradient(135deg, #e8f5e9 0%, #c8e6c9 100%);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 20px;
+        margin: 0;
+    }
+
+    .login-card {
+        background: white;
+        border-radius: 20px;
+        box-shadow: 0 20px 60px rgba(0,0,0,0.15);
+        overflow: hidden;
+        width: 100%;
+        max-width: 450px;
+        animation: fadeInUp 0.6s ease;
+    }
+
+    @keyframes fadeInUp {
+        from {
+            opacity: 0;
+            transform: translateY(30px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    .login-header {
+        background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%);
+        color: #2d6a4f;
+        padding: 30px 25px 25px;
+        text-align: center;
+        border-bottom: 1px solid #e0e0e0;
+    }
+
+    .login-header img {
+        transition: transform 0.3s ease;
+        margin-bottom: 15px;
+        height: 65px;
+    }
+
+    .login-header img:hover {
+        transform: scale(1.05);
+    }
+
+    .login-header .company-name-arabic {
+        font-size: 20px;
+        font-weight: 800;
+        margin: 10px 0 5px;
+        color: #1b5e20;
+    }
+
+    .login-header .company-name-english {
+        font-size: 10px;
+        color: #6c757d;
+        margin-bottom: 10px;
+    }
+
+    .login-header .company-tagline {
+        font-size: 13px;
+        color: #2d6a4f;
+        font-weight: 500;
+    }
+
+    .company-details {
+        background: linear-gradient(135deg, #e8f5e9, #c8e6c9);
+        padding: 10px;
+        border-radius: 12px;
+        margin-top: 15px;
+    }
+
+    .company-details small {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        font-size: 10px;
+        color: #2d6a4f;
+        margin: 5px 0;
+    }
+
+    .login-body {
+        padding: 30px 25px;
+    }
+
+    .form-group {
+        margin-bottom: 20px;
+    }
+
+    .form-group label {
+        display: block;
+        margin-bottom: 8px;
+        color: #333;
+        font-weight: 600;
+        font-size: 13px;
+    }
+
+    .form-group label i {
+        margin-left: 8px;
+        color: #2d6a4f;
+    }
+
+    .input-group {
+        position: relative;
+    }
+
+    .input-group input {
+        width: 100%;
+        padding: 10px 15px;
+        border: 2px solid #e0e0e0;
+        border-radius: 10px;
+        font-size: 14px;
+        transition: all 0.3s ease;
+    }
+
+    .input-group input:focus {
+        outline: none;
+        border-color: #2d6a4f;
+        box-shadow: 0 0 0 3px rgba(46, 125, 50, 0.1);
+    }
+
+    .toggle-password {
+        position: absolute;
+        left: 15px;
+        top: 50%;
+        transform: translateY(-50%);
+        cursor: pointer;
+        color: #999;
+    }
+
+    .btn-login {
+        width: 100%;
+        padding: 12px;
+        background: linear-gradient(135deg, #2d6a4f 0%, #1b5e20 100%);
+        color: white;
+        border: none;
+        border-radius: 10px;
+        font-size: 15px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        margin-top: 10px;
+    }
+
+    .btn-login:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 5px 20px rgba(46, 125, 50, 0.3);
+    }
+
+    .login-footer {
+        background: #f8f9fa;
+        padding: 15px 25px;
+        text-align: center;
+        border-top: 1px solid #e0e0e0;
+    }
+
+    .login-footer small {
+        color: #666;
+        font-size: 10px;
+        display: block;
+        margin: 3px 0;
+    }
+
+    .info-badge {
+        background: linear-gradient(135deg, #e8f5e9, #c8e6c9);
+        color: #2d6a4f;
+        padding: 8px 12px;
+        border-radius: 50px;
+        font-size: 11px;
+        margin-top: 15px;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    @media (max-width: 576px) {
+        .login-body {
+            padding: 25px 20px;
+        }
+        .login-header {
+            padding: 25px 20px;
+        }
+        .login-header img {
+            height: 50px;
+        }
+        .login-header .company-name-arabic {
+            font-size: 16px;
+        }
+    }
+</style>
+
+<div class="login-wrapper">
+    <div class="login-card">
+        <div class="login-header">
+            <img src="{{ url_for('static', filename='images/logo.png') }}" alt="طلعت هائل">
+            <div class="company-name-arabic">طلعت هائل</div>
+            <div class="company-name-english">TALAAT HAIL</div>
+            <div class="company-tagline">للخدمات والاستشارات الزراعية</div>
+
+            <div class="company-details">
+                <small><i class="fas fa-map-marker-alt"></i> الجمهورية اليمنية - محافظة الحديدة</small>
+                <small><i class="fas fa-globe"></i> Republic of Yemen - Al Hudaydah Governorate</small>
+            </div>
+        </div>
+
+        <div class="login-body">
+            {% with messages = get_flashed_messages(with_categories=true) %}
+                {% if messages %}
+                    {% for category, message in messages %}
+                        <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+                            {{ message }}
+                            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                        </div>
+                    {% endfor %}
+                {% endif %}
+            {% endwith %}
+
+            <form method="POST" action="{{ url_for('login') }}">
+                <div class="form-group">
+                    <label><i class="fas fa-user"></i> اسم المستخدم</label>
+                    <input type="text" class="form-control" name="username" required>
+                </div>
+
+                <div class="form-group">
+                    <label><i class="fas fa-lock"></i> كلمة المرور</label>
+                    <div class="input-group">
+                        <input type="password" class="form-control" name="password" id="password" required>
+                        <span class="toggle-password" onclick="togglePassword()">
+                            <i class="fas fa-eye" id="toggleIcon"></i>
+                        </span>
+                    </div>
+                </div>
+
+                <button type="submit" class="btn-login"><i class="fas fa-sign-in-alt"></i> دخول</button>
+            </form>
+
+            <div class="text-center">
+                <div class="info-badge">
+                    <i class="fas fa-info-circle"></i> بيانات الدخول: admin / admin123
+                </div>
+            </div>
+        </div>
+
+        <div class="login-footer">
+            <small><i class="fas fa-leaf"></i> طلعت هائل للخدمات والاستشارات الزراعية</small>
+            <small><i class="fas fa-shield-alt"></i> نظام آمن ومحمي</small>
+        </div>
+    </div>
+</div>
+
+<script>
+    function togglePassword() {
+        const input = document.getElementById('password');
+        const icon = document.getElementById('toggleIcon');
+        if (input.type === 'password') {
+            input.type = 'text';
+            icon.classList.remove('fa-eye');
+            icon.classList.add('fa-eye-slash');
+        } else {
+            input.type = 'password';
+            icon.classList.remove('fa-eye-slash');
+            icon.classList.add('fa-eye');
+        }
+    }
+</script>
+{% endblock %}

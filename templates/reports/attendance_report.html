@@ -1,0 +1,366 @@
+{% extends "base.html" %}
+
+{% block title %}تقرير الحضور - ابن هائل لأعمال الزراعة{% endblock %}
+
+{% block extra_css %}
+<style>
+    /* تنسيقات متقدمة لصفحة تقرير الحضور */
+    .report-header {
+        background: linear-gradient(135deg, #17a2b8 0%, #0dcaf0 100%);
+        border-radius: 20px;
+        padding: 1.5rem;
+        margin-bottom: 1.5rem;
+        color: white;
+        position: relative;
+        overflow: hidden;
+    }
+
+    .report-header::before {
+        content: '';
+        position: absolute;
+        top: -50%;
+        right: -50%;
+        width: 200%;
+        height: 200%;
+        background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, transparent 70%);
+        animation: rotate 20s linear infinite;
+    }
+
+    @keyframes rotate {
+        from { transform: rotate(0deg); }
+        to { transform: rotate(360deg); }
+    }
+
+    .filter-section {
+        background: white;
+        border-radius: 15px;
+        padding: 1.5rem;
+        margin-bottom: 1.5rem;
+        box-shadow: var(--shadow-sm);
+    }
+
+    .report-summary {
+        background: linear-gradient(135deg, #f8f9fa, #e9ecef);
+        border-radius: 15px;
+        padding: 1rem;
+        margin-bottom: 1.5rem;
+    }
+
+    .summary-item {
+        text-align: center;
+        padding: 0.5rem;
+    }
+
+    .summary-number {
+        font-size: 1.8rem;
+        font-weight: 800;
+        color: #17a2b8;
+    }
+
+    .summary-label {
+        font-size: 0.8rem;
+        color: #6c757d;
+    }
+
+    .table-report {
+        margin-bottom: 0;
+    }
+
+    .table-report thead th {
+        background: linear-gradient(135deg, #17a2b8, #0dcaf0);
+        color: white;
+        font-weight: 600;
+        padding: 1rem;
+        border: none;
+        font-size: 0.85rem;
+        text-align: center;
+        vertical-align: middle;
+    }
+
+    .table-report tbody tr {
+        transition: all 0.3s ease;
+        border-bottom: 1px solid #f0f0f0;
+    }
+
+    .table-report tbody tr:hover {
+        background: rgba(23, 162, 184, 0.05);
+        transform: translateX(5px);
+    }
+
+    .table-report tbody td {
+        padding: 1rem;
+        vertical-align: middle;
+        text-align: center;
+    }
+
+    .attendance-badge {
+        padding: 0.3rem 0.8rem;
+        border-radius: 20px;
+        font-size: 0.7rem;
+        font-weight: 600;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.3rem;
+    }
+
+    .badge-individual { background: #17a2b8; color: white; }
+    .badge-group { background: #28a745; color: white; }
+
+    .empty-state {
+        text-align: center;
+        padding: 3rem;
+    }
+
+    .empty-state i {
+        font-size: 4rem;
+        color: #dee2e6;
+        margin-bottom: 1rem;
+    }
+
+    @media print {
+        .sidebar, .navbar, .footer, .btn, form, .no-print, .filter-section {
+            display: none !important;
+        }
+        .col-md-10 {
+            width: 100% !important;
+            margin: 0 !important;
+            padding: 0 !important;
+        }
+        .card {
+            box-shadow: none !important;
+        }
+        .report-header {
+            background: #17a2b8;
+            color: white;
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+        }
+        .table-report thead th {
+            background: #17a2b8;
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<!-- رأس التقرير -->
+<div class="report-header">
+    <div class="row align-items-center">
+        <div class="col-md-8">
+            <h2 class="mb-2">
+                <i class="fas fa-calendar-check me-2"></i>
+                تقرير الحضور
+            </h2>
+            <p class="mb-0 opacity-75">تقرير بأيام الحضور والانصراف للموظفين حسب الفترة المحددة</p>
+        </div>
+        <div class="col-md-4 text-center">
+            <i class="fas fa-chart-line fa-3x opacity-50"></i>
+        </div>
+    </div>
+</div>
+
+<!-- شريط الفلترة -->
+<div class="filter-section">
+    <form method="GET" class="row g-3">
+        <div class="col-md-3">
+            <label class="form-label fw-bold">
+                <i class="fas fa-calendar-alt text-info"></i> من تاريخ
+            </label>
+            <input type="date" class="form-control" id="start_date" name="start_date" value="{{ request.args.get('start_date', '') }}">
+        </div>
+        <div class="col-md-3">
+            <label class="form-label fw-bold">
+                <i class="fas fa-calendar-check text-info"></i> إلى تاريخ
+            </label>
+            <input type="date" class="form-control" id="end_date" name="end_date" value="{{ request.args.get('end_date', '') }}">
+        </div>
+        <div class="col-md-3">
+            <label class="form-label fw-bold">
+                <i class="fas fa-user text-info"></i> الموظف
+            </label>
+            <select class="form-select" id="employee_id" name="employee_id">
+                <option value="">جميع الموظفين</option>
+                {% for emp in employees %}
+                <option value="{{ emp.id }}" {% if request.args.get('employee_id')|int == emp.id %}selected{% endif %}>
+                    {{ emp.name }}
+                </option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="col-md-3 d-flex align-items-end">
+            <button type="submit" class="btn btn-info w-100">
+                <i class="fas fa-search me-2"></i> عرض التقرير
+            </button>
+        </div>
+    </form>
+</div>
+
+<!-- ملخص التقرير -->
+{% if attendances %}
+<div class="report-summary">
+    <div class="row">
+        <div class="col-md-3 col-6">
+            <div class="summary-item">
+                <div class="summary-number">{{ attendances|length }}</div>
+                <div class="summary-label">إجمالي سجلات الحضور</div>
+            </div>
+        </div>
+        <div class="col-md-3 col-6">
+            <div class="summary-item">
+                <div class="summary-number">{{ attendances|selectattr('attendance_type', 'equalto', 'individual')|list|length }}</div>
+                <div class="summary-label">حضور فردي</div>
+            </div>
+        </div>
+        <div class="col-md-3 col-6">
+            <div class="summary-item">
+                <div class="summary-number">{{ attendances|selectattr('attendance_type', 'equalto', 'group')|list|length }}</div>
+                <div class="summary-label">حضور جماعي</div>
+            </div>
+        </div>
+        <div class="col-md-3 col-6">
+            <div class="summary-item">
+                <div class="summary-number">{{ attendances|selectattr('check_in_time')|list|length }}</div>
+                <div class="summary-label">مسجلين وقت الدخول</div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<!-- جدول التقرير -->
+<div class="card">
+    <div class="card-header bg-white">
+        <h5 class="mb-0">
+            <i class="fas fa-table text-info me-2"></i>
+            نتائج التقرير
+            {% if request.args.get('start_date') and request.args.get('end_date') %}
+            <small class="text-muted">({{ request.args.get('start_date') }} - {{ request.args.get('end_date') }})</small>
+            {% endif %}
+        </h5>
+    </div>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-report">
+                <thead>
+                    <tr>
+                        <th style="width: 5%">#</th>
+                        <th style="width: 18%">الموظف</th>
+                        <th style="width: 12%">التاريخ</th>
+                        <th style="width: 10%">اليوم</th>
+                        <th style="width: 10%">نوع الحضور</th>
+                        <th style="width: 10%">وقت الدخول</th>
+                        <th style="width: 10%">وقت الخروج</th>
+                        <th style="width: 25%">ملاحظات</th>
+                    </thead>
+                <tbody>
+                    {% for att in attendances %}
+                    <tr>
+                        <td class="fw-bold">{{ loop.index }}<td
+                        <td class="text-center">
+                            <div class="d-flex align-items-center gap-2 justify-content-center">
+                                <i class="fas fa-user-circle text-primary"></i>
+                                <strong>{{ att.employee.name if att.employee else '-' }}</strong>
+                            </div>
+                            <small class="text-muted">{{ att.employee.job_title or 'موظف' }}</small>
+                        </td>
+                        <td>
+                            <i class="far fa-calendar-alt text-muted me-1"></i>
+                            {{ att.date.strftime('%Y-%m-%d') if att.date else '-' }}
+                        </td>
+                        <td>
+                            <span class="badge bg-secondary">
+                                {{ att.date.strftime('%A') if att.date else '-' }}
+                            </span>
+                        </td>
+                        <td>
+                            <span class="attendance-badge {% if att.attendance_type == 'individual' %}badge-individual{% else %}badge-group{% endif %}">
+                                <i class="fas {% if att.attendance_type == 'individual' %}fa-user{% else %}fa-users{% endif %}"></i>
+                                {{ 'فردي' if att.attendance_type == 'individual' else 'جماعي' }}
+                            </span>
+                        </td>
+                        <td>
+                            {% if att.check_in_time %}
+                            <i class="fas fa-sign-in-alt text-success me-1"></i>
+                            {{ att.check_in_time.strftime('%H:%M') }}
+                            {% else %}
+                            <span class="text-muted">--:--</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if att.check_out_time %}
+                            <i class="fas fa-sign-out-alt text-danger me-1"></i>
+                            {{ att.check_out_time.strftime('%H:%M') }}
+                            {% else %}
+                            <span class="text-muted">--:--</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if att.notes %}
+                            <div class="text-truncate" style="max-width: 200px;" title="{{ att.notes }}">
+                                <i class="fas fa-quote-right text-muted me-1"></i>
+                                {{ att.notes }}
+                            </div>
+                            {% else %}
+                            <span class="text-muted"><i class="fas fa-minus-circle"></i> لا توجد ملاحظات</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="8">
+                            <div class="empty-state">
+                                <i class="fas fa-calendar-times"></i>
+                                <h5>لا توجد بيانات حضور</h5>
+                                <p class="text-muted">لا توجد سجلات حضور في الفترة المحددة</p>
+                                <button onclick="window.history.back()" class="btn btn-info mt-2">
+                                    <i class="fas fa-arrow-right"></i> تغيير الفترة
+                                </button>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- تذييل التقرير مع إحصائيات إضافية -->
+{% if attendances %}
+<div class="d-flex justify-content-between align-items-center mt-3">
+    <small class="text-muted">
+        <i class="fas fa-info-circle me-1"></i>
+        تاريخ إنشاء التقرير: {{ now.strftime('%Y-%m-%d %H:%M') }}
+    </small>
+    <small class="text-muted">
+        <i class="fas fa-chart-line me-1"></i>
+        إجمالي ساعات العمل:
+        {% set total_hours = 0 %}
+        {% for att in attendances %}
+            {% if att.check_in_time and att.check_out_time %}
+                {% set hours = (att.check_out_time.hour - att.check_in_time.hour) %}
+                {% set total_hours = total_hours + hours %}
+            {% endif %}
+        {% endfor %}
+        {{ total_hours }} ساعة
+    </small>
+</div>
+{% endif %}
+
+<script>
+    // تعيين التواريخ الافتراضية إذا لم تكن محددة
+    $(document).ready(function() {
+        if (!$('#start_date').val()) {
+            var defaultStart = new Date();
+            defaultStart.setDate(defaultStart.getDate() - 30);
+            $('#start_date').val(defaultStart.toISOString().split('T')[0]);
+        }
+        if (!$('#end_date').val()) {
+            var defaultEnd = new Date();
+            $('#end_date').val(defaultEnd.toISOString().split('T')[0]);
+        }
+    });
+</script>
+{% endblock %}

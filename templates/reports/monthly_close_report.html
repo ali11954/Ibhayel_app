@@ -1,0 +1,440 @@
+{% extends "base.html" %}
+
+{% block title %}تقرير الإغلاق المالي - ابن هائل لأعمال الزراعة{% endblock %}
+
+{% block extra_css %}
+<style>
+    /* تنسيقات متقدمة لصفحة تقرير الإغلاق المالي */
+    .close-header {
+        background: linear-gradient(135deg, #2c3e50 0%, #1a2632 100%);
+        border-radius: 20px;
+        padding: 1.5rem;
+        margin-bottom: 1.5rem;
+        color: white;
+        position: relative;
+        overflow: hidden;
+    }
+
+    .close-header::before {
+        content: '';
+        position: absolute;
+        top: -50%;
+        right: -50%;
+        width: 200%;
+        height: 200%;
+        background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, transparent 70%);
+        animation: rotate 20s linear infinite;
+    }
+
+    @keyframes rotate {
+        from { transform: rotate(0deg); }
+        to { transform: rotate(360deg); }
+    }
+
+    .stats-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+        gap: 1rem;
+        margin-bottom: 1.5rem;
+    }
+
+    .stat-card-close {
+        background: white;
+        border-radius: 20px;
+        padding: 1.2rem;
+        text-align: center;
+        transition: all 0.3s ease;
+        box-shadow: var(--shadow-sm);
+        position: relative;
+        overflow: hidden;
+    }
+
+    .stat-card-close:hover {
+        transform: translateY(-5px);
+        box-shadow: var(--shadow-lg);
+    }
+
+    .stat-card-close::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 4px;
+        background: linear-gradient(90deg, #2c3e50, #5a6e7a);
+    }
+
+    .stat-icon-close {
+        font-size: 2rem;
+        margin-bottom: 0.5rem;
+    }
+
+    .stat-value-close {
+        font-size: 1.8rem;
+        font-weight: 800;
+        margin-bottom: 0.25rem;
+    }
+
+    .stat-label-close {
+        font-size: 0.8rem;
+        color: #6c757d;
+    }
+
+    .period-badge {
+        background: linear-gradient(135deg, #2c3e50, #1a2632);
+        color: white;
+        padding: 0.5rem 1rem;
+        border-radius: 12px;
+        font-size: 0.9rem;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .table-close {
+        margin-bottom: 0;
+    }
+
+    .table-close thead th {
+        background: linear-gradient(135deg, #2c3e50, #1a2632);
+        color: white;
+        font-weight: 600;
+        padding: 1rem;
+        border: none;
+        font-size: 0.85rem;
+        text-align: center;
+        vertical-align: middle;
+    }
+
+    .table-close thead th i {
+        margin-left: 6px;
+    }
+
+    .table-close tbody tr {
+        transition: all 0.3s ease;
+        border-bottom: 1px solid #f0f0f0;
+    }
+
+    .table-close tbody tr:hover {
+        background: rgba(44, 62, 80, 0.05);
+        transform: translateX(5px);
+    }
+
+    .table-close tbody td {
+        padding: 1rem;
+        vertical-align: middle;
+        text-align: center;
+    }
+
+    .amount-positive {
+        color: #28a745;
+        font-weight: 600;
+    }
+
+    .amount-negative {
+        color: #dc3545;
+        font-weight: 600;
+    }
+
+    .total-row {
+        background: linear-gradient(135deg, #f8f9fa, #e9ecef);
+        font-weight: 700;
+    }
+
+    .total-row td {
+        font-weight: 700;
+        background: #f8f9fa;
+        border-top: 2px solid #dee2e6;
+    }
+
+    .signature-box {
+        background: #f8f9fa;
+        border-radius: 15px;
+        padding: 1.2rem;
+        margin-top: 1.5rem;
+        border: 1px solid #e9ecef;
+    }
+
+    .summary-card {
+        background: linear-gradient(135deg, #f8f9fa, #e9ecef);
+        border-radius: 15px;
+        padding: 1rem;
+        margin-bottom: 1rem;
+    }
+
+    .export-buttons {
+        display: flex;
+        gap: 0.5rem;
+    }
+
+    @media print {
+        .sidebar, .navbar, .footer, .btn, .no-print, .export-buttons {
+            display: none !important;
+        }
+        .col-md-10 {
+            width: 100% !important;
+            margin: 0 !important;
+            padding: 0 !important;
+        }
+        .card {
+            box-shadow: none !important;
+            break-inside: avoid;
+        }
+        .close-header {
+            background: #2c3e50;
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+        }
+        .table-close thead th {
+            background: #2c3e50;
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+        }
+        .stat-card-close {
+            break-inside: avoid;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<!-- رأس التقرير -->
+<div class="close-header">
+    <div class="row align-items-center">
+        <div class="col-md-8">
+            <h2 class="mb-2">
+                <i class="fas fa-file-invoice-dollar me-2"></i>
+                تقرير الإغلاق المالي
+            </h2>
+            <p class="mb-0 opacity-75">تقرير شامل لإغلاق الشهر المالي مع كافة التفاصيل والحسابات</p>
+        </div>
+        <div class="col-md-4 text-center">
+            <div class="period-badge">
+                <i class="fas fa-calendar-alt"></i>
+                {{ report.month_year }}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- بطاقات الإحصائيات -->
+<div class="stats-grid">
+    <div class="stat-card-close">
+        <div class="stat-icon-close">
+            <i class="fas fa-calendar-week text-primary"></i>
+        </div>
+        <div class="stat-value-close">{{ report.start_date.strftime('%Y-%m-%d') }} - {{ report.end_date.strftime('%Y-%m-%d') }}</div>
+        <div class="stat-label-close">الفترة المالية</div>
+    </div>
+    <div class="stat-card-close">
+        <div class="stat-icon-close">
+            <i class="fas fa-users text-success"></i>
+        </div>
+        <div class="stat-value-close">{{ report.total_employees }}</div>
+        <div class="stat-label-close">عدد الموظفين</div>
+    </div>
+    <div class="stat-card-close">
+        <div class="stat-icon-close">
+            <i class="fas fa-money-bill-wave text-danger"></i>
+        </div>
+        <div class="stat-value-close">{{ "{:,.0f}".format(report.total_salaries) }}</div>
+        <div class="stat-label-close">إجمالي الرواتب</div>
+    </div>
+    <div class="stat-card-close">
+        <div class="stat-icon-close">
+            <i class="fas fa-check-circle text-info"></i>
+        </div>
+        <div class="stat-value-close">{{ report.paid_salaries }}/{{ report.total_employees }}</div>
+        <div class="stat-label-close">الرواتب المدفوعة</div>
+    </div>
+</div>
+
+<!-- ملخص إضافي -->
+<div class="row mb-4">
+    <div class="col-md-4">
+        <div class="summary-card">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <small class="text-muted">متوسط الراتب</small>
+                    <h5 class="mb-0">{{ (report.total_salaries / report.total_employees)|round|int if report.total_employees else 0 }} ر.ي</h5>
+                </div>
+                <i class="fas fa-chart-line fa-2x text-muted"></i>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="summary-card">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <small class="text-muted">إجمالي أيام الحضور</small>
+                    <h5 class="mb-0">{{ report.salaries|sum(attribute='attendance_days') }} يوم</h5>
+                </div>
+                <i class="fas fa-calendar-check fa-2x text-muted"></i>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="summary-card">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <small class="text-muted">نسبة المدفوعات</small>
+                    <h5 class="mb-0">{{ (report.paid_salaries / report.total_employees * 100)|round(1) if report.total_employees else 0 }}%</h5>
+                </div>
+                <i class="fas fa-percent fa-2x text-muted"></i>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- جدول تفاصيل الرواتب -->
+<div class="card">
+    <div class="card-header bg-white">
+        <div class="d-flex justify-content-between align-items-center">
+            <h5 class="mb-0">
+                <i class="fas fa-table text-secondary me-2"></i>
+                تفاصيل الرواتب - شهر {{ report.month_year }}
+            </h5>
+            <div class="export-buttons">
+                <button id="exportExcel" class="btn btn-success btn-sm" title="تصدير إلى Excel">
+                    <i class="fas fa-file-excel"></i> Excel
+                </button>
+                <button onclick="window.print()" class="btn btn-secondary btn-sm" title="طباعة التقرير">
+                    <i class="fas fa-print"></i> طباعة
+                </button>
+            </div>
+        </div>
+    </div>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-close" id="closeTable">
+                <thead>
+                    <tr>
+                        <th style="width: 5%">#</th>
+                        <th style="width: 12%">الموظف</th>
+                        <th style="width: 8%">المنطقة</th>
+                        <th style="width: 8%">أيام الحضور</th>
+                        <th style="width: 10%">راتب الحضور</th>
+                        <th style="width: 8%">بدل السكن</th>
+                        <th style="width: 8%">إضافي</th>
+                        <th style="width: 8%">سلف</th>
+                        <th style="width: 8%">خصم/جزاء</th>
+                        <th style="width: 10%">الإجمالي</th>
+                        <th style="width: 7%">الحالة</th>
+                    </thead>
+                <tbody>
+                    {% for salary in report.salaries %}
+                    <tr>
+                        <td class="fw-bold">{{ loop.index }}<td
+                        <td class="text-center">
+                            <div class="d-flex align-items-center gap-2 justify-content-center">
+                                <i class="fas fa-user-circle text-primary"></i>
+                                <strong>{{ salary.employee.name }}</strong>
+                            </div>
+                            <small class="text-muted">{{ salary.employee.job_title or 'موظف' }}</small>
+                         </td>
+                        <td>
+                            {% if salary.employee.region %}
+                            <span class="badge bg-primary bg-opacity-10 text-primary">
+                                <i class="fas fa-location-dot"></i> {{ salary.employee.region }}
+                            </span>
+                            {% else %}
+                            <span class="text-muted">-</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <span class="badge bg-info">{{ salary.attendance_days }} يوم</span>
+                        </td>
+                        <td class="amount-positive">
+                            {{ "{:,.0f}".format(salary.attendance_amount) }}
+                        </td>
+                        <td class="amount-positive">
+                            {{ "{:,.0f}".format(salary.daily_allowance_amount) }}
+                        </td>
+                        <td class="amount-positive">
+                            + {{ "{:,.0f}".format(salary.overtime_amount) }}
+                        </td>
+                        <td class="amount-negative">
+                            - {{ "{:,.0f}".format(salary.advance_amount) }}
+                        </td>
+                        <td class="amount-negative">
+                            - {{ "{:,.0f}".format(salary.deduction_amount + salary.penalty_amount) }}
+                        </td>
+                        <td class="fw-bold {% if salary.total_salary > 0 %}text-success{% else %}text-danger{% endif %}">
+                            {{ "{:,.0f}".format(salary.total_salary) }} ر.ي
+                        </td>
+                        <td>
+                            {% if salary.is_paid %}
+                            <span class="badge bg-success">
+                                <i class="fas fa-check-circle"></i> مدفوع
+                            </span>
+                            {% else %}
+                            <span class="badge bg-warning">
+                                <i class="fas fa-clock"></i> غير مدفوع
+                            </span>
+                            {% endif %}
+                        </td>
+                     </tr>
+                    {% endfor %}
+                </tbody>
+                <tfoot>
+                    <tr class="total-row">
+                        <td colspan="3" class="fw-bold">الإجمالي</td>
+                        <td class="fw-bold">{{ report.salaries|sum(attribute='attendance_days') }}</td>
+                        <td class="fw-bold">{{ "{:,.0f}".format(report.salaries|sum(attribute='attendance_amount')) }}</td>
+                        <td class="fw-bold">{{ "{:,.0f}".format(report.salaries|sum(attribute='daily_allowance_amount')) }}</td>
+                        <td class="fw-bold text-success">{{ "{:,.0f}".format(report.salaries|sum(attribute='overtime_amount')) }}</td>
+                        <td class="fw-bold text-danger">{{ "{:,.0f}".format(report.salaries|sum(attribute='advance_amount')) }}</td>
+                        <td class="fw-bold text-danger">{{ "{:,.0f}".format(report.salaries|sum(attribute='deduction_amount') + report.salaries|sum(attribute='penalty_amount')) }}</td>
+                        <td class="fw-bold">{{ "{:,.0f}".format(report.total_salaries) }} ر.ي</td>
+                        <td></td>
+                    </tr>
+                </tfoot>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- توقيع وتاريخ -->
+<div class="signature-box">
+    <div class="row">
+        <div class="col-md-6">
+            <div class="text-center">
+                <p class="mb-0">____________________</p>
+                <small class="text-muted">توقيع المدير المالي</small>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="text-center">
+                <p class="mb-0">{{ now.strftime('%Y-%m-%d %H:%M') }}</p>
+                <small class="text-muted">تاريخ الإغلاق</small>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="text-center mt-3">
+    <small class="text-muted">
+        <i class="fas fa-info-circle me-1"></i>
+        هذا التقرير يوضح كافة تفاصيل الرواتب والمستحقات للشهر المالي {{ report.month_year }}
+    </small>
+</div>
+
+<script>
+    $(document).ready(function() {
+        // تصدير إلى Excel
+        $('#exportExcel').on('click', function() {
+            var table = document.getElementById('closeTable');
+            var html = table.outerHTML;
+            // إضافة تنسيقات CSS للـ Excel
+            var style = '<style>th, td { border: 1px solid #ddd; padding: 8px; text-align: center; } th { background: #2c3e50; color: white; } .total-row { background: #f8f9fa; font-weight: bold; } .amount-positive { color: #28a745; } .amount-negative { color: #dc3545; }</style>';
+            var fullHtml = '<html><head><meta charset="UTF-8"><title>تقرير الإغلاق المالي - {{ report.month_year }}</title>' + style + '</head><body>' + html + '</body></html>';
+            var blob = new Blob([fullHtml], {type: 'application/vnd.ms-excel'});
+            var link = document.createElement('a');
+            link.href = URL.createObjectURL(blob);
+            link.download = 'monthly_close_{{ report.month_year }}.xls';
+            link.click();
+            URL.revokeObjectURL(link.href);
+        });
+    });
+</script>
+{% endblock %}

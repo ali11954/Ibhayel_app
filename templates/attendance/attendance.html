@@ -1,0 +1,284 @@
+{% extends "base.html" %}
+
+{% block title %}الحضور اليومي - ابن هائل لأعمال الزراعة{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+        <div>
+            <h2>
+                <i class="fas fa-calendar-check"></i>
+                التحضير اليومي
+            </h2>
+            <p class="text-muted mb-0 mt-2">تسجيل حضور وانصراف العمال</p>
+        </div>
+        <div class="d-flex gap-2 flex-wrap">
+            <button type="button" class="btn btn-success" data-bs-toggle="modal" data-bs-target="#groupAttendanceModal">
+                <i class="fas fa-users"></i> حضور جماعي
+            </button>
+            <div class="btn-group">
+                <button type="button" class="btn btn-outline-secondary" onclick="window.location.href='{{ url_for('attendance_list', date=prev_date) }}'">
+                    <i class="fas fa-chevron-right"></i> السابق
+                </button>
+                <button type="button" class="btn btn-primary" onclick="window.location.href='{{ url_for('attendance_list', date=today) }}'">
+                    <i class="fas fa-calendar-day"></i> اليوم
+                </button>
+                <button type="button" class="btn btn-outline-secondary" onclick="window.location.href='{{ url_for('attendance_list', date=next_date) }}'">
+                    التالي <i class="fas fa-chevron-left"></i>
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- بطاقة التاريخ -->
+<div class="card mb-4">
+    <div class="card-header bg-white">
+        <div class="row align-items-center">
+            <div class="col-md-6">
+                <h5 class="mb-0">
+                    <i class="fas fa-calendar-alt text-primary"></i>
+                    التاريخ: <strong>{{ selected_date.strftime('%Y-%m-%d') }}</strong>
+                    <span class="badge bg-secondary me-2">{{ selected_date.strftime('%A') }}</span>
+                </h5>
+            </div>
+            <div class="col-md-6">
+                <div class="input-group">
+                    <input type="date" id="datePicker" class="form-control" value="{{ selected_date.strftime('%Y-%m-%d') }}">
+                    <button class="btn btn-primary" onclick="goToDate()">
+                        <i class="fas fa-search"></i> عرض
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- جدول الحضور -->
+<div class="card">
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead>
+                    <tr>
+                        <th>#</th>
+                        <th>الاسم</th>
+                        <th>الوظيفة</th>
+                        <th>الشركة</th>
+                        <th>منطقة العمل</th>
+                        <th>حالة الحضور</th>
+                        <th>الإجراءات</th>
+                    </thead>
+                <tbody>
+                    {% for emp in employees %}
+                    {% set attendance = attendance_dict.get(emp.id) %}
+                    <tr>
+                        <td>{{ loop.index }}</td>
+                        <td>
+                            <strong>{{ emp.name }}</strong>
+                            {% if emp.phone %}
+                            <br><small class="text-muted">{{ emp.phone }}</small>
+                            {% endif %}
+                        </td>
+                        <td>{{ emp.job_title or '-' }}</td>
+                        <td>{{ emp.company.name if emp.company else 'ابن هائل' }}</td>
+                        <td>{{ emp.region or '-' }}</td>
+                        <td>
+                            {% if attendance %}
+                                {% if attendance.attendance_status == 'present' %}
+                                <span class="badge bg-success">حاضر</span>
+                                {% elif attendance.attendance_status == 'late' %}
+                                <span class="badge bg-warning">متأخر ({{ attendance.late_minutes }} د)</span>
+                                {% elif attendance.attendance_status == 'sick' %}
+                                <span class="badge bg-info">إجازة مرضية</span>
+                                {% endif %}
+                            {% else %}
+                            <span class="badge bg-secondary">غائب</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if attendance %}
+                            <form method="POST" action="{{ url_for('remove_attendance') }}" style="display:inline;">
+                                <input type="hidden" name="employee_id" value="{{ emp.id }}">
+                                <input type="hidden" name="date" value="{{ selected_date.strftime('%Y-%m-%d') }}">
+                                <button type="submit" class="btn btn-sm btn-danger" onclick="return confirm('هل أنت متأكد؟')">
+                                    <i class="fas fa-trash"></i> إزالة
+                                </button>
+                            </form>
+                            {% else %}
+                            <button type="button" class="btn btn-sm btn-success"
+                                    onclick="openAttendanceModal({{ emp.id }}, '{{ emp.name }}', '{{ selected_date.strftime('%Y-%m-%d') }}')">
+                                <i class="fas fa-check"></i> تسجيل
+                            </button>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="7" class="text-center py-5">
+                            <i class="fas fa-users-slash fa-3x text-muted mb-3"></i>
+                            <p class="text-muted">لا توجد بيانات موظفين</p>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Modal لتسجيل الحضور -->
+<div class="modal fade" id="attendanceModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-success text-white">
+                <h5 class="modal-title">
+                    <i class="fas fa-calendar-check"></i> تسجيل حضور
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="POST" action="{{ url_for('add_attendance') }}">
+                <div class="modal-body">
+                    <input type="hidden" name="employee_id" id="modal_employee_id">
+                    <input type="hidden" name="date" id="modal_date">
+
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">الموظف</label>
+                        <input type="text" class="form-control" id="modal_employee_name" readonly>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">حالة الحضور</label>
+                        <select class="form-select" name="attendance_status" id="attendance_status" required>
+                            <option value="present">حاضر</option>
+                            <option value="late">متأخر</option>
+                            <option value="sick">إجازة مرضية</option>
+                        </select>
+                    </div>
+
+                    <div id="lateFields" style="display: none;">
+                        <div class="mb-3">
+                            <label class="form-label">دقائق التأخير</label>
+                            <input type="number" class="form-control" name="late_minutes" value="0" min="0">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">وقت الدخول</label>
+                            <input type="time" class="form-control" name="check_in_time">
+                        </div>
+                    </div>
+
+                    <div id="sickFields" style="display: none;">
+                        <div class="mb-3">
+                            <label class="form-label">عدد أيام الإجازة المرضية</label>
+                            <input type="number" class="form-control" name="sick_leave_days" value="1" min="1">
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">وقت الخروج</label>
+                        <input type="time" class="form-control" name="check_out_time">
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">ملاحظات</label>
+                        <textarea class="form-control" name="notes" rows="2"></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">إلغاء</button>
+                    <button type="submit" class="btn btn-success">تسجيل الحضور</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Modal للحضور الجماعي -->
+<div class="modal fade" id="groupAttendanceModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-success text-white">
+                <h5 class="modal-title">حضور جماعي</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="POST" action="{{ url_for('group_attendance') }}">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">حسب الشركة</label>
+                        <select class="form-select" name="company_id">
+                            <option value="">-- اختر الشركة --</option>
+                            {% for company in companies %}
+                            <option value="{{ company.id }}">{{ company.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">أو حسب منطقة العمل</label>
+                        <select class="form-select" name="region">
+                            <option value="">-- اختر المنطقة --</option>
+                            {% for region in regions %}
+                            <option value="{{ region }}">{{ region }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">حالة الحضور</label>
+                        <select class="form-select" name="attendance_status" required>
+                            <option value="present">حاضر</option>
+                            <option value="late">متأخر</option>
+                            <option value="sick">إجازة مرضية</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">التاريخ</label>
+                        <input type="date" class="form-control" name="date" value="{{ selected_date.strftime('%Y-%m-%d') }}" required>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">إلغاء</button>
+                    <button type="submit" class="btn btn-success">تأكيد</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+    function goToDate() {
+        const date = document.getElementById('datePicker').value;
+        if (date) {
+            window.location.href = "{{ url_for('attendance_list') }}?date=" + date;
+        }
+    }
+
+    function openAttendanceModal(employeeId, employeeName, date) {
+        document.getElementById('modal_employee_id').value = employeeId;
+        document.getElementById('modal_employee_name').value = employeeName;
+        document.getElementById('modal_date').value = date;
+
+        document.getElementById('attendance_status').value = 'present';
+        document.getElementById('lateFields').style.display = 'none';
+        document.getElementById('sickFields').style.display = 'none';
+
+        const modal = new bootstrap.Modal(document.getElementById('attendanceModal'));
+        modal.show();
+    }
+
+    // تغيير الحقول حسب حالة الحضور
+    document.getElementById('attendance_status').addEventListener('change', function() {
+        const lateFields = document.getElementById('lateFields');
+        const sickFields = document.getElementById('sickFields');
+
+        if (this.value === 'late') {
+            lateFields.style.display = 'block';
+            sickFields.style.display = 'none';
+        } else if (this.value === 'sick') {
+            lateFields.style.display = 'none';
+            sickFields.style.display = 'block';
+        } else {
+            lateFields.style.display = 'none';
+            sickFields.style.display = 'none';
+        }
+    });
+</script>
+{% endblock %}
