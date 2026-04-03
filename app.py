@@ -44,15 +44,15 @@ def utility_processor():
 # تسجيل جميع الروت
 register_routes(app)
 
-
-# تهيئة قاعدة البيانات (سيتم استدعاؤها عند بدء التشغيل)
 def init_db():
     with app.app_context():
         db.create_all()
         print("✅ Database tables created/verified")
 
-        # إنشاء مستخدم Admin افتراضي
-        if not User.query.filter_by(username='admin').first():
+        # إنشاء أو تحديث مستخدم admin
+        admin = User.query.filter_by(username='admin').first()
+
+        if not admin:
             admin = User(
                 username='admin',
                 password=generate_password_hash('admin123'),
@@ -60,12 +60,12 @@ def init_db():
                 role='admin'
             )
             db.session.add(admin)
-            db.session.commit()
-            print("✅ تم إنشاء المستخدم الافتراضي - username: admin, password: admin123")
+            print("✅ تم إنشاء المستخدم admin")
         else:
-            print("✅ المستخدم الافتراضي موجود بالفعل")
+            admin.password = generate_password_hash('admin123')
+            print("✅ تم تحديث كلمة مرور admin")
 
-
+        db.session.commit()
 # استدعاء init_db() عند بدء التطبيق (لـ gunicorn)
 init_db()
 
