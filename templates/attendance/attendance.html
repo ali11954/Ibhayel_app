@@ -2,36 +2,178 @@
 
 {% block title %}الحضور اليومي - ابن هائل لأعمال الزراعة{% endblock %}
 
+{% block extra_css %}
+<style>
+    .attendance-header {
+        background: linear-gradient(135deg, #2e7d32 0%, #1b5e20 100%);
+        border-radius: 20px;
+        padding: 1.5rem;
+        margin-bottom: 1.5rem;
+        color: white;
+        position: relative;
+        overflow: hidden;
+    }
+
+    .attendance-header::before {
+        content: '';
+        position: absolute;
+        top: -50%;
+        right: -50%;
+        width: 200%;
+        height: 200%;
+        background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, transparent 70%);
+        animation: rotate 20s linear infinite;
+    }
+
+    @keyframes rotate {
+        from { transform: rotate(0deg); }
+        to { transform: rotate(360deg); }
+    }
+
+    .employee-card {
+        background: white;
+        border-radius: 15px;
+        transition: all 0.3s ease;
+        border: 1px solid #e9ecef;
+        overflow: hidden;
+        margin-bottom: 1rem;
+        animation: fadeInUp 0.3s ease;
+    }
+
+    .employee-card:hover {
+        transform: translateY(-3px);
+        box-shadow: var(--shadow-lg);
+        border-color: #17a2b8;
+    }
+
+    .employee-card-header {
+        background: linear-gradient(135deg, #f8f9fa, #e9ecef);
+        padding: 0.75rem 1rem;
+        border-bottom: 1px solid #dee2e6;
+    }
+
+    .employee-avatar {
+        width: 50px;
+        height: 50px;
+        border-radius: 12px;
+        background: linear-gradient(135deg, #2e7d32, #1b5e20);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        font-weight: bold;
+        font-size: 1.2rem;
+    }
+
+    .status-badge {
+        padding: 0.3rem 0.8rem;
+        border-radius: 20px;
+        font-size: 0.7rem;
+        font-weight: 600;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.3rem;
+    }
+
+    .status-option {
+        cursor: pointer;
+        transition: all 0.2s ease;
+        border-radius: 10px;
+    }
+
+    .status-option:hover {
+        transform: scale(1.05);
+    }
+
+    .status-option.selected-present {
+        background-color: #d4edda;
+        border-color: #28a745;
+        color: #155724;
+    }
+
+    .status-option.selected-absent {
+        background-color: #f8d7da;
+        border-color: #dc3545;
+        color: #721c24;
+    }
+
+    .status-option.selected-late {
+        background-color: #fff3cd;
+        border-color: #ffc107;
+        color: #856404;
+    }
+
+    .status-option.selected-sick {
+        background-color: #d1ecf1;
+        border-color: #17a2b8;
+        color: #0c5460;
+    }
+
+    .save-all-btn {
+        position: sticky;
+        bottom: 20px;
+        z-index: 1000;
+        box-shadow: 0 5px 20px rgba(0,0,0,0.2);
+        border-radius: 50px;
+        padding: 12px 25px;
+    }
+
+    @keyframes fadeInUp {
+        from {
+            opacity: 0;
+            transform: translateY(20px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    .filter-section {
+        background: white;
+        border-radius: 15px;
+        padding: 1rem;
+        margin-bottom: 1.5rem;
+        box-shadow: var(--shadow-sm);
+    }
+
+    .company-badge {
+        background: rgba(23, 162, 184, 0.1);
+        color: #17a2b8;
+        padding: 0.2rem 0.5rem;
+        border-radius: 10px;
+        font-size: 0.7rem;
+    }
+
+    .date-nav-btn {
+        transition: all 0.3s ease;
+    }
+
+    .date-nav-btn:hover {
+        transform: translateY(-2px);
+    }
+</style>
+{% endblock %}
+
 {% block content %}
-<div class="page-header">
-    <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
-        <div>
-            <h2>
-                <i class="fas fa-calendar-check"></i>
+<div class="attendance-header">
+    <div class="row align-items-center">
+        <div class="col-md-8">
+            <h2 class="mb-2">
+                <i class="fas fa-calendar-check me-2"></i>
                 التحضير اليومي
             </h2>
-            <p class="text-muted mb-0 mt-2">تسجيل حضور وانصراف العمال</p>
+            <p class="mb-0 opacity-75">تسجيل حضور وانصراف العمال</p>
         </div>
-        <div class="d-flex gap-2 flex-wrap">
-            <button type="button" class="btn btn-success" data-bs-toggle="modal" data-bs-target="#groupAttendanceModal">
-                <i class="fas fa-users"></i> حضور جماعي
-            </button>
-            <div class="btn-group">
-                <button type="button" class="btn btn-outline-secondary" onclick="window.location.href='{{ url_for('attendance_list', date=prev_date) }}'">
-                    <i class="fas fa-chevron-right"></i> السابق
-                </button>
-                <button type="button" class="btn btn-primary" onclick="window.location.href='{{ url_for('attendance_list', date=today) }}'">
-                    <i class="fas fa-calendar-day"></i> اليوم
-                </button>
-                <button type="button" class="btn btn-outline-secondary" onclick="window.location.href='{{ url_for('attendance_list', date=next_date) }}'">
-                    التالي <i class="fas fa-chevron-left"></i>
-                </button>
+        <div class="col-md-4 text-center">
+            <div class="employee-icon-large mx-auto">
+                <i class="fas fa-user-check fa-3x"></i>
             </div>
         </div>
     </div>
 </div>
 
-<!-- بطاقة التاريخ -->
+<!-- التنقل بين التواريخ -->
 <div class="card mb-4">
     <div class="card-header bg-white">
         <div class="row align-items-center">
@@ -43,10 +185,15 @@
                 </h5>
             </div>
             <div class="col-md-6">
-                <div class="input-group">
-                    <input type="date" id="datePicker" class="form-control" value="{{ selected_date.strftime('%Y-%m-%d') }}">
-                    <button class="btn btn-primary" onclick="goToDate()">
-                        <i class="fas fa-search"></i> عرض
+                <div class="d-flex gap-2 justify-content-md-end">
+                    <button type="button" class="btn btn-outline-secondary date-nav-btn" onclick="window.location.href='{{ url_for('attendance_list', date=prev_date) }}'">
+                        <i class="fas fa-chevron-right"></i> السابق
+                    </button>
+                    <button type="button" class="btn btn-primary date-nav-btn" onclick="window.location.href='{{ url_for('attendance_list', date=today) }}'">
+                        <i class="fas fa-calendar-day"></i> اليوم
+                    </button>
+                    <button type="button" class="btn btn-outline-secondary date-nav-btn" onclick="window.location.href='{{ url_for('attendance_list', date=next_date) }}'">
+                        التالي <i class="fas fa-chevron-left"></i>
                     </button>
                 </div>
             </div>
@@ -54,231 +201,289 @@
     </div>
 </div>
 
-<!-- جدول الحضور -->
-<div class="card">
-    <div class="card-body p-0">
-        <div class="table-responsive">
-            <table class="table table-hover mb-0">
-                <thead>
-                    <tr>
-                        <th>#</th>
-                        <th>الاسم</th>
-                        <th>الوظيفة</th>
-                        <th>الشركة</th>
-                        <th>منطقة العمل</th>
-                        <th>حالة الحضور</th>
-                        <th>الإجراءات</th>
-                    </thead>
-                <tbody>
-                    {% for emp in employees %}
-                    {% set attendance = attendance_dict.get(emp.id) %}
-                    <tr>
-                        <td>{{ loop.index }}</td>
-                        <td>
+<!-- شريط الفلترة -->
+<div class="filter-section">
+    <div class="row align-items-center">
+        <div class="col-md-4 mb-3 mb-md-0">
+            <div class="input-group">
+                <span class="input-group-text bg-white border-end-0">
+                    <i class="fas fa-search text-muted"></i>
+                </span>
+                <input type="text" id="searchInput" class="form-control border-start-0"
+                       placeholder="بحث باسم الموظف...">
+            </div>
+        </div>
+        <div class="col-md-4 mb-3 mb-md-0">
+            <select id="companyFilter" class="form-select">
+                <option value="">جميع الشركات</option>
+                {% for company in companies %}
+                <option value="{{ company.id }}">{{ company.name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="col-md-4">
+            <select id="statusFilter" class="form-select">
+                <option value="">جميع الحالات</option>
+                <option value="present">حاضر</option>
+                <option value="absent">غائب</option>
+                <option value="late">متأخر</option>
+                <option value="sick">إجازة مرضية</option>
+            </select>
+        </div>
+    </div>
+</div>
+
+<!-- نموذج الحضور الجماعي -->
+<form method="POST" action="{{ url_for('save_bulk_attendance') }}" id="bulkAttendanceForm">
+    <input type="hidden" name="date" value="{{ selected_date.strftime('%Y-%m-%d') }}">
+
+    <!-- قائمة الموظفين على شكل قوالب -->
+    <div class="row" id="employeesContainer">
+        {% for emp in employees %}
+        {% set attendance = attendance_dict.get(emp.id) %}
+        {% set current_status = attendance.attendance_status if attendance else 'absent' %}
+        <div class="col-md-6 col-lg-4 employee-item mb-3"
+             data-name="{{ emp.name|lower }}"
+             data-company="{{ emp.company_id }}"
+             data-status="{{ current_status }}">
+            <div class="employee-card">
+                <div class="employee-card-header d-flex justify-content-between align-items-center">
+                    <div class="d-flex align-items-center gap-2">
+                        <div class="employee-avatar">
+                            {{ emp.name[0]|upper if emp.name else '?' }}
+                        </div>
+                        <div>
                             <strong>{{ emp.name }}</strong>
-                            {% if emp.phone %}
-                            <br><small class="text-muted">{{ emp.phone }}</small>
-                            {% endif %}
-                        </td>
-                        <td>{{ emp.job_title or '-' }}</td>
-                        <td>{{ emp.company.name if emp.company else 'ابن هائل' }}</td>
-                        <td>{{ emp.region or '-' }}</td>
-                        <td>
-                            {% if attendance %}
-                                {% if attendance.attendance_status == 'present' %}
-                                <span class="badge bg-success">حاضر</span>
-                                {% elif attendance.attendance_status == 'late' %}
-                                <span class="badge bg-warning">متأخر ({{ attendance.late_minutes }} د)</span>
-                                {% elif attendance.attendance_status == 'sick' %}
-                                <span class="badge bg-info">إجازة مرضية</span>
-                                {% endif %}
-                            {% else %}
-                            <span class="badge bg-secondary">غائب</span>
-                            {% endif %}
-                        </td>
-                        <td>
-                            {% if attendance %}
-                            <form method="POST" action="{{ url_for('remove_attendance') }}" style="display:inline;">
-                                <input type="hidden" name="employee_id" value="{{ emp.id }}">
-                                <input type="hidden" name="date" value="{{ selected_date.strftime('%Y-%m-%d') }}">
-                                <button type="submit" class="btn btn-sm btn-danger" onclick="return confirm('هل أنت متأكد؟')">
-                                    <i class="fas fa-trash"></i> إزالة
-                                </button>
-                            </form>
-                            {% else %}
-                            <button type="button" class="btn btn-sm btn-success"
-                                    onclick="openAttendanceModal({{ emp.id }}, '{{ emp.name }}', '{{ selected_date.strftime('%Y-%m-%d') }}')">
-                                <i class="fas fa-check"></i> تسجيل
-                            </button>
-                            {% endif %}
-                        </td>
-                    </tr>
-                    {% else %}
-                    <tr>
-                        <td colspan="7" class="text-center py-5">
-                            <i class="fas fa-users-slash fa-3x text-muted mb-3"></i>
-                            <p class="text-muted">لا توجد بيانات موظفين</p>
-                        </td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        </div>
-    </div>
-</div>
+                            <br>
+                            <small class="text-muted">
+                                <i class="fas fa-briefcase"></i> {{ emp.job_title or 'عامل' }}
+                            </small>
+                        </div>
+                    </div>
+                    <span class="company-badge">
+                        <i class="fas fa-building"></i> {{ emp.employee_company.name if emp.employee_company else 'ابن هائل' }}
+                    </span>
+                </div>
+                <div class="card-body p-3">
+                    <!-- معلومات إضافية -->
+                    <div class="row mb-3">
+                        <div class="col-6">
+                            <small class="text-muted">
+                                <i class="fas fa-id-card"></i> {{ emp.card_number }}
+                            </small>
+                        </div>
+                        <div class="col-6">
+                            <small class="text-muted">
+                                <i class="fas fa-phone-alt"></i> {{ emp.phone or 'لا يوجد' }}
+                            </small>
+                        </div>
+                    </div>
 
-<!-- Modal لتسجيل الحضور -->
-<div class="modal fade" id="attendanceModal" tabindex="-1">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <div class="modal-header bg-success text-white">
-                <h5 class="modal-title">
-                    <i class="fas fa-calendar-check"></i> تسجيل حضور
-                </h5>
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                    <!-- خيارات الحضور -->
+                    <div class="row g-2">
+                        <div class="col-6">
+                            <div class="status-option p-2 text-center rounded border
+                                        {% if current_status == 'present' %}selected-present bg-success bg-opacity-10 border-success{% endif %}"
+                                 onclick="selectStatus({{ emp.id }}, 'present')">
+                                <i class="fas fa-check-circle text-success"></i>
+                                <div>حاضر</div>
+                            </div>
+                        </div>
+                        <div class="col-6">
+                            <div class="status-option p-2 text-center rounded border
+                                        {% if current_status == 'absent' %}selected-absent bg-danger bg-opacity-10 border-danger{% endif %}"
+                                 onclick="selectStatus({{ emp.id }}, 'absent')">
+                                <i class="fas fa-times-circle text-danger"></i>
+                                <div>غائب</div>
+                            </div>
+                        </div>
+                        <div class="col-6">
+                            <div class="status-option p-2 text-center rounded border
+                                        {% if current_status == 'late' %}selected-late bg-warning bg-opacity-10 border-warning{% endif %}"
+                                 onclick="selectStatus({{ emp.id }}, 'late')">
+                                <i class="fas fa-clock text-warning"></i>
+                                <div>متأخر</div>
+                            </div>
+                        </div>
+                        <div class="col-6">
+                            <div class="status-option p-2 text-center rounded border
+                                        {% if current_status == 'sick' %}selected-sick bg-info bg-opacity-10 border-info{% endif %}"
+                                 onclick="selectStatus({{ emp.id }}, 'sick')">
+                                <i class="fas fa-thermometer-half text-info"></i>
+                                <div>إجازة مرضية</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- حقول إضافية (تظهر حسب الحالة) -->
+                    <div id="extraFields_{{ emp.id }}" style="display: none;" class="mt-3">
+                        <!-- حقل التأخير -->
+                        <div id="lateFields_{{ emp.id }}" class="late-fields" style="display: none;">
+                            <div class="mb-2">
+                                <label class="small fw-bold">دقائق التأخير</label>
+                                <input type="number" name="late_minutes_{{ emp.id }}" class="form-control form-control-sm"
+                                       value="{{ attendance.late_minutes if attendance and attendance.attendance_status == 'late' else 0 }}" min="0">
+                            </div>
+                            <div class="mb-2">
+                                <label class="small fw-bold">وقت الدخول</label>
+                                <input type="time" name="check_in_time_{{ emp.id }}" class="form-control form-control-sm"
+                                       value="{{ attendance.check_in_time if attendance else '' }}">
+                            </div>
+                        </div>
+
+                        <!-- حقل الإجازة المرضية -->
+                        <div id="sickFields_{{ emp.id }}" class="sick-fields" style="display: none;">
+                            <div class="mb-2">
+                                <label class="small fw-bold">عدد أيام الإجازة</label>
+                                <input type="number" name="sick_leave_days_{{ emp.id }}" class="form-control form-control-sm"
+                                       value="{{ attendance.sick_leave_days if attendance and attendance.attendance_status == 'sick' else 1 }}" min="1">
+                            </div>
+                        </div>
+
+                        <!-- وقت الخروج -->
+                        <div class="mb-2">
+                            <label class="small fw-bold">وقت الخروج</label>
+                            <input type="time" name="check_out_time_{{ emp.id }}" class="form-control form-control-sm"
+                                   value="{{ attendance.check_out_time if attendance else '' }}">
+                        </div>
+
+                        <!-- ملاحظات -->
+                        <div class="mb-2">
+                            <label class="small fw-bold">ملاحظات</label>
+                            <textarea name="notes_{{ emp.id }}" class="form-control form-control-sm" rows="1">{{ attendance.notes if attendance else '' }}</textarea>
+                        </div>
+                    </div>
+
+                    <input type="hidden" name="employee_ids" value="{{ emp.id }}">
+                    <input type="hidden" name="status_{{ emp.id }}" id="status_{{ emp.id }}" value="{{ current_status }}">
+                </div>
             </div>
-            <form method="POST" action="{{ url_for('add_attendance') }}">
-                <div class="modal-body">
-                    <input type="hidden" name="employee_id" id="modal_employee_id">
-                    <input type="hidden" name="date" id="modal_date">
-
-                    <div class="mb-3">
-                        <label class="form-label fw-bold">الموظف</label>
-                        <input type="text" class="form-control" id="modal_employee_name" readonly>
-                    </div>
-
-                    <div class="mb-3">
-                        <label class="form-label fw-bold">حالة الحضور</label>
-                        <select class="form-select" name="attendance_status" id="attendance_status" required>
-                            <option value="present">حاضر</option>
-                            <option value="late">متأخر</option>
-                            <option value="sick">إجازة مرضية</option>
-                        </select>
-                    </div>
-
-                    <div id="lateFields" style="display: none;">
-                        <div class="mb-3">
-                            <label class="form-label">دقائق التأخير</label>
-                            <input type="number" class="form-control" name="late_minutes" value="0" min="0">
-                        </div>
-                        <div class="mb-3">
-                            <label class="form-label">وقت الدخول</label>
-                            <input type="time" class="form-control" name="check_in_time">
-                        </div>
-                    </div>
-
-                    <div id="sickFields" style="display: none;">
-                        <div class="mb-3">
-                            <label class="form-label">عدد أيام الإجازة المرضية</label>
-                            <input type="number" class="form-control" name="sick_leave_days" value="1" min="1">
-                        </div>
-                    </div>
-
-                    <div class="mb-3">
-                        <label class="form-label">وقت الخروج</label>
-                        <input type="time" class="form-control" name="check_out_time">
-                    </div>
-
-                    <div class="mb-3">
-                        <label class="form-label">ملاحظات</label>
-                        <textarea class="form-control" name="notes" rows="2"></textarea>
-                    </div>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">إلغاء</button>
-                    <button type="submit" class="btn btn-success">تسجيل الحضور</button>
-                </div>
-            </form>
         </div>
-    </div>
-</div>
-
-<!-- Modal للحضور الجماعي -->
-<div class="modal fade" id="groupAttendanceModal" tabindex="-1">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <div class="modal-header bg-success text-white">
-                <h5 class="modal-title">حضور جماعي</h5>
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+        {% else %}
+        <div class="col-12">
+            <div class="empty-state text-center py-5">
+                <i class="fas fa-users-slash fa-4x text-muted mb-3"></i>
+                <h5>لا يوجد موظفين</h5>
+                <p class="text-muted">قم بإضافة موظفين أولاً</p>
+                <a href="{{ url_for('add_employee') }}" class="btn btn-primary">
+                    <i class="fas fa-plus-circle"></i> إضافة موظف
+                </a>
             </div>
-            <form method="POST" action="{{ url_for('group_attendance') }}">
-                <div class="modal-body">
-                    <div class="mb-3">
-                        <label class="form-label">حسب الشركة</label>
-                        <select class="form-select" name="company_id">
-                            <option value="">-- اختر الشركة --</option>
-                            {% for company in companies %}
-                            <option value="{{ company.id }}">{{ company.name }}</option>
-                            {% endfor %}
-                        </select>
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label">أو حسب منطقة العمل</label>
-                        <select class="form-select" name="region">
-                            <option value="">-- اختر المنطقة --</option>
-                            {% for region in regions %}
-                            <option value="{{ region }}">{{ region }}</option>
-                            {% endfor %}
-                        </select>
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label">حالة الحضور</label>
-                        <select class="form-select" name="attendance_status" required>
-                            <option value="present">حاضر</option>
-                            <option value="late">متأخر</option>
-                            <option value="sick">إجازة مرضية</option>
-                        </select>
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label">التاريخ</label>
-                        <input type="date" class="form-control" name="date" value="{{ selected_date.strftime('%Y-%m-%d') }}" required>
-                    </div>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">إلغاء</button>
-                    <button type="submit" class="btn btn-success">تأكيد</button>
-                </div>
-            </form>
         </div>
+        {% endfor %}
     </div>
-</div>
+
+    <!-- زر حفظ الجميع -->
+    {% if employees|length > 0 %}
+    <div class="text-center mt-4 pb-4">
+        <button type="submit" class="btn btn-success btn-lg save-all-btn">
+            <i class="fas fa-save me-2"></i>
+            حفظ جميع حالات الحضور
+        </button>
+    </div>
+    {% endif %}
+</form>
 
 <script>
-    function goToDate() {
-        const date = document.getElementById('datePicker').value;
-        if (date) {
-            window.location.href = "{{ url_for('attendance_list') }}?date=" + date;
+    function selectStatus(employeeId, status) {
+        // تحديث الحقل المخفي
+        document.getElementById(`status_${employeeId}`).value = status;
+
+        // العثور على بطاقة الموظف
+        const card = document.querySelector(`input[value="${employeeId}"]`).closest('.employee-card');
+        const options = card.querySelectorAll('.status-option');
+
+        // إزالة التحديد من جميع خيارات الحالة لهذا الموظف
+        options.forEach(opt => {
+            opt.classList.remove('selected-present', 'selected-absent', 'selected-late', 'selected-sick');
+            opt.classList.remove('bg-success', 'bg-danger', 'bg-warning', 'bg-info', 'bg-opacity-10');
+        });
+
+        // إضافة التحديد للخيار المختار
+        const statusMap = {
+            'present': 0,
+            'absent': 1,
+            'late': 2,
+            'sick': 3
+        };
+        const selectedOption = options[statusMap[status]];
+        if (status === 'present') {
+            selectedOption.classList.add('selected-present', 'bg-success', 'bg-opacity-10');
+        } else if (status === 'absent') {
+            selectedOption.classList.add('selected-absent', 'bg-danger', 'bg-opacity-10');
+        } else if (status === 'late') {
+            selectedOption.classList.add('selected-late', 'bg-warning', 'bg-opacity-10');
+        } else if (status === 'sick') {
+            selectedOption.classList.add('selected-sick', 'bg-info', 'bg-opacity-10');
         }
-    }
 
-    function openAttendanceModal(employeeId, employeeName, date) {
-        document.getElementById('modal_employee_id').value = employeeId;
-        document.getElementById('modal_employee_name').value = employeeName;
-        document.getElementById('modal_date').value = date;
+        // إظهار/إخفاء الحقول الإضافية
+        const extraFields = document.getElementById(`extraFields_${employeeId}`);
+        const lateFields = document.getElementById(`lateFields_${employeeId}`);
+        const sickFields = document.getElementById(`sickFields_${employeeId}`);
 
-        document.getElementById('attendance_status').value = 'present';
-        document.getElementById('lateFields').style.display = 'none';
-        document.getElementById('sickFields').style.display = 'none';
-
-        const modal = new bootstrap.Modal(document.getElementById('attendanceModal'));
-        modal.show();
-    }
-
-    // تغيير الحقول حسب حالة الحضور
-    document.getElementById('attendance_status').addEventListener('change', function() {
-        const lateFields = document.getElementById('lateFields');
-        const sickFields = document.getElementById('sickFields');
-
-        if (this.value === 'late') {
-            lateFields.style.display = 'block';
-            sickFields.style.display = 'none';
-        } else if (this.value === 'sick') {
-            lateFields.style.display = 'none';
-            sickFields.style.display = 'block';
+        if (status === 'present' || status === 'absent') {
+            extraFields.style.display = 'none';
         } else {
-            lateFields.style.display = 'none';
-            sickFields.style.display = 'none';
+            extraFields.style.display = 'block';
+            if (status === 'late') {
+                lateFields.style.display = 'block';
+                sickFields.style.display = 'none';
+            } else if (status === 'sick') {
+                lateFields.style.display = 'none';
+                sickFields.style.display = 'block';
+            }
         }
+
+        // تحديث بيانات الحالة في العنصر الرئيسي للفلترة
+        const employeeItem = card.closest('.employee-item');
+        employeeItem.setAttribute('data-status', status);
+    }
+
+    // البحث والفلترة
+    $(document).ready(function() {
+        // البحث
+        $('#searchInput').on('keyup', function() {
+            var value = $(this).val().toLowerCase();
+            $('.employee-item').each(function() {
+                var name = $(this).data('name');
+                $(this).toggle(name.indexOf(value) > -1);
+            });
+        });
+
+        // فلتر حسب الشركة
+        $('#companyFilter').on('change', function() {
+            var companyId = $(this).val();
+            $('.employee-item').each(function() {
+                var itemCompany = $(this).data('company');
+                if (companyId === '' || String(itemCompany) === companyId) {
+                    $(this).show();
+                } else {
+                    $(this).hide();
+                }
+            });
+        });
+
+        // فلتر حسب حالة الحضور
+        $('#statusFilter').on('change', function() {
+            var status = $(this).val();
+            $('.employee-item').each(function() {
+                var itemStatus = $(this).data('status');
+                if (status === '' || itemStatus === status) {
+                    $(this).show();
+                } else {
+                    $(this).hide();
+                }
+            });
+        });
+
+        // عرض الحقول الإضافية للموظفين الذين لديهم حالة غير حاضر/غائب
+        {% for emp in employees %}
+            {% set attendance = attendance_dict.get(emp.id) %}
+            {% if attendance and attendance.attendance_status != 'present' and attendance.attendance_status != 'absent' %}
+                selectStatus({{ emp.id }}, '{{ attendance.attendance_status }}');
+            {% endif %}
+        {% endfor %}
     });
 </script>
 {% endblock %}

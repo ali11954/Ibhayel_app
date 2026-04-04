@@ -1,0 +1,136 @@
+{% extends "base.html" %}
+
+{% block title %}تحليل التقييمات - ابن هائل{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="page-header">
+        <h2><i class="fas fa-chart-bar"></i> تحليل التقييمات</h2>
+        <p class="text-muted">تحليل أداء الموظفين حسب المعايير والمناطق</p>
+    </div>
+
+    <!-- فلترة -->
+    <div class="card mb-4">
+        <div class="card-body">
+            <form method="GET" class="row">
+                <div class="col-md-3 mb-2">
+                    <label>من تاريخ</label>
+                    <input type="date" name="start_date" class="form-control" value="{{ start_date }}">
+                </div>
+                <div class="col-md-3 mb-2">
+                    <label>إلى تاريخ</label>
+                    <input type="date" name="end_date" class="form-control" value="{{ end_date }}">
+                </div>
+                <div class="col-md-3 mb-2">
+                    <label>الشركة</label>
+                    <select name="company_id" class="form-select">
+                        <option value="">الكل</option>
+                        {% for company in companies %}
+                        <option value="{{ company.id }}" {% if selected_company == company.id %}selected{% endif %}>
+                            {{ company.name }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-3 mb-2 d-flex align-items-end">
+                    <button type="submit" class="btn btn-primary w-100">عرض التقرير</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- إحصائيات -->
+    <div class="row mb-4">
+        <div class="col-md-3 mb-3">
+            <div class="card bg-primary text-white">
+                <div class="card-body text-center">
+                    <h2>{{ total_evaluations }}</h2>
+                    <small>إجمالي التقييمات</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3 mb-3">
+            <div class="card bg-success text-white">
+                <div class="card-body text-center">
+                    <h2>{{ "%.1f"|format(avg_score) }}</h2>
+                    <small>متوسط الدرجة</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3 mb-3">
+            <div class="card bg-info text-white">
+                <div class="card-body text-center">
+                    <h2>{{ excellent }}</h2>
+                    <small>ممتاز (90+)</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3 mb-3">
+            <div class="card bg-warning text-white">
+                <div class="card-body text-center">
+                    <h2>{{ poor }}</h2>
+                    <small>يحتاج تحسين (50-)</small>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- توزيع التقييمات -->
+    <div class="row">
+        <div class="col-md-6 mb-4">
+            <div class="card h-100">
+                <div class="card-header">
+                    <h5><i class="fas fa-chart-pie"></i> توزيع التقييمات</h5>
+                </div>
+                <div class="card-body">
+                    <canvas id="ratingsChart" height="250"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- أفضل الموظفين -->
+        <div class="col-md-6 mb-4">
+            <div class="card h-100">
+                <div class="card-header">
+                    <h5><i class="fas fa-trophy"></i> أفضل 10 موظفين</h5>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table mb-0">
+                            <thead>
+                                <tr><th>#</th><th>الموظف</th><th>متوسط الدرجة</th><th>عدد التقييمات</th></tr>
+                            </thead>
+                            <tbody>
+                                {% for emp in top_employees %}
+                                <tr>
+                                    <td>{{ loop.index }}</td>
+                                    <td>{{ emp.name }}</td>
+                                    <td>{{ "%.1f"|format(emp.avg_score) }}</td>
+                                    <td>{{ emp.count }}</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+    const ctx = document.getElementById('ratingsChart').getContext('2d');
+    new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+            labels: ['ممتاز (90+)', 'جيد جداً (75-89)', 'جيد (60-74)', 'مقبول (50-59)', 'يحتاج تحسين (<50)'],
+            datasets: [{
+                data: [{{ excellent }}, {{ very_good }}, {{ good }}, {{ fair }}, {{ poor }}],
+                backgroundColor: ['#28a745', '#17a2b8', '#ffc107', '#fd7e14', '#dc3545']
+            }]
+        },
+        options: { responsive: true, maintainAspectRatio: true }
+    });
+</script>
+{% endblock %}

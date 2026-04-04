@@ -109,6 +109,7 @@
 
     .status-paid { background: #28a745; color: white; }
     .status-unpaid { background: #ffc107; color: #333; }
+    .status-partial { background: #17a2b8; color: white; }
 
     .action-buttons {
         display: flex;
@@ -203,19 +204,19 @@
         <div class="col-md-3 col-6">
             <div class="stat-item">
                 <p class="stat-number mb-0 text-success">{{ invoices|selectattr('is_paid')|list|length }}</p>
-                <p class="stat-label">مدفوعة</p>
+                <p class="stat-label">مدفوعة كلياً</p>
             </div>
         </div>
         <div class="col-md-3 col-6">
             <div class="stat-item">
-                <p class="stat-number mb-0 text-warning">{{ invoices|rejectattr('is_paid')|list|length }}</p>
+                <p class="stat-number mb-0 text-info">{{ invoices|rejectattr('is_paid')|selectattr('paid_amount', 'gt', 0)|list|length }}</p>
+                <p class="stat-label">مدفوعة جزئياً</p>
+            </div>
+        </div>
+        <div class="col-md-3 col-6">
+            <div class="stat-item">
+                <p class="stat-number mb-0 text-warning">{{ invoices|rejectattr('is_paid')|selectattr('paid_amount', 'eq', 0)|list|length }}</p>
                 <p class="stat-label">غير مدفوعة</p>
-            </div>
-        </div>
-        <div class="col-md-3 col-6">
-            <div class="stat-item">
-                <p class="stat-number mb-0">{{ invoices|sum(attribute='amount')|round|int }} ر.ي</p>
-                <p class="stat-label">إجمالي المبالغ</p>
             </div>
         </div>
     </div>
@@ -236,7 +237,8 @@
         <div class="col-md-4 mb-3 mb-md-0">
             <select id="statusFilter" class="form-select">
                 <option value="all">جميع الفواتير</option>
-                <option value="paid">مدفوعة</option>
+                <option value="paid">مدفوعة كلياً</option>
+                <option value="partial">مدفوعة جزئياً</option>
                 <option value="unpaid">غير مدفوعة</option>
             </select>
         </div>
@@ -261,74 +263,94 @@
                 <thead>
                     <tr>
                         <th style="width: 5%">#</th>
-                        <th style="width: 15%">رقم الفاتورة</th>
-                        <th style="width: 20%">الشركة</th>
-                        <th style="width: 12%">المبلغ</th>
-                        <th style="width: 12%">تاريخ الفاتورة</th>
-                        <th style="width: 12%">تاريخ الاستحقاق</th>
-                        <th style="width: 10%">الحالة</th>
-                        <th style="width: 10%">الإجراءات</th>
+                        <th style="width: 12%">رقم الفاتورة</th>
+                        <th style="width: 18%">الشركة</th>
+                        <th style="width: 10%">المبلغ</th>
+                        <th style="width: 10%">المدفوع</th>
+                        <th style="width: 10%">المتبقي</th>
+                        <th style="width: 10%">تاريخ الفاتورة</th>
+                        <th style="width: 10%">تاريخ الاستحقاق</th>
+                        <th style="width: 8%">الحالة</th>
+                        <th style="width: 7%">الإجراءات</th>
                     </thead>
                 <tbody>
                     {% for invoice in invoices %}
                     {% set is_overdue = invoice.due_date and not invoice.is_paid and invoice.due_date < now.date() %}
-                    <tr data-status="{% if invoice.is_paid %}paid{% else %}unpaid{% endif %}"
+                    {% set paid_amount = invoice.paid_amount or 0 %}
+                    {% set remaining = invoice.amount - paid_amount %}
+                    {% set status = 'paid' if invoice.is_paid else ('partial' if paid_amount > 0 else 'unpaid') %}
+                    <tr data-status="{{ status }}"
                         data-date="{{ invoice.invoice_date.strftime('%Y-%m') if invoice.invoice_date else '' }}">
-                        <td class="fw-bold">{{ loop.index }}<td
+                        <td class="fw-bold">{{ loop.index }}
                         <td>
                             <div class="d-flex align-items-center gap-2 justify-content-center">
                                 <i class="fas fa-hashtag text-muted"></i>
                                 <span class="invoice-number">{{ invoice.invoice_number }}</span>
                             </div>
-                        </td>
+
                         <td>
                             <div class="d-flex align-items-center gap-2 justify-content-center">
                                 <i class="fas fa-building text-primary"></i>
                                 <span>{{ invoice.contract.company.name if invoice.contract and invoice.contract.company else '-' }}</span>
                             </div>
-                        </td>
+
                         <td class="amount-cell">
                             <i class="fas fa-riyal-sign"></i> {{ "{:,.0f}".format(invoice.amount) }}
-                        </td>
+
+                        <td class="text-success">
+                            {{ "{:,.0f}".format(paid_amount) }} ر.ي
+
+                        <td class="{% if remaining > 0 %}text-danger{% else %}text-success{% endif %}">
+                            {{ "{:,.0f}".format(remaining) }} ر.ي
+
                         <td>
                             <i class="far fa-calendar-alt text-muted me-1"></i>
                             {{ invoice.invoice_date.strftime('%Y-%m-%d') if invoice.invoice_date else '-' }}
-                        </td>
                         <td>
                             <i class="far fa-calendar-check text-muted me-1"></i>
                             {{ invoice.due_date.strftime('%Y-%m-%d') if invoice.due_date else '-' }}
                             {% if is_overdue %}
                             <br><small class="overdue-warning"><i class="fas fa-exclamation-triangle"></i> منتهي</small>
                             {% endif %}
-                        </td>
+
                         <td>
                             {% if invoice.is_paid %}
                             <span class="invoice-status-badge status-paid">
                                 <i class="fas fa-check-circle"></i> مدفوعة
+                            </span>
+                            {% elif paid_amount > 0 %}
+                            <span class="invoice-status-badge status-partial">
+                                <i class="fas fa-chart-line"></i> مدفوعة جزئياً
                             </span>
                             {% else %}
                             <span class="invoice-status-badge status-unpaid">
                                 <i class="fas fa-clock"></i> غير مدفوعة
                             </span>
                             {% endif %}
-                        </td>
+
                         <td>
                             <div class="action-buttons">
-                                <a href="#" class="btn btn-icon btn-outline-primary" title="طباعة الفاتورة">
+                                <a href="#" class="btn btn-icon btn-outline-primary" title="طباعة الفاتورة" onclick="printInvoice({{ invoice.id }})">
                                     <i class="fas fa-print"></i>
                                 </a>
                                 {% if not invoice.is_paid %}
-                                <button class="btn btn-icon btn-outline-success" title="تسديد الفاتورة"
-                                        onclick="markAsPaid({{ invoice.id }})">
+                                <a href="{{ url_for('pay_invoice', invoice_id=invoice.id) }}"
+                                   class="btn btn-icon btn-outline-success" title="تسديد الفاتورة">
                                     <i class="fas fa-money-bill-wave"></i>
-                                </button>
+                                </a>
+                                {% endif %}
+                                {% if paid_amount > 0 and not invoice.is_paid %}
+                                <a href="{{ url_for('invoice_partial_payments', invoice_id=invoice.id) }}"
+                                   class="btn btn-icon btn-outline-info" title="سجل المدفوعات">
+                                    <i class="fas fa-history"></i>
+                                </a>
                                 {% endif %}
                             </div>
-                        </td>
+
                     </tr>
                     {% else %}
                     <tr>
-                        <td colspan="8">
+                        <td colspan="10">
                             <div class="empty-state">
                                 <i class="fas fa-file-invoice"></i>
                                 <h5>لا توجد فواتير</h5>
@@ -355,16 +377,14 @@
     </small>
     <small class="text-muted">
         <i class="fas fa-chart-line me-1"></i>
-        المبالغ المستحقة: {{ invoices|rejectattr('is_paid')|sum(attribute='amount')|round|int }} ر.ي
+        المبالغ المستحقة: {{ invoices|rejectattr('is_paid')|sum(attribute='amount') - invoices|sum(attribute='paid_amount')|round|int }} ر.ي
     </small>
 </div>
 {% endif %}
 
 <script>
-    function markAsPaid(invoiceId) {
-        if (confirm('هل أنت متأكد من تسجيل هذه الفاتورة كمدفوعة؟')) {
-            alert('سيتم إضافة وظيفة تسديد الفاتورة قريباً');
-        }
+    function printInvoice(invoiceId) {
+        alert('سيتم إضافة وظيفة طباعة الفاتورة قريباً');
     }
 
     $(document).ready(function() {

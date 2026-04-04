@@ -4,7 +4,6 @@
 
 {% block extra_css %}
 <style>
-    /* تنسيقات متقدمة لصفحة تعديل الموظف */
     .edit-employee-header {
         background: linear-gradient(135deg, #ff9800 0%, #f57c00 100%);
         border-radius: 20px;
@@ -65,11 +64,6 @@
         font-weight: 700;
     }
 
-    .form-card-header h4 i {
-        color: var(--primary-color);
-        margin-left: 10px;
-    }
-
     .form-group-custom {
         margin-bottom: 1.5rem;
     }
@@ -120,10 +114,6 @@
         transform: translateY(-50%);
         color: #adb5bd;
         transition: all 0.3s ease;
-    }
-
-    .input-icon .form-control-custom {
-        padding-right: 40px;
     }
 
     .resident-toggle {
@@ -178,14 +168,8 @@
     }
 
     @keyframes fadeInUp {
-        from {
-            opacity: 0;
-            transform: translateY(20px);
-        }
-        to {
-            opacity: 1;
-            transform: translateY(0);
-        }
+        from { opacity: 0; transform: translateY(20px); }
+        to { opacity: 1; transform: translateY(0); }
     }
 
     .form-card {
@@ -198,11 +182,19 @@
         font-size: 0.75rem;
         font-weight: 600;
     }
+
+    .type-option {
+        cursor: pointer;
+        transition: all 0.3s ease;
+    }
+    .type-option.selected {
+        border-color: #2e7d32 !important;
+        background: linear-gradient(135deg, #e8f5e9, #c8e6c9) !important;
+    }
 </style>
 {% endblock %}
 
 {% block content %}
-<!-- رأس الصفحة المميز -->
 <div class="edit-employee-header">
     <div class="row align-items-center">
         <div class="col-md-8">
@@ -220,7 +212,6 @@
     </div>
 </div>
 
-<!-- بطاقة النموذج المحسنة -->
 <div class="form-card">
     <div class="form-card-header">
         <h4>
@@ -232,6 +223,38 @@
 
     <div class="card-body p-4">
         <form method="POST" id="editEmployeeForm">
+            <!-- نوع الموظف -->
+            <div class="form-group-custom">
+                <label class="form-label-custom">
+                    <i class="fas fa-user-tag"></i>
+                    نوع الموظف <span class="required">*</span>
+                </label>
+                <div class="row">
+                    <div class="col-md-4">
+                        <div class="type-option border rounded p-3 text-center" data-type="worker" onclick="selectType('worker')">
+                            <i class="fas fa-tractor text-success"></i>
+                            <div class="fw-bold">عامل زراعة</div>
+                            <small class="text-muted">عمال الزراعة والحصاد</small>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="type-option border rounded p-3 text-center" data-type="supervisor" onclick="selectType('supervisor')">
+                            <i class="fas fa-user-tie text-primary"></i>
+                            <div class="fw-bold">مشرف</div>
+                            <small class="text-muted">مشرف على عمال</small>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="type-option border rounded p-3 text-center" data-type="admin" onclick="selectType('admin')">
+                            <i class="fas fa-user-shield text-danger"></i>
+                            <div class="fw-bold">إداري / مدير</div>
+                            <small class="text-muted">إداريين ومديرين</small>
+                        </div>
+                    </div>
+                </div>
+                <input type="hidden" name="employee_type" id="employee_type" value="{{ employee.employee_type or 'worker' }}">
+            </div>
+
             <div class="row">
                 <!-- الاسم الكامل -->
                 <div class="col-md-6 form-group-custom">
@@ -242,7 +265,7 @@
                     <div class="input-icon">
                         <i class="fas fa-user"></i>
                         <input type="text" class="form-control form-control-custom"
-                               id="name" name="name"
+                               id="full_name" name="full_name"
                                value="{{ employee.name }}" required>
                     </div>
                 </div>
@@ -303,6 +326,40 @@
                     </div>
                 </div>
 
+                <!-- الشركة -->
+                <div class="col-md-6 form-group-custom">
+                    <label class="form-label-custom">
+                        <i class="fas fa-building"></i>
+                        الشركة التابع لها
+                    </label>
+                    <select class="form-select form-select-custom" id="company_id" name="company_id">
+                        <option value="">-- اختر الشركة --</option>
+                        {% for company in companies %}
+                        <option value="{{ company.id }}" {% if employee.company_id == company.id %}selected{% endif %}>
+                            {{ company.name }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                    <small class="text-muted">تحديد الشركة يساعد في تنظيم الحضور الجماعي</small>
+                </div>
+
+                <!-- المشرف المسؤول (يظهر للعمال فقط) -->
+                <div class="col-md-6 form-group-custom" id="supervisorDiv" style="display: none;">
+                    <label class="form-label-custom">
+                        <i class="fas fa-user-check"></i>
+                        المشرف المسؤول
+                    </label>
+                    <select class="form-select form-select-custom" id="supervisor_id" name="supervisor_id">
+                        <option value="">-- اختر المشرف --</option>
+                        {% for sup in supervisors %}
+                        <option value="{{ sup.id }}" {% if employee.supervisor_id == sup.id %}selected{% endif %}>
+                            {{ sup.name }} ({{ sup.job_title or 'مشرف' }})
+                        </option>
+                        {% endfor %}
+                    </select>
+                    <small class="text-muted text-info">يظهر فقط المشرفين من نفس الشركة</small>
+                </div>
+
                 <!-- رقم الجوال -->
                 <div class="col-md-6 form-group-custom">
                     <label class="form-label-custom">
@@ -316,22 +373,7 @@
                                value="{{ employee.phone or '' }}">
                     </div>
                 </div>
-<!-- في قسم معلومات الموظف، أضف هذا الحقل -->
-<div class="col-md-6 form-group-custom">
-    <label class="form-label-custom">
-        <i class="fas fa-building"></i>
-        الشركة التابع لها
-    </label>
-    <select class="form-select form-select-custom" id="company_id" name="company_id">
-        <option value="">-- اختر الشركة --</option>
-        {% for company in companies %}
-        <option value="{{ company.id }}" {% if employee.company_id == company.id %}selected{% endif %}>
-            {{ company.name }}
-        </option>
-        {% endfor %}
-    </select>
-    <small class="text-muted">تحديد الشركة يساعد في تنظيم الحضور الجماعي</small>
-</div>
+
                 <!-- الراتب الأساسي -->
                 <div class="col-md-6 form-group-custom">
                     <label class="form-label-custom">
@@ -347,7 +389,7 @@
                     <div class="salary-preview" id="salaryPreview">
                         <small class="text-muted">
                             <i class="fas fa-info-circle"></i>
-                            الراتب بعد الخصم: <strong id="formattedSalary">{{ "{:,.0f}".format(employee.salary) }}</strong> ر.ي
+                            الراتب: <strong id="formattedSalary">{{ "{:,.0f}".format(employee.salary) }}</strong> ر.ي
                         </small>
                     </div>
                 </div>
@@ -381,8 +423,43 @@
                 </div>
             </div>
 
+            <!-- بيانات الدخول (للمشرفين والإداريين) -->
+            <div id="userFields" style="display: none;">
+                <hr>
+                <div class="row">
+                    <div class="col-md-12">
+                        <h5 class="mb-3"><i class="fas fa-user-shield text-primary"></i> بيانات الدخول</h5>
+                    </div>
+                    <div class="col-md-6 form-group-custom">
+                        <label class="form-label-custom">
+                            <i class="fas fa-user"></i>
+                            اسم المستخدم
+                        </label>
+                        <div class="input-icon">
+                            <i class="fas fa-user"></i>
+                            <input type="text" class="form-control form-control-custom"
+                                   id="username" name="username"
+                                   value="{{ user_data.username if user_data else '' }}">
+                        </div>
+                        <small class="text-muted">اتركه فارغاً إذا لم تريد التغيير</small>
+                    </div>
+                    <div class="col-md-6 form-group-custom">
+                        <label class="form-label-custom">
+                            <i class="fas fa-lock"></i>
+                            كلمة المرور
+                        </label>
+                        <div class="input-icon">
+                            <i class="fas fa-key"></i>
+                            <input type="password" class="form-control form-control-custom"
+                                   id="password" name="password" placeholder="اتركه فارغاً إذا لم تريد التغيير">
+                        </div>
+                        <small class="text-muted">أدخل كلمة مرور جديدة فقط إذا أردت تغييرها</small>
+                    </div>
+                </div>
+            </div>
+
             <!-- معلومات إضافية -->
-            <div class="row">
+            <div class="row mt-3">
                 <div class="col-md-6">
                     <div class="info-box">
                         <div class="d-flex align-items-start gap-3">
@@ -414,20 +491,85 @@
             <!-- أزرار الإجراءات -->
             <div class="action-buttons">
                 <button type="submit" class="btn btn-primary btn-custom">
-                    <i class="fas fa-save"></i>
-                    تحديث البيانات
+                    <i class="fas fa-save"></i> تحديث البيانات
                 </button>
                 <a href="{{ url_for('employees_list') }}" class="btn btn-secondary btn-custom">
-                    <i class="fas fa-times"></i>
-                    إلغاء
+                    <i class="fas fa-times"></i> إلغاء
                 </a>
             </div>
         </form>
     </div>
 </div>
 
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 <script>
+    // بيانات المشرفين من الخادم
+    const supervisorsData = {{ supervisors | tojson | safe }};
+    let selectedType = '{{ employee.employee_type or "worker" }}';
+
+    console.log('Supervisors Data:', supervisorsData);
+
+    function selectType(type) {
+        selectedType = type;
+        document.getElementById('employee_type').value = type;
+
+        document.querySelectorAll('.type-option').forEach(opt => {
+            opt.classList.remove('selected');
+        });
+        document.querySelector(`.type-option[data-type="${type}"]`).classList.add('selected');
+
+        const supervisorDiv = document.getElementById('supervisorDiv');
+        const userFields = document.getElementById('userFields');
+        const jobSelect = document.getElementById('job_title');
+
+        if (type === 'worker') {
+            supervisorDiv.style.display = 'block';
+            userFields.style.display = 'none';
+            const companyId = document.getElementById('company_id').value;
+            if (companyId) {
+                updateSupervisorsList(companyId);
+            }
+        } else {
+            supervisorDiv.style.display = 'none';
+            userFields.style.display = 'block';
+        }
+    }
+
+    function updateSupervisorsList(companyId) {
+        const supervisorSelect = document.getElementById('supervisor_id');
+
+        if (!companyId) {
+            supervisorSelect.innerHTML = '<option value="">-- اختر الشركة أولاً --</option>';
+            supervisorSelect.disabled = true;
+            return;
+        }
+
+        const filtered = supervisorsData.filter(s => s.company_id == companyId);
+
+        supervisorSelect.innerHTML = '<option value="">-- اختر المشرف --</option>';
+
+        if (filtered.length === 0) {
+            supervisorSelect.innerHTML = '<option value="" disabled>⚠️ لا يوجد مشرفين في هذه الشركة</option>';
+        } else {
+            for (let s of filtered) {
+                supervisorSelect.innerHTML += `<option value="${s.id}">${s.name} (${s.job_title || 'مشرف'})</option>`;
+            }
+        }
+        supervisorSelect.disabled = false;
+    }
+
     $(document).ready(function() {
+        // تحديد النوع الحالي
+        selectType(selectedType);
+
+        // عند تغيير الشركة
+        $('#company_id').on('change', function() {
+            const companyId = $(this).val();
+            if (selectedType === 'worker') {
+                updateSupervisorsList(companyId);
+            }
+        });
+
         // تحديث حالة السكن
         $('#is_resident').on('change', function() {
             if ($(this).is(':checked')) {
@@ -437,7 +579,7 @@
             }
         });
 
-        // تنسيق الراتب أثناء الكتابة
+        // تنسيق الراتب
         $('#salary').on('input', function() {
             var value = $(this).val();
             var formatted = new Intl.NumberFormat('ar-SA').format(value);
@@ -446,27 +588,27 @@
 
         // التحقق من صحة النموذج
         $('#editEmployeeForm').on('submit', function(e) {
-            var name = $('#name').val().trim();
+            var name = $('#full_name').val().trim();
             var cardNumber = $('#card_number').val().trim();
             var code = $('#code').val().trim();
 
             if (!name) {
                 e.preventDefault();
-                alert('الرجاء إدخال الاسم الكامل');
-                $('#name').focus();
+                alert('❌ الرجاء إدخال الاسم الكامل');
+                $('#full_name').focus();
                 return false;
             }
 
             if (!cardNumber) {
                 e.preventDefault();
-                alert('الرجاء إدخال رقم البطاقة');
+                alert('❌ الرجاء إدخال رقم البطاقة');
                 $('#card_number').focus();
                 return false;
             }
 
             if (!code) {
                 e.preventDefault();
-                alert('الرجاء إدخال كود التعريف');
+                alert('❌ الرجاء إدخال كود التعريف');
                 $('#code').focus();
                 return false;
             }

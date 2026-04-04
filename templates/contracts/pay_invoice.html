@@ -1,0 +1,161 @@
+{% extends "base.html" %}
+
+{% block title %}تسديد فاتورة - {{ invoice.invoice_number }}{% endblock %}
+
+{% block extra_css %}
+<style>
+    .payment-summary {
+        background: linear-gradient(135deg, #f8f9fa, #e9ecef);
+        border-radius: 15px;
+        padding: 1.5rem;
+        margin-bottom: 1.5rem;
+    }
+    .amount-paid {
+        font-size: 2rem;
+        font-weight: 800;
+        color: #28a745;
+    }
+    .amount-remaining {
+        font-size: 2rem;
+        font-weight: 800;
+        color: #dc3545;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="page-header">
+        <div class="d-flex justify-content-between align-items-center">
+            <h2><i class="fas fa-money-bill-wave"></i> تسديد فاتورة</h2>
+            <a href="{{ url_for('invoices_list') }}" class="btn btn-secondary">
+                <i class="fas fa-arrow-right"></i> رجوع
+            </a>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-md-6">
+            <!-- معلومات الفاتورة -->
+            <div class="card mb-4">
+                <div class="card-header bg-white">
+                    <h5 class="mb-0"><i class="fas fa-file-invoice"></i> معلومات الفاتورة</h5>
+                </div>
+                <div class="card-body">
+                    <table class="table table-bordered">
+                        <tr>
+                            <td><strong>رقم الفاتورة</strong></td>
+                            <td>{{ invoice.invoice_number }}</td>
+                         </tr>
+                        <tr>
+                            <td><strong>العقد</strong></td>
+                            <td>{{ invoice.contract.company.name if invoice.contract else '-' }}</td>
+                         </tr>
+                        <tr>
+                            <td><strong>قيمة الفاتورة</strong></td>
+                            <td>{{ "{:,.0f}".format(invoice.amount) }} ر.ي</td>
+                         </tr>
+                        <tr>
+                            <td><strong>تاريخ الفاتورة</strong></td>
+                            <td>{{ invoice.invoice_date.strftime('%Y-%m-%d') }}</td>
+                         </tr>
+                        <tr>
+                            <td><strong>تاريخ الاستحقاق</strong></td>
+                            <td class="{% if invoice.due_date and invoice.due_date < now.date() and not invoice.is_paid %}text-danger{% endif %}">
+                                {{ invoice.due_date.strftime('%Y-%m-%d') if invoice.due_date else '-' }}
+                                {% if invoice.due_date and invoice.due_date < now.date() and not invoice.is_paid %}
+                                <span class="badge bg-danger">منتهي</span>
+                                {% endif %}
+                            </td>
+                         </tr>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-6">
+            <!-- ملخص المدفوعات -->
+            <div class="card mb-4">
+                <div class="card-header bg-white">
+                    <h5 class="mb-0"><i class="fas fa-chart-pie"></i> ملخص المدفوعات</h5>
+                </div>
+                <div class="card-body">
+                    <div class="payment-summary text-center">
+                        <div class="row">
+                            <div class="col-6">
+                                <small class="text-muted">المبلغ المدفوع</small>
+                                <div class="amount-paid">{{ "{:,.0f}".format(invoice.paid_amount or 0) }} ر.ي</div>
+                            </div>
+                            <div class="col-6">
+                                <small class="text-muted">المبلغ المتبقي</small>
+                                <div class="amount-remaining">{{ "{:,.0f}".format(remaining_amount) }} ر.ي</div>
+                            </div>
+                        </div>
+                        <div class="progress mt-3" style="height: 10px;">
+                            <div class="progress-bar bg-success" style="width: {{ (invoice.paid_amount or 0) / invoice.amount * 100 }}%"></div>
+                        </div>
+                        <small class="text-muted">نسبة الإنجاز: {{ "%.1f"|format((invoice.paid_amount or 0) / invoice.amount * 100) }}%</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- نموذج التسديد -->
+    <div class="card">
+        <div class="card-header bg-white">
+            <h5 class="mb-0"><i class="fas fa-hand-holding-usd"></i> تسديد الفاتورة</h5>
+        </div>
+        <div class="card-body">
+            <form method="POST">
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label">المبلغ المراد تسديده <span class="text-danger">*</span></label>
+                        <div class="input-group">
+                            <input type="number" name="paid_amount" class="form-control"
+                                   step="0.01" min="1" max="{{ remaining_amount }}" required>
+                            <span class="input-group-text">ر.ي</span>
+                        </div>
+                        <small class="text-muted">المبلغ المتبقي: {{ "{:,.0f}".format(remaining_amount) }} ريال</small>
+                    </div>
+
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label">طريقة الدفع <span class="text-danger">*</span></label>
+                        <select name="payment_method" class="form-select" required>
+                            <option value="">-- اختر طريقة الدفع --</option>
+                            <option value="cash">💵 نقدي</option>
+                            <option value="bank_transfer">🏦 تحويل بنكي</option>
+                            <option value="check">📄 شيك</option>
+                        </select>
+                    </div>
+
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label">رقم المرجع</label>
+                        <input type="text" name="payment_reference" class="form-control"
+                               placeholder="رقم الإيصال / رقم التحويل / رقم الشيك">
+                        <small class="text-muted">اختياري - للتوثيق</small>
+                    </div>
+
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label">ملاحظات</label>
+                        <textarea name="notes" class="form-control" rows="2"
+                                  placeholder="أي ملاحظات إضافية عن عملية الدفع"></textarea>
+                    </div>
+                </div>
+
+                <div class="alert alert-warning">
+                    <i class="fas fa-info-circle"></i>
+                    <strong>تنبيه:</strong> بعد تأكيد الدفع، سيتم تحديث حالة الفاتورة والعقد تلقائياً.
+                </div>
+
+                <div class="d-flex justify-content-between">
+                    <a href="{{ url_for('invoices_list') }}" class="btn btn-secondary">إلغاء</a>
+                    <button type="submit" class="btn btn-success">
+                        <i class="fas fa-check-circle"></i> تأكيد الدفع
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -34,65 +34,6 @@ class User(UserMixin, db.Model):
         }
 
 
-# ==================== Employee Model ====================
-class Employee(db.Model):
-    """نموذج الموظفين (العمال)"""
-    __tablename__ = 'employees'
-
-    id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(100), nullable=False)
-    card_number = db.Column(db.String(20), unique=True, nullable=False)
-    code = db.Column(db.String(20), unique=True, nullable=False)
-    job_title = db.Column(db.String(100))
-    region = db.Column(db.String(100))
-    is_resident = db.Column(db.Boolean, default=False)
-    phone = db.Column(db.String(20))
-    salary = db.Column(db.Float, default=60000)
-    daily_allowance = db.Column(db.Float, default=500)
-    is_active = db.Column(db.Boolean, default=True)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-
-    company_id = db.Column(db.Integer, db.ForeignKey('companies.id'))
-    company = db.relationship('Company', backref='employees')
-
-    def get_attendance_count(self, start_date, end_date):
-        from models import Attendance
-        return Attendance.query.filter(
-            Attendance.employee_id == self.id,
-            Attendance.date >= start_date,
-            Attendance.date <= end_date,
-            Attendance.attendance_status == 'present'  # استخدم attendance_status بدلاً من is_present
-        ).count()
-
-    def get_transactions_sum(self, transaction_type, start_date=None, end_date=None):
-        from models import FinancialTransaction
-        query = FinancialTransaction.query.filter(
-            FinancialTransaction.employee_id == self.id,
-            FinancialTransaction.transaction_type == transaction_type,
-            FinancialTransaction.is_settled == False
-        )
-        if start_date and end_date:
-            query = query.filter(
-                FinancialTransaction.date >= start_date,
-                FinancialTransaction.date <= end_date
-            )
-        return sum(t.amount for t in query.all()) or 0
-
-    def to_dict(self):
-        return {
-            'id': self.id,
-            'name': self.name,
-            'card_number': self.card_number,
-            'code': self.code,
-            'job_title': self.job_title,
-            'region': self.region,
-            'is_resident': self.is_resident,
-            'phone': self.phone,
-            'salary': self.salary,
-            'is_active': self.is_active
-        }
-
-
 # ==================== Attendance Model ====================
 class Attendance(db.Model):
     """نموذج الحضور اليومي"""
@@ -288,33 +229,181 @@ class Evaluation(db.Model):
             'comments': self.comments,
             'date': self.date.strftime('%Y-%m-%d') if self.date else None
         }
-
-
-# ==================== Company Models ====================
+# ==================== Company Region Location Models ====================
 class Company(db.Model):
     """نموذج الشركات"""
     __tablename__ = 'companies'
 
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(100), nullable=False)
-    region = db.Column(db.String(100))
-    location = db.Column(db.String(100))
     contact_person = db.Column(db.String(100))
     phone = db.Column(db.String(20))
     email = db.Column(db.String(100))
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
+    # العلاقات - استخدام أسماء مختلفة لتجنب التضارب
+    company_regions = db.relationship('Region', backref='company', lazy=True, cascade='all, delete-orphan')
+    company_employees = db.relationship('Employee', backref='employee_company', lazy=True)
+
     def to_dict(self):
         return {
             'id': self.id,
             'name': self.name,
-            'region': self.region,
-            'location': self.location,
             'contact_person': self.contact_person,
             'phone': self.phone,
-            'email': self.email
+            'email': self.email,
+            'regions_count': len(self.company_regions),
+            'employees_count': len(self.company_employees)
         }
 
+
+class Region(db.Model):
+    """نموذج المناطق (تابعة لشركة)"""
+    __tablename__ = 'regions'
+
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(100), nullable=False)
+    company_id = db.Column(db.Integer, db.ForeignKey('companies.id'), nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    # العلاقات
+    region_locations = db.relationship('Location', backref='region', lazy=True, cascade='all, delete-orphan')
+
+    # فريد لكل شركة (لا يمكن تكرار نفس المنطقة لنفس الشركة)
+    __table_args__ = (db.UniqueConstraint('company_id', 'name', name='unique_company_region'),)
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'name': self.name,
+            'company_id': self.company_id,
+            'company_name': self.company.name if self.company else None,
+            'locations_count': len(self.region_locations)
+        }
+
+
+class Location(db.Model):
+    """نموذج المواقع (تابعة لمنطقة)"""
+    __tablename__ = 'locations'
+
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(100), nullable=False)
+    region_id = db.Column(db.Integer, db.ForeignKey('regions.id'), nullable=False)
+    address = db.Column(db.String(200))
+    notes = db.Column(db.Text)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    # فريد لكل منطقة (لا يمكن تكرار نفس الموقع لنفس المنطقة)
+    __table_args__ = (db.UniqueConstraint('region_id', 'name', name='unique_region_location'),)
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'name': self.name,
+            'region_id': self.region_id,
+            'region_name': self.region.name if self.region else None,
+            'company_id': self.region.company_id if self.region else None,
+            'company_name': self.region.company.name if self.region and self.region.company else None,
+            'address': self.address,
+            'notes': self.notes
+        }
+
+
+# ==================== Employee Model (معدل) ====================
+class Employee(db.Model):
+    """نموذج الموظفين (العمال)"""
+    __tablename__ = 'employees'
+
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(100), nullable=False)
+    card_number = db.Column(db.String(20), unique=True, nullable=False)
+    code = db.Column(db.String(20), unique=True, nullable=False)
+    job_title = db.Column(db.String(100))
+    region = db.Column(db.String(100))
+    is_resident = db.Column(db.Boolean, default=False)
+    phone = db.Column(db.String(20))
+    salary = db.Column(db.Float, default=60000)
+    daily_allowance = db.Column(db.Float, default=500)
+    is_active = db.Column(db.Boolean, default=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    # نوع الموظف: worker, supervisor, admin
+    employee_type = db.Column(db.String(20), default='worker')
+
+    # المشرف المسؤول (للعمال فقط)
+    supervisor_id = db.Column(db.Integer, db.ForeignKey('employees.id'), nullable=True)
+    supervised_workers = db.relationship('Employee',
+                                         backref=db.backref('supervisor', remote_side=[id]),
+                                         lazy=True)
+
+    # العلاقة مع الشركة
+    company_id = db.Column(db.Integer, db.ForeignKey('companies.id'))
+
+    # العلاقة مع المستخدم (للمشرفين والإداريين فقط)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=True)
+    user = db.relationship('User', backref='employee_profile')
+
+    def get_attendance_count(self, start_date, end_date):
+        from models import Attendance
+        return Attendance.query.filter(
+            Attendance.employee_id == self.id,
+            Attendance.date >= start_date,
+            Attendance.date <= end_date,
+            Attendance.attendance_status == 'present'
+        ).count()
+
+    def get_transactions_sum(self, transaction_type, start_date=None, end_date=None):
+        from models import FinancialTransaction
+        query = FinancialTransaction.query.filter(
+            FinancialTransaction.employee_id == self.id,
+            FinancialTransaction.transaction_type == transaction_type,
+            FinancialTransaction.is_settled == False
+        )
+        if start_date and end_date:
+            query = query.filter(
+                FinancialTransaction.date >= start_date,
+                FinancialTransaction.date <= end_date
+            )
+        return sum(t.amount for t in query.all()) or 0
+
+    @property
+    def is_worker(self):
+        return self.employee_type == 'worker'
+
+    @property
+    def is_supervisor(self):
+        return self.employee_type == 'supervisor'
+
+    @property
+    def is_admin(self):
+        return self.employee_type == 'admin'
+
+    @property
+    def company_name(self):
+        return self.company.name if self.company else None
+
+    @property
+    def supervisor_name(self):
+        return self.supervisor.name if self.supervisor else None
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'name': self.name,
+            'card_number': self.card_number,
+            'code': self.code,
+            'job_title': self.job_title,
+            'region': self.region,
+            'is_resident': self.is_resident,
+            'phone': self.phone,
+            'salary': self.salary,
+            'is_active': self.is_active,
+            'employee_type': self.employee_type,
+            'company_id': self.company_id,
+            'company_name': self.company_name,
+            'supervisor_id': self.supervisor_id,
+            'supervisor_name': self.supervisor_name
+        }
 
 class Contract(db.Model):
     """نموذج العقود"""
@@ -361,6 +450,9 @@ class Invoice(db.Model):
     due_date = db.Column(db.Date)
     is_paid = db.Column(db.Boolean, default=False)
     paid_date = db.Column(db.Date)
+    paid_amount = db.Column(db.Float, default=0)  # إضافة هذا الحقل
+    payment_method = db.Column(db.String(50))  # إضافة هذا الحقل
+    payment_reference = db.Column(db.String(100))  # إضافة هذا الحقل
     notes = db.Column(db.Text)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
@@ -375,5 +467,51 @@ class Invoice(db.Model):
             'invoice_date': self.invoice_date.strftime('%Y-%m-%d') if self.invoice_date else None,
             'due_date': self.due_date.strftime('%Y-%m-%d') if self.due_date else None,
             'is_paid': self.is_paid,
-            'paid_date': self.paid_date.strftime('%Y-%m-%d') if self.paid_date else None
+            'paid_date': self.paid_date.strftime('%Y-%m-%d') if self.paid_date else None,
+            'paid_amount': self.paid_amount,
+            'remaining_amount': self.amount - self.paid_amount
+        }
+
+class EvaluationCriteria(db.Model):
+    """نموذج معايير التقييم المرتبطة بموقع"""
+    __tablename__ = 'evaluation_criteria'
+
+    id = db.Column(db.Integer, primary_key=True)
+    location_id = db.Column(db.Integer, db.ForeignKey('locations.id'), nullable=False)
+    name = db.Column(db.String(100), nullable=False)  # اسم المعيار
+    description = db.Column(db.String(500))  # وصف المعيار
+    max_score = db.Column(db.Integer, default=10)  # الدرجة القصوى
+    is_active = db.Column(db.Boolean, default=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    # العلاقات
+    location = db.relationship('Location', backref='evaluation_criteria')
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'name': self.name,
+            'description': self.description,
+            'max_score': self.max_score
+        }
+
+
+class Expense(db.Model):
+    """نموذج المصروفات الإضافية"""
+    __tablename__ = 'expenses'
+
+    id = db.Column(db.Integer, primary_key=True)
+    expense_type = db.Column(db.String(50), nullable=False)  # maintenance, supplies, utilities, etc.
+    amount = db.Column(db.Float, nullable=False)
+    date = db.Column(db.Date, nullable=False)
+    description = db.Column(db.String(500))
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'expense_type': self.expense_type,
+            'amount': self.amount,
+            'date': self.date.strftime('%Y-%m-%d') if self.date else None,
+            'description': self.description
         }

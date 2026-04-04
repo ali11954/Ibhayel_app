@@ -219,12 +219,34 @@
         align-items: center;
         gap: 0.3rem;
     }
+
+    .company-name {
+        font-weight: 600;
+        color: #17a2b8;
+    }
+
+    .no-company {
+        color: #6c757d;
+        font-style: italic;
+    }
+
+    .supervisor-badge {
+        background: rgba(156, 39, 176, 0.1);
+        color: #9c27b0;
+        padding: 0.3rem 0.6rem;
+        border-radius: 12px;
+        font-size: 0.7rem;
+        font-weight: 600;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.3rem;
+    }
 </style>
 {% endblock %}
 
 {% block content %}
 <div class="page-header">
-    <div class="d-flex justify-content-between align-items-center">
+    <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
         <div>
             <h2>
                 <i class="fas fa-user-hard-hat"></i>
@@ -266,8 +288,8 @@
         </div>
         <div class="col-md-3 col-6">
             <div class="stat-item">
-                <p class="stat-number mb-0">{{ regions|length }}</p>
-                <p class="stat-label">المناطق</p>
+                <p class="stat-number mb-0">{{ companies|length }}</p>
+                <p class="stat-label">الشركات</p>
             </div>
         </div>
     </div>
@@ -275,16 +297,20 @@
     <!-- إحصائيات سريعة إضافية -->
     <div class="quick-stats mt-3">
         <div class="quick-stat-card">
-            <div class="quick-stat-number">{{ employees|sum(attribute='salary')|round|int }} ر.ي</div>
+            <div class="quick-stat-number">{{ "{:,.0f}".format(employees|sum(attribute='salary')) }} ر.ي</div>
             <div class="quick-stat-label">إجمالي الرواتب</div>
         </div>
         <div class="quick-stat-card">
-            <div class="quick-stat-number">{{ (employees|sum(attribute='salary') / employees|length)|round|int if employees else 0 }} ر.ي</div>
+            <div class="quick-stat-number">{{ "{:,.0f}".format((employees|sum(attribute='salary') / employees|length) if employees else 0) }} ر.ي</div>
             <div class="quick-stat-label">متوسط الراتب</div>
         </div>
         <div class="quick-stat-card">
             <div class="quick-stat-number">{{ employees|selectattr('is_resident')|list|length * 500 }} ر.ي</div>
             <div class="quick-stat-label">بدل السكن اليومي</div>
+        </div>
+        <div class="quick-stat-card">
+            <div class="quick-stat-number">{{ employees|selectattr('company_id')|list|length }}</div>
+            <div class="quick-stat-label">مرتبط بشركة</div>
         </div>
     </div>
 </div>
@@ -337,36 +363,17 @@
             <table class="table table-employees" id="employeesTable">
                 <thead>
                     <tr>
-                        <th style="width: 5%">
-                            <i class="fas fa-hashtag"></i> #
-                        </th>
-                        <th style="width: 18%">
-                            <i class="fas fa-user"></i> الاسم
-                        </th>
-                        <th style="width: 10%">
-                            <i class="fas fa-id-card"></i> رقم البطاقة
-                        </th>
-                        <th style="width: 8%">
-                            <i class="fas fa-barcode"></i> الكود
-                        </th>
-                        <th style="width: 12%">
-                            <i class="fas fa-briefcase"></i> الوظيفة
-                        </th>
-                        <th style="width: 12%">
-                            <i class="fas fa-building"></i> الشركة
-                        </th>
-                        <th style="width: 10%">
-                            <i class="fas fa-map-marker-alt"></i> المنطقة
-                        </th>
-                        <th style="width: 10%">
-                            <i class="fas fa-home"></i> الحالة
-                        </th>
-                        <th style="width: 10%">
-                            <i class="fas fa-money-bill"></i> الراتب
-                        </th>
-                        <th style="width: 5%">
-                            <i class="fas fa-cog"></i> الإجراءات
-                        </th>
+                        <th style="width: 5%"><i class="fas fa-hashtag"></i> #</th>
+                        <th style="width: 15%"><i class="fas fa-user"></i> الاسم</th>
+                        <th style="width: 8%"><i class="fas fa-id-card"></i> رقم البطاقة</th>
+                        <th style="width: 7%"><i class="fas fa-barcode"></i> الكود</th>
+                        <th style="width: 10%"><i class="fas fa-briefcase"></i> الوظيفة</th>
+                        <th style="width: 12%"><i class="fas fa-building"></i> الشركة</th>
+                        <th style="width: 10%"><i class="fas fa-map-marker-alt"></i> المنطقة</th>
+                        <th style="width: 8%"><i class="fas fa-home"></i> الحالة</th>
+                        <th style="width: 8%"><i class="fas fa-money-bill"></i> الراتب</th>
+                        <th style="width: 10%"><i class="fas fa-user-tie"></i> المشرف المسؤول</th>
+                        <th style="width: 7%"><i class="fas fa-cog"></i> الإجراءات</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -394,9 +401,7 @@
                                 <i class="fas fa-id-card"></i> {{ emp.card_number }}
                             </span>
                         </td>
-                        <td>
-                            <code>{{ emp.code }}</code>
-                        </td>
+                        <td><code>{{ emp.code }}</code></td>
                         <td>
                             {% if emp.job_title %}
                             <span class="badge bg-info bg-opacity-10 text-info">
@@ -405,12 +410,24 @@
                             {% else %}
                             <span class="text-muted">-</span>
                             {% endif %}
-                        </td>
-                        <td>
-                            <span class="company-badge">
-                                <i class="fas fa-building"></i> {{ emp.company.name if emp.company else 'ابن هائل' }}
+                         </td>
+                        <td class="text-center">
+                            {% if emp.employee_company %}
+                            <span class="company-badge" data-bs-toggle="tooltip" title="شركة: {{ emp.employee_company.name }}">
+                                <i class="fas fa-building"></i>
+                                <span class="company-name">{{ emp.employee_company.name }}</span>
                             </span>
-                        </td>
+                            {% elif emp.company_id %}
+                            <span class="company-badge" data-bs-toggle="tooltip" title="معرف الشركة: {{ emp.company_id }}">
+                                <i class="fas fa-building"></i>
+                                <span class="company-name">شركة رقم {{ emp.company_id }}</span>
+                            </span>
+                            {% else %}
+                            <span class="no-company">
+                                <i class="fas fa-building"></i> ابن هائل (الشركة الأم)
+                            </span>
+                            {% endif %}
+                         </td>
                         <td>
                             {% if emp.region %}
                             <span class="badge bg-primary bg-opacity-10 text-primary">
@@ -419,7 +436,7 @@
                             {% else %}
                             <span class="text-muted">-</span>
                             {% endif %}
-                        </td>
+                         </td>
                         <td>
                             {% if emp.is_resident %}
                             <span class="status-badge bg-success bg-opacity-10 text-success">
@@ -431,10 +448,31 @@
                                 <i class="fas fa-plane-departure"></i> غير ساكن
                             </span>
                             {% endif %}
-                        </td>
+                         </td>
                         <td class="salary-cell">
                             <i class="fas fa-riyal-sign"></i> {{ "{:,.0f}".format(emp.salary) }}
-                        </td>
+                         </td>
+                        <td>
+                            {% if emp.employee_type == 'worker' and emp.supervisor %}
+                                <span class="supervisor-badge" data-bs-toggle="tooltip" title="المشرف المسؤول">
+                                    <i class="fas fa-user-tie"></i> {{ emp.supervisor.name }}
+                                </span>
+                            {% elif emp.employee_type == 'worker' %}
+                                <span class="badge bg-warning bg-opacity-10 text-warning">
+                                    <i class="fas fa-exclamation-triangle"></i> بدون مشرف
+                                </span>
+                            {% elif emp.employee_type == 'supervisor' %}
+                                <span class="badge bg-info bg-opacity-10 text-info">
+                                    <i class="fas fa-users"></i> مشرف
+                                </span>
+                            {% elif emp.employee_type == 'admin' %}
+                                <span class="badge bg-danger bg-opacity-10 text-danger">
+                                    <i class="fas fa-user-shield"></i> إداري
+                                </span>
+                            {% else %}
+                                <span class="text-muted">-</span>
+                            {% endif %}
+                         </td>
                         <td>
                             <div class="action-buttons">
                                 <a href="{{ url_for('edit_employee', emp_id=emp.id) }}"
@@ -443,15 +481,15 @@
                                 </a>
                                 <a href="{{ url_for('delete_employee', emp_id=emp.id) }}"
                                    class="btn btn-icon btn-outline-danger" title="حذف"
-                                   onclick="return confirmDelete('هل أنت متأكد من حذف هذا الموظف؟')">
+                                   onclick="return confirm('هل أنت متأكد من حذف هذا الموظف؟')">
                                     <i class="fas fa-trash-alt"></i>
                                 </a>
                             </div>
-                        </td>
-                    </tr>
+                         </td>
+                     </tr>
                     {% else %}
                     <tr>
-                        <td colspan="10">
+                        <td colspan="11">
                             <div class="empty-state">
                                 <i class="fas fa-user-hard-hat"></i>
                                 <h5>لا يوجد موظفين</h5>
@@ -465,35 +503,38 @@
                                     </a>
                                 </div>
                             </div>
-                        </td>
-                    </tr>
+                         </td>
+                     </tr>
                     {% endfor %}
                 </tbody>
-            </table>
+             </table>
         </div>
     </div>
 </div>
 
 <!-- تذييل مع إحصائيات إضافية -->
 {% if employees|length > 0 %}
-<div class="d-flex justify-content-between align-items-center mt-3">
+<div class="d-flex justify-content-between align-items-center mt-3 flex-wrap gap-2">
     <small class="text-muted">
         <i class="fas fa-info-circle me-1"></i>
         عرض {{ employees|length }} من إجمالي {{ employees|length }} موظف
     </small>
     <small class="text-muted">
         <i class="fas fa-chart-line me-1"></i>
-        إجمالي الرواتب: {{ employees|sum(attribute='salary')|round|int }} ر.ي
+        إجمالي الرواتب: {{ "{:,.0f}".format(employees|sum(attribute='salary')) }} ر.ي
     </small>
     <small class="text-muted">
-        <i class="fas fa-clock me-1"></i>
-        آخر تحديث: {{ now.strftime('%Y-%m-%d %H:%M') }}
+        <i class="fas fa-building me-1"></i>
+        عدد الشركات: {{ companies|length }}
     </small>
 </div>
 {% endif %}
 
 <script>
     $(document).ready(function() {
+        // تفعيل tooltips
+        $('[data-bs-toggle="tooltip"]').tooltip();
+
         // البحث المتقدم
         $('#searchInput').on('keyup', function() {
             var value = $(this).val().toLowerCase();
@@ -505,9 +546,10 @@
 
         // تصفية حسب الشركة
         $('#companyFilter').on('change', function() {
-            var company = $(this).val();
+            var companyId = $(this).val();
             $('#employeesTable tbody tr').each(function() {
-                if (company === '' || $(this).data('company') == company) {
+                var rowCompany = $(this).data('company');
+                if (companyId === '' || String(rowCompany) === companyId) {
                     $(this).show();
                 } else {
                     $(this).hide();
@@ -519,7 +561,8 @@
         $('#regionFilter').on('change', function() {
             var region = $(this).val();
             $('#employeesTable tbody tr').each(function() {
-                if (region === '' || $(this).data('region') === region) {
+                var rowRegion = $(this).data('region');
+                if (region === '' || rowRegion === region) {
                     $(this).show();
                 } else {
                     $(this).hide();

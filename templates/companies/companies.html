@@ -1,36 +1,9 @@
 {% extends "base.html" %}
-
-{% block title %}الشركات - ابن هائل لأعمال الزراعة{% endblock %}
+{% block title %}لوحة الشركات - طلعت هائل للخدمات والاستشارات الزراعية{% endblock %}
 
 {% block extra_css %}
 <style>
-    /* تنسيقات متقدمة لصفحة الشركات */
-    .companies-header {
-        background: linear-gradient(135deg, #17a2b8 0%, #0dcaf0 100%);
-        border-radius: 20px;
-        padding: 1.5rem;
-        margin-bottom: 1.5rem;
-        color: white;
-        position: relative;
-        overflow: hidden;
-    }
-
-    .companies-header::before {
-        content: '';
-        position: absolute;
-        top: -50%;
-        right: -50%;
-        width: 200%;
-        height: 200%;
-        background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, transparent 70%);
-        animation: rotate 20s linear infinite;
-    }
-
-    @keyframes rotate {
-        from { transform: rotate(0deg); }
-        to { transform: rotate(360deg); }
-    }
-
+    /* جميع التنسيقات الموجودة تبقى كما هي */
     .companies-stats {
         display: grid;
         grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
@@ -79,24 +52,63 @@
         box-shadow: var(--shadow-sm);
     }
 
+    .tree-view {
+        margin-top: 1rem;
+    }
+
+    .tree-node {
+        position: relative;
+        padding-right: 1.5rem;
+        margin-bottom: 0.5rem;
+    }
+
+    .tree-node-header {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0.5rem;
+        background: #f8f9fa;
+        border-radius: 10px;
+        cursor: pointer;
+        transition: all 0.3s ease;
+    }
+
+    .tree-node-header:hover {
+        background: #e9ecef;
+    }
+
+    .tree-children {
+        margin-right: 2rem;
+        padding-right: 1rem;
+        border-right: 2px solid #dee2e6;
+        display: block;
+    }
+
+    .toggle-icon {
+        width: 24px;
+        height: 24px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        transition: transform 0.3s ease;
+    }
+
     .company-card {
-        background: white;
-        border-radius: 15px;
         transition: all 0.3s ease;
         border: 1px solid #e9ecef;
-        overflow: hidden;
     }
 
     .company-card:hover {
-        transform: translateY(-5px);
+        transform: translateY(-3px);
         box-shadow: var(--shadow-lg);
         border-color: #17a2b8;
     }
 
     .company-logo {
-        width: 60px;
-        height: 60px;
-        border-radius: 15px;
+        width: 50px;
+        height: 50px;
+        border-radius: 12px;
         background: linear-gradient(135deg, #17a2b8, #0dcaf0);
         display: flex;
         align-items: center;
@@ -104,78 +116,6 @@
         color: white;
         font-size: 1.5rem;
         font-weight: bold;
-    }
-
-    .table-companies {
-        margin-bottom: 0;
-    }
-
-    .table-companies thead th {
-        background: linear-gradient(135deg, #17a2b8, #0dcaf0);
-        color: white;
-        font-weight: 600;
-        padding: 1rem;
-        border: none;
-        font-size: 0.85rem;
-        text-align: center;
-        vertical-align: middle;
-    }
-
-    .table-companies thead th i {
-        margin-left: 6px;
-    }
-
-    .table-companies tbody tr {
-        transition: all 0.3s ease;
-        border-bottom: 1px solid #f0f0f0;
-    }
-
-    .table-companies tbody tr:hover {
-        background: rgba(23, 162, 184, 0.05);
-        transform: translateX(5px);
-    }
-
-    .table-companies tbody td {
-        padding: 1rem;
-        vertical-align: middle;
-        text-align: center;
-    }
-
-    .company-name-cell {
-        font-weight: 700;
-        color: #495057;
-        text-align: right;
-    }
-
-    .company-badge {
-        padding: 0.3rem 0.8rem;
-        border-radius: 20px;
-        font-size: 0.7rem;
-        font-weight: 600;
-        display: inline-flex;
-        align-items: center;
-        gap: 0.3rem;
-    }
-
-    .action-buttons {
-        display: flex;
-        gap: 0.5rem;
-        justify-content: center;
-    }
-
-    .btn-icon {
-        width: 32px;
-        height: 32px;
-        padding: 0;
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        border-radius: 10px;
-        transition: all 0.3s ease;
-    }
-
-    .btn-icon:hover {
-        transform: translateY(-2px);
     }
 
     .empty-state {
@@ -189,18 +129,6 @@
         margin-bottom: 1rem;
     }
 
-    .region-badge {
-        background: rgba(255, 152, 0, 0.1);
-        color: #ff9800;
-        padding: 0.3rem 0.8rem;
-        border-radius: 20px;
-        font-size: 0.7rem;
-        font-weight: 600;
-        display: inline-flex;
-        align-items: center;
-        gap: 0.3rem;
-    }
-
     @keyframes fadeInUp {
         from {
             opacity: 0;
@@ -212,8 +140,15 @@
         }
     }
 
-    .table-container {
-        animation: fadeInUp 0.5s ease;
+    .company-item {
+        animation: fadeInUp 0.3s ease;
+    }
+
+    .toast-notification {
+        position: fixed;
+        bottom: 20px;
+        right: 20px;
+        z-index: 9999;
     }
 </style>
 {% endblock %}
@@ -224,9 +159,9 @@
         <div>
             <h2>
                 <i class="fas fa-building"></i>
-                إدارة الشركات
+                الشركات والمناطق والمواقع
             </h2>
-            <p class="text-muted mb-0 mt-2">قائمة الشركات المتعاقدة مع المؤسسة</p>
+            <p class="text-muted mb-0 mt-2">إدارة الشركات والمناطق التابعة لها والمواقع</p>
         </div>
         <a href="{{ url_for('add_company') }}" class="btn btn-success">
             <i class="fas fa-plus-circle me-2"></i> شركة جديدة
@@ -234,221 +169,378 @@
     </div>
 </div>
 
-<!-- إحصائيات الشركات -->
+<!-- إحصائيات -->
 <div class="companies-stats">
     <div class="stat-card">
         <i class="fas fa-building fa-2x text-info mb-2"></i>
-        <div class="stat-number">{{ companies|length }}</div>
+        <div class="stat-number">{{ stats.total_companies }}</div>
         <small class="text-muted">إجمالي الشركات</small>
     </div>
     <div class="stat-card">
         <i class="fas fa-map-marker-alt fa-2x text-info mb-2"></i>
-        <div class="stat-number">{{ companies|selectattr('region')|list|length }}</div>
-        <small class="text-muted">مناطق نشاط</small>
+        <div class="stat-number">{{ stats.total_regions }}</div>
+        <small class="text-muted">إجمالي المناطق</small>
     </div>
     <div class="stat-card">
-        <i class="fas fa-phone-alt fa-2x text-info mb-2"></i>
-        <div class="stat-number">{{ companies|selectattr('phone')|list|length }}</div>
-        <small class="text-muted">لديها رقم اتصال</small>
+        <i class="fas fa-location-dot fa-2x text-info mb-2"></i>
+        <div class="stat-number">{{ stats.total_locations }}</div>
+        <small class="text-muted">إجمالي المواقع</small>
     </div>
     <div class="stat-card">
         <i class="fas fa-users fa-2x text-info mb-2"></i>
-        {% set total_employees = 0 %}
-        {% for company in companies %}
-            {% set total_employees = total_employees + company.employees|length %}
-        {% endfor %}
-        <div class="stat-number">{{ total_employees }}</div>
+        <div class="stat-number">{{ stats.total_employees }}</div>
         <small class="text-muted">إجمالي الموظفين</small>
     </div>
 </div>
 
-<!-- شريط البحث والفلترة -->
+<!-- شريط البحث -->
 <div class="search-section">
-    <div class="row align-items-center">
+    <div class="row">
         <div class="col-md-6 mb-3 mb-md-0">
             <div class="input-group">
                 <span class="input-group-text bg-white border-end-0">
                     <i class="fas fa-search text-muted"></i>
                 </span>
                 <input type="text" id="searchInput" class="form-control border-start-0"
-                       placeholder="بحث باسم الشركة أو المنطقة...">
+                       placeholder="بحث باسم الشركة أو المنطقة أو الموقع...">
             </div>
         </div>
         <div class="col-md-6">
-            <select id="regionFilter" class="form-select">
-                <option value="">جميع المناطق</option>
-                {% set regions = companies|map(attribute='region')|select('string')|unique|list %}
-                {% for region in regions %}
-                <option value="{{ region }}">{{ region }}</option>
+            <select id="companyFilter" class="form-select">
+                <option value="">جميع الشركات</option>
+                {% for company in companies %}
+                <option value="{{ company.id }}">{{ company.name }}</option>
                 {% endfor %}
             </select>
         </div>
     </div>
 </div>
 
-<!-- جدول الشركات المحسن -->
-<div class="card table-container">
-    <div class="card-body p-0">
-        <div class="table-responsive">
-            <table class="table table-companies" id="companiesTable">
-                <thead>
-                    <tr>
-                        <th style="width: 5%">
-                            <i class="fas fa-hashtag"></i> #
-                        </th>
-                        <th style="width: 25%">
-                            <i class="fas fa-building"></i> اسم الشركة
-                        </th>
-                        <th style="width: 15%">
-                            <i class="fas fa-map-marker-alt"></i> المنطقة
-                        </th>
-                        <th style="width: 20%">
-                            <i class="fas fa-location-dot"></i> الموقع
-                        </th>
-                        <th style="width: 15%">
-                            <i class="fas fa-user-tie"></i> جهة الاتصال
-                        </th>
-                        <th style="width: 15%">
-                            <i class="fas fa-phone-alt"></i> الهاتف
-                        </th>
-                        <th style="width: 5%">
-                            <i class="fas fa-cog"></i> الإجراءات
-                        </th>
-                    </thead>
-                <tbody>
-                    {% for company in companies %}
-                    <tr data-region="{{ company.region }}">
-                        <td class="fw-bold">{{ loop.index }}<td
-                        <td class="company-name-cell">
-                            <div class="d-flex align-items-center gap-2">
-                                <div class="company-logo" style="width: 40px; height: 40px; font-size: 1rem;">
-                                    {{ company.name[0]|upper if company.name else '?' }}
-                                </div>
-                                <div class="text-start">
-                                    <strong>{{ company.name }}</strong>
-                                    {% if company.email %}
-                                    <br>
-                                    <small class="text-muted">
-                                        <i class="fas fa-envelope"></i> {{ company.email }}
-                                    </small>
-                                    {% endif %}
-                                </div>
-                            </div>
-                         </td
-                         <td>
-                            {% if company.region %}
-                            <span class="region-badge">
-                                <i class="fas fa-map-marker-alt"></i> {{ company.region }}
-                            </span>
-                            {% else %}
-                            <span class="text-muted">-</span>
-                            {% endif %}
-                         </td
-                         <td>
-                            {% if company.location %}
-                            <i class="fas fa-location-dot text-muted me-1"></i>
-                            {{ company.location }}
-                            {% else %}
-                            <span class="text-muted">-</span>
-                            {% endif %}
-                         </td
-                         <td>
-                            {% if company.contact_person %}
-                            <div>
-                                <i class="fas fa-user-circle text-primary"></i>
-                                {{ company.contact_person }}
-                            </div>
-                            {% else %}
-                            <span class="text-muted">-</span>
-                            {% endif %}
-                         </td
-                         <td>
+<!-- قائمة الشركات بالشجرة الهرمية -->
+<div id="companiesContainer">
+    {% for company in companies %}
+    <div class="col-12 mb-3 company-item" data-company-id="{{ company.id }}" data-name="{{ company.name|lower }}">
+        <div class="card company-card">
+            <div class="card-header bg-white d-flex justify-content-between align-items-center flex-wrap gap-2">
+                <div class="d-flex align-items-center gap-3">
+                    <div class="company-logo">
+                        <i class="fas fa-building fa-2x"></i>
+                    </div>
+                    <div>
+                        <h5 class="mb-0">{{ company.name }}</h5>
+                        <small class="text-muted">
                             {% if company.phone %}
-                            <div>
-                                <i class="fas fa-phone-alt text-success"></i>
-                                {{ company.phone }}
-                            </div>
-                            {% else %}
-                            <span class="text-muted">-</span>
+                            <i class="fas fa-phone-alt me-1"></i>{{ company.phone }} |
                             {% endif %}
-                         </td
-                         <td>
-                            <div class="action-buttons">
-                                <a href="#" class="btn btn-icon btn-outline-primary" title="تعديل">
+                            {% if company.email %}
+                            <i class="fas fa-envelope me-1"></i>{{ company.email }} |
+                            {% endif %}
+                            {% if company.contact_person %}
+                            <i class="fas fa-user me-1"></i>{{ company.contact_person }}
+                            {% else %}
+                            لا توجد معلومات اتصال
+                            {% endif %}
+                        </small>
+                    </div>
+                </div>
+                <div class="action-buttons">
+                    <a href="{{ url_for('edit_company', company_id=company.id) }}" class="btn btn-sm btn-outline-primary">
+                        <i class="fas fa-edit"></i> تعديل
+                    </a>
+                    <button class="btn btn-sm btn-outline-danger" onclick="deleteCompany({{ company.id }}, '{{ company.name }}')">
+                        <i class="fas fa-trash"></i> حذف
+                    </button>
+                </div>
+            </div>
+            <div class="card-body">
+                <!-- المناطق - استخدم company.company_regions -->
+                {% if company.company_regions and company.company_regions|length > 0 %}
+                <div class="tree-view">
+                    {% for region in company.company_regions %}
+                    <div class="tree-node" data-name="{{ region.name|lower }}">
+                        <div class="tree-node-header" onclick="toggleNode(this)">
+                            <span class="toggle-icon">
+                                <i class="fas fa-chevron-down"></i>
+                            </span>
+                            <i class="fas fa-map-marker-alt text-warning"></i>
+                            <strong>{{ region.name }}</strong>
+                            <small class="text-muted">({{ region.region_locations|length }} موقع)</small>
+                            <div class="btn-group ms-auto" onclick="event.stopPropagation()">
+                                <button class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#editRegionModal{{ region.id }}" title="تعديل المنطقة">
                                     <i class="fas fa-edit"></i>
-                                </a>
-                                <button class="btn btn-icon btn-outline-danger"
-                                        onclick="confirmDelete('{{ company.name }}')"
-                                        title="حذف" disabled>
-                                    <i class="fas fa-trash-alt"></i>
+                                </button>
+                                <button class="btn btn-sm btn-outline-danger" onclick="deleteRegion({{ region.id }})" title="حذف المنطقة">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                                <button class="btn btn-sm btn-outline-success" data-bs-toggle="modal" data-bs-target="#addLocationModal{{ region.id }}" title="إضافة موقع">
+                                    <i class="fas fa-plus"></i>
                                 </button>
                             </div>
-                         </td
-                     </tr>
-                    {% else %}
-                    <tr>
-                        <td colspan="7">
-                            <div class="empty-state">
-                                <i class="fas fa-building"></i>
-                                <h5>لا توجد شركات</h5>
-                                <p class="text-muted">قم بإضافة شركة جديدة للبدء</p>
-                                <a href="{{ url_for('add_company') }}" class="btn btn-primary mt-2">
-                                    <i class="fas fa-plus-circle"></i> إضافة شركة
-                                </a>
+                        </div>
+
+                        <!-- المواقع - استخدم region.region_locations -->
+                        <div class="tree-children">
+                            {% for location in region.region_locations %}
+                            <div class="tree-node" data-name="{{ location.name|lower }}">
+                                <div class="tree-node-header ps-4">
+                                    <i class="fas fa-location-dot text-success"></i>
+                                    <span>{{ location.name }}</span>
+                                    {% if location.address %}
+                                    <small class="text-muted">- {{ location.address }}</small>
+                                    {% endif %}
+                                    <div class="btn-group ms-auto" onclick="event.stopPropagation()">
+                                        <button class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#editLocationModal{{ location.id }}" title="تعديل الموقع">
+                                            <i class="fas fa-edit"></i>
+                                        </button>
+                                        <button class="btn btn-sm btn-outline-danger" onclick="deleteLocation({{ location.id }})" title="حذف الموقع">
+                                            <i class="fas fa-trash"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                                {% if location.notes %}
+                                <div class="ps-5 text-muted small">
+                                    <i class="fas fa-sticky-note"></i> {{ location.notes }}
+                                </div>
+                                {% endif %}
                             </div>
-                         </td>
-                     </tr>
+
+                            <!-- Modal تعديل موقع -->
+                            <div class="modal fade" id="editLocationModal{{ location.id }}" tabindex="-1">
+                                <div class="modal-dialog">
+                                    <div class="modal-content">
+                                        <form method="POST" action="{{ url_for('edit_location', location_id=location.id) }}">
+                                            <div class="modal-header">
+                                                <h5 class="modal-title">تعديل الموقع</h5>
+                                                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                                            </div>
+                                            <div class="modal-body">
+                                                <div class="mb-3">
+                                                    <label class="form-label">اسم الموقع <span class="text-danger">*</span></label>
+                                                    <input type="text" name="location_name" class="form-control" value="{{ location.name }}" required>
+                                                </div>
+                                                <div class="mb-3">
+                                                    <label class="form-label">العنوان</label>
+                                                    <input type="text" name="address" class="form-control" value="{{ location.address or '' }}">
+                                                </div>
+                                                <div class="mb-3">
+                                                    <label class="form-label">ملاحظات</label>
+                                                    <textarea name="notes" class="form-control" rows="2">{{ location.notes or '' }}</textarea>
+                                                </div>
+                                            </div>
+                                            <div class="modal-footer">
+                                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">إلغاء</button>
+                                                <button type="submit" class="btn btn-primary">حفظ التغييرات</button>
+                                            </div>
+                                        </form>
+                                    </div>
+                                </div>
+                            </div>
+                            {% endfor %}
+
+                            <!-- Modal إضافة موقع -->
+                            <div class="modal fade" id="addLocationModal{{ region.id }}" tabindex="-1">
+                                <div class="modal-dialog">
+                                    <div class="modal-content">
+                                        <form method="POST" action="{{ url_for('add_location') }}">
+                                            <div class="modal-header">
+                                                <h5 class="modal-title">إضافة موقع جديد - {{ region.name }}</h5>
+                                                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                                            </div>
+                                            <div class="modal-body">
+                                                <input type="hidden" name="region_id" value="{{ region.id }}">
+                                                <div class="mb-3">
+                                                    <label class="form-label">اسم الموقع <span class="text-danger">*</span></label>
+                                                    <input type="text" name="location_name" class="form-control" required>
+                                                </div>
+                                                <div class="mb-3">
+                                                    <label class="form-label">العنوان</label>
+                                                    <input type="text" name="address" class="form-control">
+                                                </div>
+                                                <div class="mb-3">
+                                                    <label class="form-label">ملاحظات</label>
+                                                    <textarea name="notes" class="form-control" rows="2"></textarea>
+                                                </div>
+                                            </div>
+                                            <div class="modal-footer">
+                                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">إلغاء</button>
+                                                <button type="submit" class="btn btn-primary">إضافة الموقع</button>
+                                            </div>
+                                        </form>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Modal تعديل منطقة -->
+                            <div class="modal fade" id="editRegionModal{{ region.id }}" tabindex="-1">
+                                <div class="modal-dialog">
+                                    <div class="modal-content">
+                                        <form method="POST" action="{{ url_for('edit_region', region_id=region.id) }}">
+                                            <div class="modal-header">
+                                                <h5 class="modal-title">تعديل المنطقة</h5>
+                                                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                                            </div>
+                                            <div class="modal-body">
+                                                <div class="mb-3">
+                                                    <label class="form-label">اسم المنطقة <span class="text-danger">*</span></label>
+                                                    <input type="text" name="region_name" class="form-control" value="{{ region.name }}" required>
+                                                </div>
+                                            </div>
+                                            <div class="modal-footer">
+                                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">إلغاء</button>
+                                                <button type="submit" class="btn btn-primary">حفظ التغييرات</button>
+                                            </div>
+                                        </form>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                     {% endfor %}
-                </tbody>
-            </table>
+                </div>
+                {% else %}
+                <div class="text-center py-4 text-muted">
+                    <i class="fas fa-map-marker-alt fa-3x mb-2"></i>
+                    <p>لا توجد مناطق مسجلة لهذه الشركة</p>
+                    <button class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#addRegionModal{{ company.id }}">
+                        <i class="fas fa-plus"></i> إضافة منطقة
+                    </button>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Modal إضافة منطقة -->
+        <div class="modal fade" id="addRegionModal{{ company.id }}" tabindex="-1">
+            <div class="modal-dialog">
+                <div class="modal-content">
+                    <form method="POST" action="{{ url_for('add_region') }}">
+                        <div class="modal-header">
+                            <h5 class="modal-title">إضافة منطقة جديدة - {{ company.name }}</h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                        </div>
+                        <div class="modal-body">
+                            <input type="hidden" name="company_id" value="{{ company.id }}">
+                            <div class="mb-3">
+                                <label class="form-label">اسم المنطقة <span class="text-danger">*</span></label>
+                                <input type="text" name="region_name" class="form-control" required>
+                                <small class="text-muted">مثال: المنطقة الشرقية، المنطقة الغربية، إلخ.</small>
+                            </div>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">إلغاء</button>
+                            <button type="submit" class="btn btn-primary">إضافة المنطقة</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
         </div>
     </div>
+    {% else %}
+    <div class="col-12">
+        <div class="empty-state">
+            <i class="fas fa-building fa-4x"></i>
+            <h4>لا توجد شركات</h4>
+            <p class="text-muted">قم بإضافة شركة جديدة للبدء</p>
+            <a href="{{ url_for('add_company') }}" class="btn btn-primary mt-2">
+                <i class="fas fa-plus-circle"></i> إضافة شركة
+            </a>
+        </div>
+    </div>
+    {% endfor %}
 </div>
-
-<!-- تذييل مع إحصائيات إضافية -->
-{% if companies|length > 0 %}
-<div class="d-flex justify-content-between align-items-center mt-3">
-    <small class="text-muted">
-        <i class="fas fa-info-circle me-1"></i>
-        عرض {{ companies|length }} من إجمالي {{ companies|length }} شركة
-    </small>
-    <small class="text-muted">
-        <i class="fas fa-chart-line me-1"></i>
-        عدد المناطق: {{ companies|map(attribute='region')|select('string')|unique|list|length }}
-    </small>
-</div>
-{% endif %}
 
 <script>
-    $(document).ready(function() {
-        // البحث
-        $('#searchInput').on('keyup', function() {
-            var value = $(this).val().toLowerCase();
-            $('#companiesTable tbody tr').filter(function() {
-                var text = $(this).text().toLowerCase();
-                $(this).toggle(text.indexOf(value) > -1);
-            });
-        });
+function toggleNode(element) {
+    const icon = element.querySelector('.toggle-icon i');
+    const children = element.closest('.tree-node').querySelector('.tree-children');
+    if (children) {
+        if (children.style.display === 'none') {
+            children.style.display = 'block';
+            icon.classList.remove('fa-chevron-right');
+            icon.classList.add('fa-chevron-down');
+        } else {
+            children.style.display = 'none';
+            icon.classList.remove('fa-chevron-down');
+            icon.classList.add('fa-chevron-right');
+        }
+    }
+}
 
-        // تصفية حسب المنطقة
-        $('#regionFilter').on('change', function() {
-            var region = $(this).val();
-            $('#companiesTable tbody tr').each(function() {
-                if (region === '' || $(this).data('region') === region) {
-                    $(this).show();
-                } else {
-                    $(this).hide();
-                }
-            });
-        });
+function deleteCompany(companyId, companyName) {
+    if (confirm(`⚠️ هل أنت متأكد من حذف شركة "${companyName}"؟\n\nسيتم حذف جميع المناطق والمواقع والموظفين التابعين لها.\nهذا الإجراء لا يمكن التراجع عنه.`)) {
+        const form = document.createElement('form');
+        form.method = 'POST';
+        form.action = `/companies/${companyId}/delete`;
+        document.body.appendChild(form);
+        form.submit();
+    }
+}
 
-        // دالة تأكيد الحذف
-        window.confirmDelete = function(companyName) {
-            if (confirm(`هل أنت متأكد من حذف شركة "${companyName}"؟`)) {
-                // سيتم إضافة وظيفة الحذف لاحقاً
-                alert('سيتم إضافة وظيفة الحذف قريباً');
+function deleteRegion(regionId) {
+    if (confirm('⚠️ هل أنت متأكد من حذف هذه المنطقة؟\n\nسيتم حذف جميع المواقع التابعة لها.\nهذا الإجراء لا يمكن التراجع عنه.')) {
+        const form = document.createElement('form');
+        form.method = 'POST';
+        form.action = `/regions/${regionId}/delete`;
+        document.body.appendChild(form);
+        form.submit();
+    }
+}
+
+function deleteLocation(locationId) {
+    if (confirm('⚠️ هل أنت متأكد من حذف هذا الموقع؟\n\nهذا الإجراء لا يمكن التراجع عنه.')) {
+        const form = document.createElement('form');
+        form.method = 'POST';
+        form.action = `/locations/${locationId}/delete`;
+        document.body.appendChild(form);
+        form.submit();
+    }
+}
+
+$(document).ready(function() {
+    // البحث
+    $('#searchInput').on('keyup', function() {
+        var value = $(this).val().toLowerCase();
+        $('.company-item').each(function() {
+            var text = $(this).find('.card-header').text().toLowerCase();
+            var hasMatch = text.indexOf(value) > -1;
+
+            if (!hasMatch) {
+                $(this).find('.tree-node').each(function() {
+                    var nodeName = $(this).data('name');
+                    if (nodeName && nodeName.indexOf(value) > -1) {
+                        hasMatch = true;
+                        return false;
+                    }
+                });
             }
-        };
+
+            if (hasMatch) {
+                $(this).show();
+                if (value) {
+                    $(this).find('.tree-node').each(function() {
+                        var nodeName = $(this).data('name');
+                        if (nodeName && nodeName.indexOf(value) > -1) {
+                            $(this).find('.tree-children').show();
+                            $(this).find('.toggle-icon i').removeClass('fa-chevron-right').addClass('fa-chevron-down');
+                        }
+                    });
+                }
+            } else {
+                $(this).hide();
+            }
+        });
     });
+
+    // فلتر حسب الشركة
+    $('#companyFilter').on('change', function() {
+        var companyId = $(this).val();
+        if (companyId === '') {
+            $('.company-item').show();
+        } else {
+            $('.company-item').hide();
+            $(`.company-item[data-company-id="${companyId}"]`).show();
+        }
+    });
+});
 </script>
 {% endblock %}

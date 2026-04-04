@@ -4,6 +4,7 @@
 
 {% block extra_css %}
 <style>
+    /* جميع التنسيقات السابقة تبقى كما هي */
     .salaries-stats {
         background: linear-gradient(135deg, var(--primary-color) 0%, var(--primary-dark) 100%);
         border-radius: 20px;
@@ -247,6 +248,68 @@
         font-size: 0.8rem;
         margin-left: 0.5rem;
     }
+
+    /* تنسيقات جديدة لتوزيع الشركات */
+    .company-card {
+        background: white;
+        border-radius: 15px;
+        margin-bottom: 1.5rem;
+        border: 1px solid #e9ecef;
+        overflow: hidden;
+        box-shadow: var(--shadow-sm);
+        transition: all 0.3s ease;
+    }
+    .company-card:hover {
+        box-shadow: var(--shadow-lg);
+    }
+    .company-card-header {
+        background: linear-gradient(135deg, var(--primary-color), var(--primary-dark));
+        color: white;
+        padding: 1rem;
+        cursor: pointer;
+    }
+    .company-card-header h5 {
+        margin: 0;
+        font-size: 1.1rem;
+    }
+    .company-summary {
+        background: #f8f9fa;
+        padding: 0.8rem;
+        border-bottom: 1px solid #e9ecef;
+    }
+    .company-summary .row {
+        margin: 0;
+    }
+    .summary-item {
+        text-align: center;
+        border-left: 1px solid #dee2e6;
+    }
+    .summary-item:last-child {
+        border-left: none;
+    }
+    .summary-number {
+        font-size: 1.3rem;
+        font-weight: 800;
+        color: var(--primary-color);
+    }
+    .company-table-container {
+        padding: 0;
+    }
+    .company-table {
+        margin-bottom: 0;
+    }
+    .company-table thead th {
+        background: #e9ecef;
+        color: #495057;
+        font-size: 0.75rem;
+        padding: 0.5rem;
+    }
+    .toggle-icon {
+        transition: transform 0.3s ease;
+    }
+    .toggle-icon.collapsed {
+        transform: rotate(-180deg);
+    }
 </style>
 {% endblock %}
 
@@ -346,18 +409,6 @@
             </div>
         </div>
     </div>
-    {% if selected_month and selected_month != 'لا يوجد' %}
-    <div class="row mt-3">
-        <div class="col-12">
-            <div class="alert alert-info mb-0">
-                <i class="fas fa-info-circle"></i>
-                <strong>الشهر الحالي المعروض:</strong>
-                <span class="current-month-badge">{{ selected_month }}</span>
-                - عدد الرواتب: {{ salaries|length }}
-            </div>
-        </div>
-    </div>
-    {% endif %}
 </div>
 
 <!-- إحصائيات الرواتب -->
@@ -412,20 +463,49 @@
     </div>
 </div>
 
-<!-- جدول الرواتب -->
-<div class="card">
-    <div class="card-header bg-white">
-        <h5 class="mb-0">
-            <i class="fas fa-list"></i> قائمة الرواتب
-        </h5>
+<!-- قائمة الشركات مع جداول الرواتب -->
+{% set companies_dict = {} %}
+{% for salary in salaries %}
+    {% set company_name = salary.employee.employee_company.name if salary.employee and salary.employee.employee_company else 'ابن هائل (الشركة الأم)' %}
+    {% set company_id = salary.employee.employee_company.id if salary.employee and salary.employee.employee_company else 0 %}
+    {% if companies_dict.update({company_id: {'name': company_name, 'salaries': companies_dict.get(company_id, {'salaries': []})['salaries'] + [salary]}}) %}{% endif %}
+{% endfor %}
+
+{% for company_id, company_data in companies_dict.items() %}
+<div class="company-card mb-4">
+    <div class="company-card-header" onclick="toggleCompanyTable({{ company_id }})">
+        <div class="d-flex justify-content-between align-items-center">
+            <h5><i class="fas fa-building"></i> {{ company_data.name }}</h5>
+            <div class="d-flex gap-3">
+                <span class="badge bg-light text-dark">{{ company_data.salaries|length }} موظف</span>
+                <span class="badge bg-success">{{ "{:,.0f}".format(company_data.salaries|sum(attribute='total_salary')) }} ر.ي</span>
+                <i class="fas fa-chevron-down toggle-icon" id="toggleIcon{{ company_id }}"></i>
+            </div>
+        </div>
     </div>
-    <div class="card-body p-0">
+    <div class="company-summary">
+        <div class="row">
+            <div class="col-4 summary-item">
+                <div class="summary-number">{{ company_data.salaries|selectattr('is_paid')|list|length }}</div>
+                <small class="text-muted">مدفوعة</small>
+            </div>
+            <div class="col-4 summary-item">
+                <div class="summary-number">{{ company_data.salaries|rejectattr('is_paid')|list|length }}</div>
+                <small class="text-muted">غير مدفوعة</small>
+            </div>
+            <div class="col-4 summary-item">
+                <div class="summary-number">{{ "{:,.0f}".format(company_data.salaries|sum(attribute='total_salary') / company_data.salaries|length if company_data.salaries|length > 0 else 0) }} ر.ي</div>
+                <small class="text-muted">متوسط الراتب</small>
+            </div>
+        </div>
+    </div>
+    <div class="company-table-container" id="companyTable{{ company_id }}" style="display: block;">
         <div class="table-responsive">
-            <table class="table table-salaries" id="salariesTable">
+            <table class="table table-salaries company-table">
                 <thead>
                     <tr>
                         <th style="width: 5%">#</th>
-                        <th style="width: 18%">الموظف</th>
+                        <th style="width: 20%">الموظف</th>
                         <th style="width: 10%">الشهر</th>
                         <th style="width: 8%">أيام الحضور</th>
                         <th style="width: 10%">راتب الحضور</th>
@@ -439,7 +519,7 @@
                     </tr>
                 </thead>
                 <tbody>
-                    {% for salary in salaries %}
+                    {% for salary in company_data.salaries %}
                     <tr data-status="{% if salary.is_paid %}paid{% else %}unpaid{% endif %}"
                         data-date="{{ salary.month_year }}">
                         <td class="fw-bold text-center">{{ loop.index }}</td>
@@ -501,26 +581,23 @@
                                 </button>
                             </div>
                         </td>
-                    </tr>
-                    {% else %}
-                    <tr>
-                        <td colspan="12">
-                            <div class="empty-state">
-                                <i class="fas fa-calculator"></i>
-                                <h5>لا توجد رواتب</h5>
-                                <p class="text-muted">قم بحساب الرواتب أولاً</p>
-                                <a href="{{ url_for('salary_calculation') }}" class="btn btn-primary mt-2">
-                                    <i class="fas fa-chart-line"></i> حساب الرواتب
-                                </a>
-                            </div>
-                        </td>
-                    </tr>
+                     </tr>
                     {% endfor %}
                 </tbody>
-            </table>
+             </table>
         </div>
     </div>
 </div>
+{% else %}
+<div class="empty-state text-center py-5">
+    <i class="fas fa-calculator fa-4x text-muted mb-3"></i>
+    <h5>لا توجد رواتب</h5>
+    <p class="text-muted">قم بحساب الرواتب أولاً</p>
+    <a href="{{ url_for('salary_calculation') }}" class="btn btn-primary mt-2">
+        <i class="fas fa-chart-line"></i> حساب الرواتب
+    </a>
+</div>
+{% endfor %}
 
 <!-- Modals for payment -->
 {% for salary in salaries %}
@@ -589,11 +666,22 @@
         alert('سيتم إضافة وظيفة عرض تفاصيل الراتب قريباً');
     }
 
+    function toggleCompanyTable(companyId) {
+        const table = document.getElementById(`companyTable${companyId}`);
+        const icon = document.getElementById(`toggleIcon${companyId}`);
+        if (table.style.display === 'none') {
+            table.style.display = 'block';
+            icon.classList.remove('collapsed');
+        } else {
+            table.style.display = 'none';
+            icon.classList.add('collapsed');
+        }
+    }
+
     function updateStats() {
         const visibleRows = $('#salariesTable tbody tr:visible').filter(function() {
             return !$(this).find('td[colspan]').length;
         });
-
         $('#totalCount').text(visibleRows.length);
         $('#paidCount').text(visibleRows.filter(function() {
             return $(this).data('status') === 'paid';
@@ -601,7 +689,6 @@
         $('#unpaidCount').text(visibleRows.filter(function() {
             return $(this).data('status') === 'unpaid';
         }).length);
-
         let totalAmount = 0;
         visibleRows.each(function() {
             const amountText = $(this).find('td:nth-child(10)').text();
@@ -642,40 +729,24 @@
     }
 
     $(document).ready(function() {
-        // تطبيق الفلتر حسب التاريخ (إعادة تحميل الصفحة)
         $('#applyFilterBtn').on('click', function() {
             const startDate = $('#startDate').val();
             const endDate = $('#endDate').val();
-
             let url = "{{ url_for('salaries_list') }}";
             let params = [];
-
-            if (startDate) {
-                params.push(`start_date=${startDate}`);
-            }
-            if (endDate) {
-                params.push(`end_date=${endDate}`);
-            }
-
-            if (params.length > 0) {
-                window.location.href = url + '?' + params.join('&');
-            } else {
-                window.location.href = url;
-            }
+            if (startDate) params.push(`start_date=${startDate}`);
+            if (endDate) params.push(`end_date=${endDate}`);
+            window.location.href = params.length > 0 ? url + '?' + params.join('&') : url;
         });
 
-        // إلغاء الفلتر
         $('#clearFilterBtn').on('click', function() {
             window.location.href = "{{ url_for('salaries_list') }}";
         });
 
-        // الفترات السريعة
         $('.quick-period-btn').on('click', function() {
             const period = $(this).data('period');
             const now = new Date();
-            let startDate = '';
-            let endDate = '';
-
+            let startDate = '', endDate = '';
             switch(period) {
                 case 'current_month':
                     startDate = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
@@ -706,37 +777,23 @@
                     endDate = `${now.getFullYear() - 1}-12`;
                     break;
             }
-
             if (startDate && endDate) {
                 window.location.href = "{{ url_for('salaries_list') }}?start_date=" + startDate + "&end_date=" + endDate;
             }
         });
 
-        // تغيير الشهر من القائمة المنسدلة
         $('#monthSelect').on('change', function() {
             var month = $(this).val();
-            if (month) {
-                window.location.href = "{{ url_for('salaries_list') }}?month=" + month;
-            } else {
-                window.location.href = "{{ url_for('salaries_list') }}";
-            }
+            window.location.href = month ? "{{ url_for('salaries_list') }}?month=" + month : "{{ url_for('salaries_list') }}";
         });
 
-        // النقر على شهر سريع
         $('.month-badge').on('click', function() {
             var month = $(this).data('month');
             window.location.href = "{{ url_for('salaries_list') }}?month=" + month;
         });
 
-        // البحث (فلترة على العميل)
-        $('#searchInput').on('keyup', function() {
-            applySearchFilter();
-        });
-
-        // تصفية حسب الحالة (فلترة على العميل)
-        $('#statusFilter').on('change', function() {
-            applyStatusFilter();
-        });
+        $('#searchInput').on('keyup', applySearchFilter);
+        $('#statusFilter').on('change', applyStatusFilter);
     });
 </script>
 {% endblock %}

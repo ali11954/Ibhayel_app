@@ -1,10 +1,9 @@
 {% extends "base.html" %}
 
-{% block title %}إضافة موظف - ابن هائل لأعمال الزراعة{% endblock %}
+{% block title %}إضافة موظف جديد - ابن هائل لأعمال الزراعة{% endblock %}
 
 {% block extra_css %}
 <style>
-    /* تنسيقات متقدمة لصفحة إضافة الموظف */
     .add-employee-header {
         background: linear-gradient(135deg, #2e7d32 0%, #1b5e20 100%);
         border-radius: 20px;
@@ -31,7 +30,7 @@
         to { transform: rotate(360deg); }
     }
 
-    .employee-icon-large {
+    .employee-avatar-large {
         width: 80px;
         height: 80px;
         border-radius: 20px;
@@ -40,7 +39,7 @@
         align-items: center;
         justify-content: center;
         color: white;
-        font-size: 2.5rem;
+        font-size: 2rem;
         font-weight: bold;
         margin-bottom: 1rem;
         backdrop-filter: blur(10px);
@@ -63,11 +62,6 @@
         margin: 0;
         color: var(--dark-color);
         font-weight: 700;
-    }
-
-    .form-card-header h4 i {
-        color: var(--primary-color);
-        margin-left: 10px;
     }
 
     .form-group-custom {
@@ -117,14 +111,6 @@
         transition: all 0.3s ease;
     }
 
-    .input-icon .form-control-custom {
-        padding-right: 40px;
-    }
-
-    .input-icon .form-control-custom:focus + i {
-        color: var(--primary-color);
-    }
-
     .resident-toggle {
         background: #f8f9fa;
         border-radius: 15px;
@@ -170,35 +156,33 @@
     }
 
     @keyframes fadeInUp {
-        from {
-            opacity: 0;
-            transform: translateY(20px);
-        }
-        to {
-            opacity: 1;
-            transform: translateY(0);
-        }
+        from { opacity: 0; transform: translateY(20px); }
+        to { opacity: 1; transform: translateY(0); }
     }
 
     .form-card {
         animation: fadeInUp 0.5s ease;
     }
 
-    .company-badge {
-        background: rgba(23, 162, 184, 0.1);
-        color: #17a2b8;
-        padding: 0.3rem 0.6rem;
-        border-radius: 12px;
-        font-size: 0.7rem;
+    .status-badge {
+        padding: 0.3rem 0.8rem;
+        border-radius: 20px;
+        font-size: 0.75rem;
         font-weight: 600;
-        display: inline-block;
-        margin-top: 0.5rem;
+    }
+
+    .type-option {
+        cursor: pointer;
+        transition: all 0.3s ease;
+    }
+    .type-option.selected {
+        border-color: #2e7d32 !important;
+        background: linear-gradient(135deg, #e8f5e9, #c8e6c9) !important;
     }
 </style>
 {% endblock %}
 
 {% block content %}
-<!-- رأس الصفحة المميز -->
 <div class="add-employee-header">
     <div class="row align-items-center">
         <div class="col-md-8">
@@ -209,14 +193,13 @@
             <p class="mb-0 opacity-75">إضافة موظف جديد إلى نظام إدارة الموظفين</p>
         </div>
         <div class="col-md-4 text-center">
-            <div class="employee-icon-large mx-auto">
-                <i class="fas fa-user-plus"></i>
+            <div class="employee-avatar-large mx-auto">
+                <i class="fas fa-user-plus fa-2x"></i>
             </div>
         </div>
     </div>
 </div>
 
-<!-- بطاقة النموذج المحسنة -->
 <div class="form-card">
     <div class="form-card-header">
         <h4>
@@ -228,6 +211,38 @@
 
     <div class="card-body p-4">
         <form method="POST" id="addEmployeeForm">
+            <!-- نوع الموظف -->
+            <div class="form-group-custom">
+                <label class="form-label-custom">
+                    <i class="fas fa-user-tag"></i>
+                    نوع الموظف <span class="required">*</span>
+                </label>
+                <div class="row">
+                    <div class="col-md-4">
+                        <div class="type-option border rounded p-3 text-center" data-type="worker" onclick="selectType('worker')">
+                            <i class="fas fa-tractor text-success"></i>
+                            <div class="fw-bold">عامل زراعة</div>
+                            <small class="text-muted">عمال الزراعة والحصاد</small>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="type-option border rounded p-3 text-center" data-type="supervisor" onclick="selectType('supervisor')">
+                            <i class="fas fa-user-tie text-primary"></i>
+                            <div class="fw-bold">مشرف</div>
+                            <small class="text-muted">مشرف على عمال</small>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="type-option border rounded p-3 text-center" data-type="admin" onclick="selectType('admin')">
+                            <i class="fas fa-user-shield text-danger"></i>
+                            <div class="fw-bold">إداري / مدير</div>
+                            <small class="text-muted">إداريين ومديرين</small>
+                        </div>
+                    </div>
+                </div>
+                <input type="hidden" name="employee_type" id="employee_type" value="worker">
+            </div>
+
             <div class="row">
                 <!-- الاسم الكامل -->
                 <div class="col-md-6 form-group-custom">
@@ -238,8 +253,7 @@
                     <div class="input-icon">
                         <i class="fas fa-user"></i>
                         <input type="text" class="form-control form-control-custom"
-                               id="name" name="name"
-                               placeholder="أدخل الاسم الكامل" required>
+                               id="full_name" name="full_name" required>
                     </div>
                 </div>
 
@@ -252,8 +266,7 @@
                     <div class="input-icon">
                         <i class="fas fa-qrcode"></i>
                         <input type="text" class="form-control form-control-custom"
-                               id="card_number" name="card_number"
-                               placeholder="أدخل رقم البطاقة" required>
+                               id="card_number" name="card_number" required>
                     </div>
                 </div>
 
@@ -266,9 +279,9 @@
                     <div class="input-icon">
                         <i class="fas fa-code"></i>
                         <input type="text" class="form-control form-control-custom"
-                               id="code" name="code"
-                               placeholder="أدخل كود التعريف" required>
+                               id="code" name="code" required>
                     </div>
+                    <small class="text-muted">كود فريد للموظف</small>
                 </div>
 
                 <!-- الوظيفة -->
@@ -280,8 +293,7 @@
                     <div class="input-icon">
                         <i class="fas fa-tools"></i>
                         <input type="text" class="form-control form-control-custom"
-                               id="job_title" name="job_title"
-                               placeholder="أدخل الوظيفة">
+                               id="job_title" name="job_title">
                     </div>
                 </div>
 
@@ -294,8 +306,7 @@
                     <div class="input-icon">
                         <i class="fas fa-location-dot"></i>
                         <input type="text" class="form-control form-control-custom"
-                               id="region" name="region"
-                               placeholder="أدخل المنطقة">
+                               id="region" name="region">
                     </div>
                 </div>
 
@@ -303,21 +314,30 @@
                 <div class="col-md-6 form-group-custom">
                     <label class="form-label-custom">
                         <i class="fas fa-building"></i>
-                        الشركة
+                        الشركة التابع لها
                     </label>
-                    <div class="input-icon">
-                        <i class="fas fa-building"></i>
-                        <select class="form-select form-select-custom" id="company_id" name="company_id">
-                            <option value="">-- اختر الشركة --</option>
-                            {% for company in companies %}
-                            <option value="{{ company.id }}">{{ company.name }}</option>
-                            {% endfor %}
-                        </select>
-                    </div>
-                    <small class="text-muted d-block mt-1">
-                        <i class="fas fa-info-circle"></i>
-                        اختر الشركة التي يتبع لها الموظف
-                    </small>
+                    <select class="form-select form-select-custom" id="company_id" name="company_id">
+                        <option value="">-- اختر الشركة --</option>
+                        {% for company in companies %}
+                        <option value="{{ company.id }}">{{ company.name }}</option>
+                        {% endfor %}
+                    </select>
+                    <small class="text-muted">تحديد الشركة يساعد في تنظيم الحضور الجماعي</small>
+                </div>
+
+                <!-- المشرف المسؤول (يظهر للعمال فقط) -->
+                <div class="col-md-6 form-group-custom" id="supervisorDiv" style="display: none;">
+                    <label class="form-label-custom">
+                        <i class="fas fa-user-check"></i>
+                        المشرف المسؤول <span class="required">*</span>
+                    </label>
+                    <select class="form-select form-select-custom" id="supervisor_id" name="supervisor_id">
+                        <option value="">-- اختر المشرف --</option>
+                        {% for sup in supervisors %}
+                        <option value="{{ sup.id }}">{{ sup.name }} ({{ sup.job_title or 'مشرف' }})</option>
+                        {% endfor %}
+                    </select>
+                    <small class="text-muted text-info">يظهر فقط المشرفين من نفس الشركة</small>
                 </div>
 
                 <!-- رقم الجوال -->
@@ -329,8 +349,7 @@
                     <div class="input-icon">
                         <i class="fas fa-mobile-alt"></i>
                         <input type="tel" class="form-control form-control-custom"
-                               id="phone" name="phone"
-                               placeholder="أدخل رقم الجوال">
+                               id="phone" name="phone">
                     </div>
                 </div>
 
@@ -343,8 +362,7 @@
                     <div class="input-icon">
                         <i class="fas fa-riyal-sign"></i>
                         <input type="number" class="form-control form-control-custom"
-                               id="salary" name="salary" value="60000"
-                               step="1000" min="0">
+                               id="salary" name="salary" value="60000" step="1000" min="0">
                     </div>
                     <div class="salary-preview" id="salaryPreview">
                         <small class="text-muted">
@@ -365,7 +383,9 @@
                             <input class="form-check-input" type="checkbox" id="is_resident" name="is_resident"
                                    style="width: 3rem; height: 1.5rem; cursor: pointer;">
                             <label class="form-check-label me-2" for="is_resident">
-                                <span id="residentStatus" class="badge bg-secondary">غير ساكن</span>
+                                <span id="residentStatus" class="status-badge bg-secondary text-white">
+                                    <i class="fas fa-plane-departure"></i> غير ساكن
+                                </span>
                             </label>
                         </div>
                         <small class="text-muted d-block mt-2">
@@ -376,19 +396,56 @@
                 </div>
             </div>
 
+            <!-- بيانات الدخول (للمشرفين والإداريين) -->
+            <div id="userFields" style="display: none;">
+                <hr>
+                <div class="row">
+                    <div class="col-md-12">
+                        <h5 class="mb-3"><i class="fas fa-user-shield text-primary"></i> بيانات الدخول</h5>
+                    </div>
+                    <div class="col-md-6 form-group-custom">
+                        <label class="form-label-custom">
+                            <i class="fas fa-user"></i>
+                            اسم المستخدم <span class="required">*</span>
+                        </label>
+                        <div class="input-icon">
+                            <i class="fas fa-user"></i>
+                            <input type="text" class="form-control form-control-custom"
+                                   id="username" name="username">
+                        </div>
+                        <small class="text-muted">سيستخدم لتسجيل الدخول إلى النظام</small>
+                    </div>
+                    <div class="col-md-6 form-group-custom">
+                        <label class="form-label-custom">
+                            <i class="fas fa-lock"></i>
+                            كلمة المرور <span class="required">*</span>
+                        </label>
+                        <div class="input-icon">
+                            <i class="fas fa-key"></i>
+                            <input type="password" class="form-control form-control-custom"
+                                   id="password" name="password">
+                        </div>
+                        <small class="text-muted">يجب أن تكون 6 أحرف على الأقل</small>
+                    </div>
+                </div>
+            </div>
+
             <!-- معلومات إضافية -->
-            <div class="info-box">
-                <div class="d-flex align-items-start gap-3">
-                    <i class="fas fa-info-circle fa-lg text-primary"></i>
-                    <div>
-                        <strong>تعليمات هامة</strong><br>
-                        <small class="text-muted">
-                            <i class="fas fa-check-circle text-success me-1"></i> رقم البطاقة وكود التعريف يجب أن يكونا فريدين<br>
-                            <i class="fas fa-check-circle text-success me-1"></i> يمكن تعديل بيانات الموظف لاحقاً<br>
-                            <i class="fas fa-check-circle text-success me-1"></i> بدل السكن يضاف تلقائياً عند حساب الراتب<br>
-                            <i class="fas fa-check-circle text-success me-1"></i> الراتب الأساسي يحسب على 30 يوم عمل<br>
-                            <i class="fas fa-check-circle text-success me-1"></i> تحديد الشركة يساعد في تنظيم الحضور الجماعي
-                        </small>
+            <div class="row mt-3">
+                <div class="col-md-12">
+                    <div class="info-box">
+                        <div class="d-flex align-items-start gap-3">
+                            <i class="fas fa-info-circle fa-lg text-primary"></i>
+                            <div>
+                                <strong>تعليمات هامة</strong><br>
+                                <small class="text-muted">
+                                    <i class="fas fa-check-circle text-success me-1"></i> رقم البطاقة وكود التعريف يجب أن يكونا فريدين<br>
+                                    <i class="fas fa-check-circle text-success me-1"></i> يمكن تعديل بيانات الموظف لاحقاً<br>
+                                    <i class="fas fa-check-circle text-success me-1"></i> بدل السكن يضاف تلقائياً عند حساب الراتب<br>
+                                    <i class="fas fa-check-circle text-success me-1"></i> المشرفون والإداريون يحتاجون إلى بيانات دخول للوصول للنظام
+                                </small>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -396,32 +453,102 @@
             <!-- أزرار الإجراءات -->
             <div class="action-buttons">
                 <button type="submit" class="btn btn-primary btn-custom">
-                    <i class="fas fa-save"></i>
-                    إضافة الموظف
+                    <i class="fas fa-save"></i> إضافة الموظف
                 </button>
                 <a href="{{ url_for('employees_list') }}" class="btn btn-secondary btn-custom">
-                    <i class="fas fa-times"></i>
-                    إلغاء
+                    <i class="fas fa-times"></i> إلغاء
                 </a>
             </div>
         </form>
     </div>
 </div>
 
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 <script>
+    // بيانات المشرفين من الخادم
+    const supervisorsData = {{ supervisors | tojson | safe }};
+    let selectedType = 'worker';
+
+    console.log('Supervisors Data:', supervisorsData);
+
+    function selectType(type) {
+        selectedType = type;
+        document.getElementById('employee_type').value = type;
+
+        document.querySelectorAll('.type-option').forEach(opt => {
+            opt.classList.remove('selected');
+        });
+        document.querySelector(`.type-option[data-type="${type}"]`).classList.add('selected');
+
+        const supervisorDiv = document.getElementById('supervisorDiv');
+        const userFields = document.getElementById('userFields');
+        const jobSelect = document.getElementById('job_title');
+
+        if (type === 'worker') {
+            supervisorDiv.style.display = 'block';
+            userFields.style.display = 'none';
+            document.getElementById('supervisor_id').required = true;
+            document.getElementById('username').required = false;
+            document.getElementById('password').required = false;
+
+            const companyId = document.getElementById('company_id').value;
+            if (companyId) {
+                updateSupervisorsList(companyId);
+            }
+        } else {
+            supervisorDiv.style.display = 'none';
+            userFields.style.display = 'block';
+            document.getElementById('supervisor_id').required = false;
+            document.getElementById('username').required = true;
+            document.getElementById('password').required = true;
+        }
+    }
+
+    function updateSupervisorsList(companyId) {
+        const supervisorSelect = document.getElementById('supervisor_id');
+
+        if (!companyId) {
+            supervisorSelect.innerHTML = '<option value="">-- اختر الشركة أولاً --</option>';
+            supervisorSelect.disabled = true;
+            return;
+        }
+
+        const filtered = supervisorsData.filter(s => s.company_id == companyId);
+
+        console.log('Company ID:', companyId);
+        console.log('Filtered supervisors:', filtered);
+
+        supervisorSelect.innerHTML = '<option value="">-- اختر المشرف --</option>';
+        supervisorSelect.disabled = false;
+
+        if (filtered.length === 0) {
+            supervisorSelect.innerHTML = '<option value="" disabled>⚠️ لا يوجد مشرفين في هذه الشركة</option>';
+        } else {
+            for (let s of filtered) {
+                supervisorSelect.innerHTML += `<option value="${s.id}">${s.name} (${s.job_title || 'مشرف'})</option>`;
+            }
+        }
+    }
+
     $(document).ready(function() {
-        // تحديث حالة السكن
-        $('#is_resident').on('change', function() {
-            if ($(this).is(':checked')) {
-                $('#residentStatus').removeClass('bg-secondary').addClass('bg-success')
-                    .html('<i class="fas fa-home"></i> ساكن (+500/يوم)');
-            } else {
-                $('#residentStatus').removeClass('bg-success').addClass('bg-secondary')
-                    .html('<i class="fas fa-plane-departure"></i> غير ساكن');
+        // عند تغيير الشركة
+        $('#company_id').on('change', function() {
+            const companyId = $(this).val();
+            if (selectedType === 'worker') {
+                updateSupervisorsList(companyId);
             }
         });
 
-        // تنسيق الراتب أثناء الكتابة
+        // تحديث حالة السكن
+        $('#is_resident').on('change', function() {
+            if ($(this).is(':checked')) {
+                $('#residentStatus').removeClass('bg-secondary').addClass('bg-success').html('<i class="fas fa-home"></i> ساكن (+500/يوم)');
+            } else {
+                $('#residentStatus').removeClass('bg-success').addClass('bg-secondary').html('<i class="fas fa-plane-departure"></i> غير ساكن');
+            }
+        });
+
+        // تنسيق الراتب
         $('#salary').on('input', function() {
             var value = $(this).val();
             var formatted = new Intl.NumberFormat('ar-SA').format(value);
@@ -430,48 +557,69 @@
 
         // التحقق من صحة النموذج
         $('#addEmployeeForm').on('submit', function(e) {
-            var name = $('#name').val().trim();
+            var name = $('#full_name').val().trim();
             var cardNumber = $('#card_number').val().trim();
             var code = $('#code').val().trim();
+            var companyId = $('#company_id').val();
+            var employeeType = $('#employee_type').val();
 
             if (!name) {
                 e.preventDefault();
-                alert('الرجاء إدخال الاسم الكامل');
-                $('#name').focus();
+                alert('❌ الرجاء إدخال الاسم الكامل');
+                $('#full_name').focus();
                 return false;
             }
 
             if (!cardNumber) {
                 e.preventDefault();
-                alert('الرجاء إدخال رقم البطاقة');
+                alert('❌ الرجاء إدخال رقم البطاقة');
                 $('#card_number').focus();
                 return false;
             }
 
             if (!code) {
                 e.preventDefault();
-                alert('الرجاء إدخال كود التعريف');
+                alert('❌ الرجاء إدخال كود التعريف');
                 $('#code').focus();
                 return false;
             }
 
-            // التحقق من أن رقم البطاقة يحتوي على أرقام فقط
-            var cardNumberRegex = /^[0-9]+$/;
-            if (!cardNumberRegex.test(cardNumber)) {
+            if (!companyId) {
                 e.preventDefault();
-                alert('رقم البطاقة يجب أن يحتوي على أرقام فقط');
-                $('#card_number').focus();
+                alert('❌ الرجاء اختيار الشركة');
+                $('#company_id').focus();
                 return false;
             }
 
-            return true;
-        });
-
-        // التحقق من وجود الشركة (اختياري)
-        $('#company_id').on('change', function() {
-            if ($(this).val()) {
-                $(this).css('border-color', '#28a745');
+            if (employeeType === 'worker') {
+                var supervisorId = $('#supervisor_id').val();
+                if (!supervisorId) {
+                    e.preventDefault();
+                    alert('❌ الرجاء اختيار المشرف المسؤول للعامل');
+                    $('#supervisor_id').focus();
+                    return false;
+                }
             }
+
+            if (employeeType === 'supervisor' || employeeType === 'admin') {
+                var username = $('#username').val().trim();
+                var password = $('#password').val();
+
+                if (!username) {
+                    e.preventDefault();
+                    alert('❌ الرجاء إدخال اسم المستخدم');
+                    $('#username').focus();
+                    return false;
+                }
+                if (!password || password.length < 6) {
+                    e.preventDefault();
+                    alert('❌ كلمة المرور يجب أن تكون 6 أحرف على الأقل');
+                    $('#password').focus();
+                    return false;
+                }
+            }
+
+            return true;
         });
     });
 </script>

@@ -1,0 +1,238 @@
+{% extends "base.html" %}
+
+{% block title %}سجل مدفوعات الفاتورة - {{ invoice.invoice_number }}{% endblock %}
+
+{% block extra_css %}
+<style>
+    .payment-timeline {
+        position: relative;
+        padding: 1rem 0;
+    }
+
+    .timeline-item {
+        position: relative;
+        padding-right: 2rem;
+        padding-bottom: 1.5rem;
+        border-right: 2px solid #e9ecef;
+    }
+
+    .timeline-item:last-child {
+        border-right: none;
+        padding-bottom: 0;
+    }
+
+    .timeline-icon {
+        position: absolute;
+        right: -10px;
+        top: 0;
+        width: 20px;
+        height: 20px;
+        border-radius: 50%;
+        background: #ff9800;
+        border: 2px solid white;
+        box-shadow: 0 0 0 2px #ff9800;
+    }
+
+    .timeline-icon.paid {
+        background: #28a745;
+        box-shadow: 0 0 0 2px #28a745;
+    }
+
+    .payment-card {
+        background: #f8f9fa;
+        border-radius: 12px;
+        padding: 1rem;
+        margin-bottom: 1rem;
+        transition: all 0.3s ease;
+    }
+
+    .payment-card:hover {
+        transform: translateX(-5px);
+        box-shadow: var(--shadow-md);
+    }
+
+    .summary-box {
+        background: linear-gradient(135deg, #f8f9fa, #e9ecef);
+        border-radius: 15px;
+        padding: 1.5rem;
+        text-align: center;
+    }
+
+    .progress {
+        height: 8px;
+        border-radius: 10px;
+    }
+
+    .payment-method-badge {
+        padding: 0.2rem 0.5rem;
+        border-radius: 15px;
+        font-size: 0.7rem;
+        font-weight: 600;
+    }
+
+    .method-cash { background: #28a745; color: white; }
+    .method-bank_transfer { background: #17a2b8; color: white; }
+    .method-check { background: #ffc107; color: #333; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="page-header">
+        <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+            <div>
+                <h2>
+                    <i class="fas fa-history"></i>
+                    سجل مدفوعات الفاتورة
+                </h2>
+                <p class="text-muted mb-0 mt-2">سجل المدفوعات الجزئية للفاتورة {{ invoice.invoice_number }}</p>
+            </div>
+            <div>
+                <a href="{{ url_for('invoices_list') }}" class="btn btn-secondary">
+                    <i class="fas fa-arrow-right me-2"></i> رجوع
+                </a>
+                {% if not invoice.is_paid %}
+                <a href="{{ url_for('pay_invoice', invoice_id=invoice.id) }}" class="btn btn-success">
+                    <i class="fas fa-money-bill-wave me-2"></i> تسديد جديد
+                </a>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <!-- معلومات الفاتورة -->
+        <div class="col-md-4 mb-4">
+            <div class="card">
+                <div class="card-header bg-white">
+                    <h5 class="mb-0"><i class="fas fa-file-invoice"></i> معلومات الفاتورة</h5>
+                </div>
+                <div class="card-body">
+                    <table class="table table-sm table-borderless">
+                        <tr>
+                            <td><strong>رقم الفاتورة</strong></td>
+                            <td class="text-start">{{ invoice.invoice_number }}</td>
+                        </tr>
+                        <tr>
+                            <td><strong>الشركة</strong></td>
+                            <td class="text-start">{{ invoice.contract.company.name if invoice.contract else '-' }}</td>
+                        </tr>
+                        <tr>
+                            <td><strong>قيمة الفاتورة</strong></td>
+                            <td class="text-start">{{ "{:,.0f}".format(invoice.amount) }} ر.ي</td>
+                        </tr>
+                        <tr>
+                            <td><strong>تاريخ الفاتورة</strong></td>
+                            <td class="text-start">{{ invoice.invoice_date.strftime('%Y-%m-%d') }}</td>
+                        </tr>
+                        <tr>
+                            <td><strong>تاريخ الاستحقاق</strong></td>
+                            <td class="text-start">{{ invoice.due_date.strftime('%Y-%m-%d') if invoice.due_date else '-' }}</td>
+                        </tr>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- ملخص المدفوعات -->
+        <div class="col-md-8 mb-4">
+            <div class="card">
+                <div class="card-header bg-white">
+                    <h5 class="mb-0"><i class="fas fa-chart-pie"></i> ملخص المدفوعات</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-4 mb-3">
+                            <div class="summary-box">
+                                <i class="fas fa-money-bill-wave fa-2x text-success mb-2"></i>
+                                <h4 class="mb-0">{{ "{:,.0f}".format(invoice.paid_amount or 0) }} ر.ي</h4>
+                                <small class="text-muted">المبلغ المدفوع</small>
+                            </div>
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <div class="summary-box">
+                                <i class="fas fa-clock fa-2x text-warning mb-2"></i>
+                                <h4 class="mb-0">{{ "{:,.0f}".format(invoice.amount - (invoice.paid_amount or 0)) }} ر.ي</h4>
+                                <small class="text-muted">المبلغ المتبقي</small>
+                            </div>
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <div class="summary-box">
+                                <i class="fas fa-percent fa-2x text-info mb-2"></i>
+                                <h4 class="mb-0">{{ "%.1f"|format((invoice.paid_amount or 0) / invoice.amount * 100) }}%</h4>
+                                <small class="text-muted">نسبة الإنجاز</small>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="progress mt-2">
+                        <div class="progress-bar bg-success" style="width: {{ (invoice.paid_amount or 0) / invoice.amount * 100 }}%"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- سجل المدفوعات -->
+    <div class="card">
+        <div class="card-header bg-white">
+            <h5 class="mb-0"><i class="fas fa-list-timeline"></i> سجل المدفوعات</h5>
+        </div>
+        <div class="card-body">
+            {% if invoice.paid_amount and invoice.paid_amount > 0 %}
+            <div class="payment-timeline">
+                {% set payment_history = [] %}
+                {# ملاحظة: هذا جزء توضيحي، المدفوعات الجزئية تحتاج إلى جدول منفصل لتخزينها #}
+                <div class="alert alert-info">
+                    <i class="fas fa-info-circle"></i>
+                    تم تسجيل دفعة واحدة بقيمة {{ "{:,.0f}".format(invoice.paid_amount) }} ريال
+                    {% if invoice.payment_method %}
+                    <br><strong>طريقة الدفع:</strong>
+                    {% if invoice.payment_method == 'cash' %}نقدي
+                    {% elif invoice.payment_method == 'bank_transfer' %}تحويل بنكي
+                    {% elif invoice.payment_method == 'check' %}شيك
+                    {% endif %}
+                    {% endif %}
+                    {% if invoice.payment_reference %}
+                    <br><strong>رقم المرجع:</strong> {{ invoice.payment_reference }}
+                    {% endif %}
+                    {% if invoice.paid_date %}
+                    <br><strong>تاريخ الدفع:</strong> {{ invoice.paid_date.strftime('%Y-%m-%d') }}
+                    {% endif %}
+                </div>
+            </div>
+            {% else %}
+            <div class="empty-state text-center py-5">
+                <i class="fas fa-receipt fa-4x text-muted mb-3"></i>
+                <h5>لا توجد مدفوعات مسجلة</h5>
+                <p class="text-muted">لم يتم تسجيل أي دفعات لهذه الفاتورة بعد</p>
+                <a href="{{ url_for('pay_invoice', invoice_id=invoice.id) }}" class="btn btn-primary">
+                    <i class="fas fa-money-bill-wave"></i> تسديد الآن
+                </a>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- ملاحظات إضافية -->
+    {% if invoice.notes %}
+    <div class="card mt-4">
+        <div class="card-header bg-white">
+            <h5 class="mb-0"><i class="fas fa-sticky-note"></i> ملاحظات</h5>
+        </div>
+        <div class="card-body">
+            <p class="mb-0">{{ invoice.notes }}</p>
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+<style>
+    .table-borderless td, .table-borderless th {
+        padding: 0.3rem 0;
+    }
+    .empty-state i {
+        opacity: 0.5;
+    }
+</style>
+{% endblock %}

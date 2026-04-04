@@ -1,0 +1,502 @@
+{% extends "base.html" %}
+
+{% block title %}تفاصيل الشركة - {{ company.name }}{% endblock %}
+
+{% block extra_css %}
+<style>
+    .detail-card {
+        background: white;
+        border-radius: 15px;
+        padding: 1.5rem;
+        margin-bottom: 1.5rem;
+        box-shadow: var(--shadow-sm);
+    }
+
+    .detail-header {
+        border-bottom: 2px solid #e9ecef;
+        padding-bottom: 1rem;
+        margin-bottom: 1rem;
+    }
+
+    .info-row {
+        display: flex;
+        margin-bottom: 1rem;
+        padding: 0.5rem;
+        border-bottom: 1px solid #f0f0f0;
+    }
+
+    .info-label {
+        width: 150px;
+        font-weight: 600;
+        color: #495057;
+    }
+
+    .info-value {
+        flex: 1;
+        color: #6c757d;
+    }
+
+    .tree-view {
+        margin-top: 1rem;
+    }
+
+    .tree-node {
+        position: relative;
+        padding-right: 1.5rem;
+        margin-bottom: 0.5rem;
+    }
+
+    .tree-node-header {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0.5rem;
+        background: #f8f9fa;
+        border-radius: 10px;
+        cursor: pointer;
+        transition: all 0.3s ease;
+    }
+
+    .tree-node-header:hover {
+        background: #e9ecef;
+    }
+
+    .tree-children {
+        margin-right: 2rem;
+        padding-right: 1rem;
+        border-right: 2px solid #dee2e6;
+    }
+
+    .toggle-icon {
+        width: 24px;
+        height: 24px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        transition: transform 0.3s ease;
+    }
+
+    .criteria-item {
+        background: #f8f9fa;
+        border-radius: 8px;
+        padding: 0.5rem;
+        margin-bottom: 0.5rem;
+        border-right: 3px solid #9c27b0;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+        <div>
+            <h2>
+                <i class="fas fa-building"></i>
+                {{ company.name }}
+            </h2>
+            <p class="text-muted mb-0 mt-2">تفاصيل الشركة والمناطق والمواقع ومعايير التقييم</p>
+        </div>
+        <div>
+            <a href="{{ url_for('edit_company', company_id=company.id) }}" class="btn btn-primary">
+                <i class="fas fa-edit me-2"></i> تعديل الشركة
+            </a>
+            <a href="{{ url_for('companies_dashboard') }}" class="btn btn-secondary">
+                <i class="fas fa-arrow-right me-2"></i> رجوع
+            </a>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-4">
+        <!-- معلومات الشركة -->
+        <div class="detail-card">
+            <div class="detail-header">
+                <h5><i class="fas fa-info-circle"></i> معلومات الشركة</h5>
+            </div>
+            <div class="info-row">
+                <div class="info-label">اسم الشركة:</div>
+                <div class="info-value">{{ company.name }}</div>
+            </div>
+            <div class="info-row">
+                <div class="info-label">جهة الاتصال:</div>
+                <div class="info-value">{{ company.contact_person or '-' }}</div>
+            </div>
+            <div class="info-row">
+                <div class="info-label">رقم الهاتف:</div>
+                <div class="info-value">{{ company.phone or '-' }}</div>
+            </div>
+            <div class="info-row">
+                <div class="info-label">البريد الإلكتروني:</div>
+                <div class="info-value">{{ company.email or '-' }}</div>
+            </div>
+            <div class="info-row">
+                <div class="info-label">عدد المناطق:</div>
+                <div class="info-value">{{ company.company_regions|length }}</div>
+            </div>
+            <div class="info-row">
+                <div class="info-label">عدد المواقع:</div>
+                <div class="info-value">
+                    {% set locations_count = 0 %}
+                    {% for region in company.company_regions %}
+                        {% set locations_count = locations_count + region.region_locations|length %}
+                    {% endfor %}
+                    {{ locations_count }}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-8">
+        <!-- المناطق والمواقع ومعايير التقييم -->
+        <div class="detail-card">
+            <div class="detail-header d-flex justify-content-between align-items-center">
+                <h5><i class="fas fa-map-marker-alt"></i> المناطق والمواقع ومعايير التقييم</h5>
+                <button class="btn btn-sm btn-success" data-bs-toggle="modal" data-bs-target="#addRegionModal">
+                    <i class="fas fa-plus"></i> إضافة منطقة
+                </button>
+            </div>
+
+            {% if company.company_regions %}
+            <div class="tree-view">
+                {% for region in company.company_regions %}
+                <div class="tree-node">
+                    <div class="tree-node-header" onclick="toggleNode(this)">
+                        <span class="toggle-icon">
+                            <i class="fas fa-chevron-down"></i>
+                        </span>
+                        <i class="fas fa-map-marker-alt text-warning"></i>
+                        <strong>{{ region.name }}</strong>
+                        <small class="text-muted">({{ region.region_locations|length }} موقع)</small>
+                        <div class="btn-group" onclick="event.stopPropagation()">
+                            <button class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#editRegionModal{{ region.id }}">
+                                <i class="fas fa-edit"></i>
+                            </button>
+                            <button class="btn btn-sm btn-outline-danger" onclick="deleteRegion({{ region.id }})">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                            <button class="btn btn-sm btn-outline-success" data-bs-toggle="modal" data-bs-target="#addLocationModal{{ region.id }}">
+                                <i class="fas fa-plus"></i> موقع
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- المواقع -->
+                    <div class="tree-children">
+                        {% for location in region.region_locations %}
+                        <div class="tree-node">
+                            <div class="tree-node-header ps-4" onclick="toggleNode(this)">
+                                <span class="toggle-icon">
+                                    <i class="fas fa-chevron-down"></i>
+                                </span>
+                                <i class="fas fa-location-dot text-success"></i>
+                                <span>{{ location.name }}</span>
+                                {% if location.address %}
+                                <small class="text-muted">- {{ location.address }}</small>
+                                {% endif %}
+                                <div class="btn-group ms-auto" onclick="event.stopPropagation()">
+                                    <button class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#editLocationModal{{ location.id }}">
+                                        <i class="fas fa-edit"></i>
+                                    </button>
+                                    <button class="btn btn-sm btn-outline-danger" onclick="deleteLocation({{ location.id }})">
+                                        <i class="fas fa-trash"></i>
+                                    </button>
+                                    <button class="btn btn-sm btn-outline-info" data-bs-toggle="modal" data-bs-target="#addCriteriaModal{{ location.id }}">
+                                        <i class="fas fa-list"></i> معايير
+                                    </button>
+                                </div>
+                            </div>
+
+                            <!-- معايير التقييم -->
+                            <div class="tree-children ps-4">
+                                <div class="mb-2">
+                                    <strong class="small text-primary"><i class="fas fa-clipboard-list"></i> معايير التقييم:</strong>
+                                    {% if location.evaluation_criteria %}
+                                        {% for criteria in location.evaluation_criteria %}
+                                        <div class="criteria-item d-flex justify-content-between align-items-center">
+                                            <div>
+                                                <span class="fw-bold">{{ criteria.name }}</span>
+                                                {% if criteria.description %}
+                                                <br><small class="text-muted">{{ criteria.description }}</small>
+                                                {% endif %}
+                                                <br><small class="text-info">الدرجة القصوى: {{ criteria.max_score }}</small>
+                                            </div>
+                                            <div>
+                                                <button class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#editCriteriaModal{{ criteria.id }}">
+                                                    <i class="fas fa-edit"></i>
+                                                </button>
+                                                <button class="btn btn-sm btn-outline-danger" onclick="deleteCriteria({{ criteria.id }})">
+                                                    <i class="fas fa-trash"></i>
+                                                </button>
+                                            </div>
+                                        </div>
+                                        {% endfor %}
+                                    {% else %}
+                                    <div class="text-muted small">لا توجد معايير تقييم لهذا الموقع</div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Modal إضافة معايير تقييم -->
+                        <div class="modal fade" id="addCriteriaModal{{ location.id }}" tabindex="-1">
+                            <div class="modal-dialog">
+                                <div class="modal-content">
+                                    <form method="POST" action="{{ url_for('add_criteria') }}">
+                                        <div class="modal-header">
+                                            <h5 class="modal-title">إضافة معيار تقييم - {{ location.name }}</h5>
+                                            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                                        </div>
+                                        <div class="modal-body">
+                                            <input type="hidden" name="location_id" value="{{ location.id }}">
+                                            <div class="mb-3">
+                                                <label class="form-label">اسم المعيار <span class="text-danger">*</span></label>
+                                                <input type="text" name="name" class="form-control" required>
+                                            </div>
+                                            <div class="mb-3">
+                                                <label class="form-label">الوصف</label>
+                                                <textarea name="description" class="form-control" rows="2"></textarea>
+                                            </div>
+                                            <div class="mb-3">
+                                                <label class="form-label">الدرجة القصوى</label>
+                                                <select name="max_score" class="form-select">
+                                                    <option value="5">5 درجات</option>
+                                                    <option value="10" selected>10 درجات</option>
+                                                    <option value="15">15 درجة</option>
+                                                    <option value="20">20 درجة</option>
+                                                </select>
+                                            </div>
+                                        </div>
+                                        <div class="modal-footer">
+                                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">إلغاء</button>
+                                            <button type="submit" class="btn btn-primary">إضافة</button>
+                                        </div>
+                                    </form>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Modal تعديل معيار تقييم -->
+                        {% for criteria in location.evaluation_criteria %}
+                        <div class="modal fade" id="editCriteriaModal{{ criteria.id }}" tabindex="-1">
+                            <div class="modal-dialog">
+                                <div class="modal-content">
+                                    <form method="POST" action="{{ url_for('edit_criteria', criteria_id=criteria.id) }}">
+                                        <div class="modal-header">
+                                            <h5 class="modal-title">تعديل معيار التقييم</h5>
+                                            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                                        </div>
+                                        <div class="modal-body">
+                                            <div class="mb-3">
+                                                <label class="form-label">اسم المعيار</label>
+                                                <input type="text" name="name" class="form-control" value="{{ criteria.name }}" required>
+                                            </div>
+                                            <div class="mb-3">
+                                                <label class="form-label">الوصف</label>
+                                                <textarea name="description" class="form-control" rows="2">{{ criteria.description or '' }}</textarea>
+                                            </div>
+                                            <div class="mb-3">
+                                                <label class="form-label">الدرجة القصوى</label>
+                                                <select name="max_score" class="form-select">
+                                                    <option value="5" {% if criteria.max_score == 5 %}selected{% endif %}>5 درجات</option>
+                                                    <option value="10" {% if criteria.max_score == 10 %}selected{% endif %}>10 درجات</option>
+                                                    <option value="15" {% if criteria.max_score == 15 %}selected{% endif %}>15 درجة</option>
+                                                    <option value="20" {% if criteria.max_score == 20 %}selected{% endif %}>20 درجة</option>
+                                                </select>
+                                            </div>
+                                        </div>
+                                        <div class="modal-footer">
+                                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">إلغاء</button>
+                                            <button type="submit" class="btn btn-primary">حفظ</button>
+                                        </div>
+                                    </form>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+
+                        <!-- Modal تعديل موقع -->
+                        <div class="modal fade" id="editLocationModal{{ location.id }}" tabindex="-1">
+                            <div class="modal-dialog">
+                                <div class="modal-content">
+                                    <form method="POST" action="{{ url_for('edit_location', location_id=location.id) }}">
+                                        <div class="modal-header">
+                                            <h5 class="modal-title">تعديل الموقع</h5>
+                                            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                                        </div>
+                                        <div class="modal-body">
+                                            <div class="mb-3">
+                                                <label class="form-label">اسم الموقع</label>
+                                                <input type="text" name="location_name" class="form-control" value="{{ location.name }}" required>
+                                            </div>
+                                            <div class="mb-3">
+                                                <label class="form-label">العنوان</label>
+                                                <input type="text" name="address" class="form-control" value="{{ location.address or '' }}">
+                                            </div>
+                                            <div class="mb-3">
+                                                <label class="form-label">ملاحظات</label>
+                                                <textarea name="notes" class="form-control" rows="2">{{ location.notes or '' }}</textarea>
+                                            </div>
+                                        </div>
+                                        <div class="modal-footer">
+                                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">إلغاء</button>
+                                            <button type="submit" class="btn btn-primary">حفظ</button>
+                                        </div>
+                                    </form>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+
+                <!-- Modal تعديل منطقة -->
+                <div class="modal fade" id="editRegionModal{{ region.id }}" tabindex="-1">
+                    <div class="modal-dialog">
+                        <div class="modal-content">
+                            <form method="POST" action="{{ url_for('edit_region', region_id=region.id) }}">
+                                <div class="modal-header">
+                                    <h5 class="modal-title">تعديل المنطقة</h5>
+                                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                                </div>
+                                <div class="modal-body">
+                                    <div class="mb-3">
+                                        <label class="form-label">اسم المنطقة</label>
+                                        <input type="text" name="region_name" class="form-control" value="{{ region.name }}" required>
+                                    </div>
+                                </div>
+                                <div class="modal-footer">
+                                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">إلغاء</button>
+                                    <button type="submit" class="btn btn-primary">حفظ</button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Modal إضافة موقع -->
+                <div class="modal fade" id="addLocationModal{{ region.id }}" tabindex="-1">
+                    <div class="modal-dialog">
+                        <div class="modal-content">
+                            <form method="POST" action="{{ url_for('add_location') }}">
+                                <div class="modal-header">
+                                    <h5 class="modal-title">إضافة موقع جديد - {{ region.name }}</h5>
+                                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                                </div>
+                                <div class="modal-body">
+                                    <input type="hidden" name="region_id" value="{{ region.id }}">
+                                    <div class="mb-3">
+                                        <label class="form-label">اسم الموقع</label>
+                                        <input type="text" name="location_name" class="form-control" required>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label class="form-label">العنوان</label>
+                                        <input type="text" name="address" class="form-control">
+                                    </div>
+                                    <div class="mb-3">
+                                        <label class="form-label">ملاحظات</label>
+                                        <textarea name="notes" class="form-control" rows="2"></textarea>
+                                    </div>
+                                </div>
+                                <div class="modal-footer">
+                                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">إلغاء</button>
+                                    <button type="submit" class="btn btn-primary">إضافة</button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            {% else %}
+            <div class="text-center py-5 text-muted">
+                <i class="fas fa-map-marker-alt fa-3x mb-3"></i>
+                <p>لا توجد مناطق مسجلة لهذه الشركة</p>
+                <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addRegionModal">
+                    <i class="fas fa-plus"></i> إضافة منطقة
+                </button>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<!-- Modal إضافة منطقة -->
+<div class="modal fade" id="addRegionModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form method="POST" action="{{ url_for('add_region') }}">
+                <div class="modal-header">
+                    <h5 class="modal-title">إضافة منطقة جديدة</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <input type="hidden" name="company_id" value="{{ company.id }}">
+                    <div class="mb-3">
+                        <label class="form-label">اسم المنطقة</label>
+                        <input type="text" name="region_name" class="form-control" required>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">إلغاء</button>
+                    <button type="submit" class="btn btn-primary">إضافة</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+function toggleNode(element) {
+    const icon = element.querySelector('.toggle-icon i');
+    const children = element.closest('.tree-node').querySelector('.tree-children');
+    if (children) {
+        if (children.style.display === 'none') {
+            children.style.display = 'block';
+            icon.classList.remove('fa-chevron-right');
+            icon.classList.add('fa-chevron-down');
+        } else {
+            children.style.display = 'none';
+            icon.classList.remove('fa-chevron-down');
+            icon.classList.add('fa-chevron-right');
+        }
+    }
+}
+
+function deleteRegion(regionId) {
+    if (confirm('⚠️ هل أنت متأكد من حذف هذه المنطقة؟ سيتم حذف جميع المواقع ومعايير التقييم التابعة لها.')) {
+        const form = document.createElement('form');
+        form.method = 'POST';
+        form.action = `/regions/${regionId}/delete`;
+        document.body.appendChild(form);
+        form.submit();
+    }
+}
+
+function deleteLocation(locationId) {
+    if (confirm('⚠️ هل أنت متأكد من حذف هذا الموقع؟ سيتم حذف جميع معايير التقييم المرتبطة به.')) {
+        const form = document.createElement('form');
+        form.method = 'POST';
+        form.action = `/locations/${locationId}/delete`;
+        document.body.appendChild(form);
+        form.submit();
+    }
+}
+
+function deleteCriteria(criteriaId) {
+    if (confirm('⚠️ هل أنت متأكد من حذف معيار التقييم هذا؟')) {
+        const form = document.createElement('form');
+        form.method = 'POST';
+        form.action = `/criteria/${criteriaId}/delete`;
+        document.body.appendChild(form);
+        form.submit();
+    }
+}
+
+$(document).ready(function() {
+    // فتح جميع المناطق والمواقع افتراضياً
+    $('.tree-children').show();
+});
+</script>
+{% endblock %}
