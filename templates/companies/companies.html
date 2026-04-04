@@ -1,9 +1,36 @@
 {% extends "base.html" %}
-{% block title %}لوحة الشركات - طلعت هائل للخدمات والاستشارات الزراعية{% endblock %}
+
+{% block title %}الشركات - طلعت هائل للخدمات والاستشارات الزراعية{% endblock %}
 
 {% block extra_css %}
 <style>
-    /* جميع التنسيقات الموجودة تبقى كما هي */
+    /* تنسيقات متقدمة لصفحة الشركات */
+    .companies-header {
+        background: linear-gradient(135deg, #17a2b8 0%, #0dcaf0 100%);
+        border-radius: 20px;
+        padding: 1.5rem;
+        margin-bottom: 1.5rem;
+        color: white;
+        position: relative;
+        overflow: hidden;
+    }
+
+    .companies-header::before {
+        content: '';
+        position: absolute;
+        top: -50%;
+        right: -50%;
+        width: 200%;
+        height: 200%;
+        background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, transparent 70%);
+        animation: rotate 20s linear infinite;
+    }
+
+    @keyframes rotate {
+        from { transform: rotate(0deg); }
+        to { transform: rotate(360deg); }
+    }
+
     .companies-stats {
         display: grid;
         grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
@@ -143,13 +170,6 @@
     .company-item {
         animation: fadeInUp 0.3s ease;
     }
-
-    .toast-notification {
-        position: fixed;
-        bottom: 20px;
-        right: 20px;
-        z-index: 9999;
-    }
 </style>
 {% endblock %}
 
@@ -253,7 +273,7 @@
                 </div>
             </div>
             <div class="card-body">
-                <!-- المناطق - استخدم company.company_regions -->
+                <!-- المناطق -->
                 {% if company.company_regions and company.company_regions|length > 0 %}
                 <div class="tree-view">
                     {% for region in company.company_regions %}
@@ -278,7 +298,7 @@
                             </div>
                         </div>
 
-                        <!-- المواقع - استخدم region.region_locations -->
+                        <!-- المواقع -->
                         <div class="tree-children">
                             {% for location in region.region_locations %}
                             <div class="tree-node" data-name="{{ location.name|lower }}">

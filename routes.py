@@ -18,9 +18,8 @@ def register_routes(app):
     # ==================== الصفحة الرئيسية ====================
     @app.route('/')
     def index():
-        # إذا لم يكن المستخدم مسجل دخول، قم بتوجيهه إلى صفحة تسجيل الدخول
         if not current_user.is_authenticated:
-            return redirect(url_for('login'))
+            return render_template('landing.html')  # <- هذا هو التعديل الوحيد
 
         # باقي الكود للمستخدمين المسجلين فقط
         try:
@@ -201,27 +200,65 @@ def register_routes(app):
         })
 
     # ==================== إدارة الموظفين ====================
+    # ==================== إدارة الموظفين ====================
+
+    def get_supervisor_workers():
+        """الحصول على العمال التابعين للمشرف الحالي"""
+        if current_user.role == 'supervisor':
+            supervisor_employee = Employee.query.filter_by(user_id=current_user.id, is_active=True).first()
+            if supervisor_employee:
+                return Employee.query.filter(
+                    Employee.is_active == True,
+                    Employee.supervisor_id == supervisor_employee.id
+                ).all()
+        return []
+
+    def can_edit_employee(employee):
+        """التحقق من صلاحية تعديل الموظف"""
+        if current_user.role == 'admin':
+            return True
+        elif current_user.role == 'supervisor':
+            # المشرف لا يمكنه تعديل أي موظف
+            return False
+        return False
+
+    def can_delete_employee(employee):
+        """التحقق من صلاحية حذف الموظف"""
+        if current_user.role == 'admin':
+            return True
+        return False
+
     @app.route('/employees')
     @login_required
     def employees_list():
         from sqlalchemy.orm import joinedload
 
-        # تحميل الموظفين مع المشرفين والشركات
-        employees = Employee.query.options(
-            joinedload(Employee.employee_company),
-            joinedload(Employee.supervisor)
-        ).filter_by(is_active=True).all()
+        # تحديد الموظفين حسب صلاحية المستخدم
+        if current_user.role == 'admin':
+            employees = Employee.query.options(
+                joinedload(Employee.employee_company),
+                joinedload(Employee.supervisor)
+            ).filter_by(is_active=True).all()
+        elif current_user.role == 'supervisor':
+            # المشرف يرى فقط العمال التابعين له
+            employees = get_supervisor_workers()
+        else:
+            employees = []
 
         regions = get_regions()
         companies = Company.query.all()
+
+        # تمرير صلاحية التعديل والحذف إلى القالب
         return render_template('employees/employees.html',
                                employees=employees,
                                regions=regions,
-                               companies=companies)
+                               companies=companies,
+                               can_edit=(current_user.role == 'admin'),
+                               can_delete=(current_user.role == 'admin'))
 
     @app.route('/employees/import', methods=['GET', 'POST'])
     @login_required
-    @role_required('admin', 'supervisor')
+    @role_required('admin')  # ✅ فقط المدير يمكنه استيراد الموظفين
     def import_employees():
         if request.method == 'POST':
             file = request.files.get('file')
@@ -230,7 +267,6 @@ def register_routes(app):
                 count = 0
                 for _, row in df.iterrows():
                     if pd.notna(row.get('الاســــــم')) and pd.notna(row.get('رقم البطاقة')):
-                        # البحث عن الشركة حسب الاسم إذا وجد
                         company_name = row.get('الشركة', '')
                         company = None
                         if company_name:
@@ -254,12 +290,12 @@ def register_routes(app):
                 return redirect(url_for('employees_list'))
             flash('الرجاء اختيار ملف Excel صحيح', 'danger')
 
-        companies = Company.query.all()  # جلب الشركات للقالب
+        companies = Company.query.all()
         return render_template('employees/import_employees.html', companies=companies)
 
     @app.route('/employees/add', methods=['GET', 'POST'])
     @login_required
-    @role_required('admin', 'supervisor')
+    @role_required('admin')  # ✅ فقط المدير يمكنه إضافة موظفين
     def add_employee():
         if request.method == 'POST':
             card_number = request.form.get('card_number')
@@ -267,13 +303,11 @@ def register_routes(app):
             employee_type = request.form.get('employee_type')
             supervisor_id = request.form.get('supervisor_id')
 
-            # التحقق من رقم البطاقة والكود
             if Employee.query.filter_by(card_number=card_number).first():
                 flash('رقم البطاقة موجود مسبقاً', 'danger')
             elif Employee.query.filter_by(code=code).first():
                 flash('كود التعريف موجود مسبقاً', 'danger')
             else:
-                # إنشاء الموظف
                 employee = Employee(
                     name=request.form.get('full_name'),
                     card_number=card_number,
@@ -292,7 +326,6 @@ def register_routes(app):
                 db.session.add(employee)
                 db.session.commit()
 
-                # إنشاء حساب مستخدم إذا كان مشرف أو إداري
                 if employee_type in ['supervisor', 'admin']:
                     username = request.form.get('username')
                     password = request.form.get('password')
@@ -319,12 +352,9 @@ def register_routes(app):
 
                 return redirect(url_for('employees_list'))
 
-        # ========== GET Request ==========
-        # جلب الشركات
         companies = Company.query.all()
         companies_data = [{'id': c.id, 'name': c.name} for c in companies]
 
-        # جلب المشرفين والإداريين (حسب job_title)
         supervisors = Employee.query.filter(
             (Employee.job_title.contains('مشرف')) | (Employee.job_title == 'إداري'),
             Employee.is_active == True
@@ -337,42 +367,19 @@ def register_routes(app):
             'company_id': s.company_id
         } for s in supervisors]
 
-        # طباعة للتصحيح
-        print("=" * 50)
-        print("Companies Data:")
-        for c in companies_data:
-            print(f"  ID: {c['id']}, Name: {c['name']}")
-        print("Supervisors Data (based on job_title):")
-        for s in supervisors_data:
-            print(f"  ID: {s['id']}, Name: {s['name']}, Job: {s['job_title']}, Company: {s['company_id']}")
-        print("=" * 50)
-
         return render_template('employees/add_employee.html',
                                companies=companies_data,
                                supervisors=supervisors_data)
 
-    @app.route('/api/areas/<int:company_id>')
-    def get_areas_by_company(company_id):
-        areas = Region.query.filter_by(company_id=company_id).all()
-        return jsonify({'success': True, 'data': [{'id': a.id, 'name': a.name} for a in areas]})
-
-    @app.route('/api/locations/<int:area_id>')
-    def get_locations_by_area(area_id):
-        locations = Location.query.filter_by(region_id=area_id).all()
-        return jsonify({'success': True, 'data': [{'id': l.id, 'name': l.name} for l in locations]})
-
     @app.route('/employees/edit/<int:emp_id>', methods=['GET', 'POST'])
     @login_required
-    @role_required('admin', 'supervisor')
+    @role_required('admin')  # ✅ فقط المدير يمكنه تعديل الموظفين
     def edit_employee(emp_id):
         employee = Employee.query.get_or_404(emp_id)
-
-        # تخزين القيم القديمة للمقارنة
         old_employee_type = employee.employee_type
         old_supervisor_id = employee.supervisor_id
 
         if request.method == 'POST':
-            # التحقق من عدم وجود نفس الرقم أو الكود (باستثناء الموظف الحالي)
             card_number = request.form.get('card_number')
             code = request.form.get('code')
             employee_type = request.form.get('employee_type')
@@ -416,7 +423,6 @@ def register_routes(app):
                                        companies=companies,
                                        supervisors=supervisors_data)
 
-            # تحديث بيانات الموظف الأساسية
             employee.name = request.form.get('full_name')
             employee.card_number = card_number
             employee.code = code
@@ -428,28 +434,23 @@ def register_routes(app):
             employee.company_id = request.form.get('company_id') or None
             employee.employee_type = employee_type
 
-            # تحديث المشرف المسؤول للعامل
             if employee_type == 'worker' and supervisor_id:
                 employee.supervisor_id = supervisor_id
             elif employee_type != 'worker':
                 employee.supervisor_id = None
 
-            # إذا تغير نوع الموظف من مشرف/إداري إلى عامل
             if old_employee_type in ['supervisor', 'admin'] and employee_type == 'worker':
-                # حذف حساب المستخدم المرتبط
                 if employee.user_id:
                     user = User.query.get(employee.user_id)
                     if user:
                         db.session.delete(user)
                     employee.user_id = None
 
-            # إذا تغير نوع الموظف من عامل إلى مشرف/إداري
             elif old_employee_type == 'worker' and employee_type in ['supervisor', 'admin']:
                 username = request.form.get('username')
                 password = request.form.get('password')
 
                 if username and password:
-                    # التحقق من عدم وجود اسم مستخدم مكرر
                     if User.query.filter_by(username=username).first():
                         flash('اسم المستخدم موجود مسبقاً', 'danger')
                         companies = Company.query.all()
@@ -477,7 +478,6 @@ def register_routes(app):
                     db.session.commit()
                     employee.user_id = user.id
 
-            # إذا بقي مشرف/إداري وتم تغيير اسم المستخدم أو كلمة المرور
             elif employee_type in ['supervisor', 'admin'] and employee.user_id:
                 username = request.form.get('username')
                 password = request.form.get('password')
@@ -518,11 +518,9 @@ def register_routes(app):
 
             return redirect(url_for('employees_list'))
 
-        # ========== GET Request ==========
         companies = Company.query.all()
         companies_data = [{'id': c.id, 'name': c.name} for c in companies]
 
-        # جلب المشرفين والإداريين للتعديل (باستثناء الموظف الحالي)
         supervisors = Employee.query.filter(
             (Employee.job_title.contains('مشرف')) | (Employee.job_title == 'إداري'),
             Employee.is_active == True,
@@ -536,7 +534,6 @@ def register_routes(app):
             'company_id': s.company_id
         } for s in supervisors]
 
-        # إذا كان الموظف الحالي مشرف/إداري، جلب بيانات المستخدم
         user_data = None
         if employee.user_id:
             user = User.query.get(employee.user_id)
@@ -555,13 +552,27 @@ def register_routes(app):
 
     @app.route('/employees/delete/<int:emp_id>')
     @login_required
-    @role_required('admin')
+    @role_required('admin')  # ✅ فقط المدير يمكنه حذف الموظفين
     def delete_employee(emp_id):
         employee = Employee.query.get_or_404(emp_id)
         employee.is_active = False
         db.session.commit()
         flash('تم حذف الموظف بنجاح', 'success')
         return redirect(url_for('employees_list'))
+
+
+
+    @app.route('/api/areas/<int:company_id>')
+    @login_required
+    def get_areas_by_company(company_id):
+        areas = Region.query.filter_by(company_id=company_id).all()
+        return jsonify({'success': True, 'data': [{'id': a.id, 'name': a.name} for a in areas]})
+
+    @app.route('/api/locations/<int:area_id>')
+    @login_required
+    def get_locations_by_area(area_id):
+        locations = Location.query.filter_by(region_id=area_id).all()
+        return jsonify({'success': True, 'data': [{'id': l.id, 'name': l.name} for l in locations]})
 
     @app.route('/employees/api/list')
     @login_required
@@ -613,7 +624,6 @@ def register_routes(app):
         date = request.args.get('date', today.strftime('%Y-%m-%d'))
         selected_date = datetime.strptime(date, '%Y-%m-%d').date()
 
-        # حساب التواريخ السابقة واللاحقة
         prev_date = selected_date - timedelta(days=1)
         next_date = selected_date + timedelta(days=1)
 
@@ -621,10 +631,19 @@ def register_routes(app):
         attendances = Attendance.query.filter_by(date=selected_date).all()
         attendance_dict = {a.employee_id: a for a in attendances}
 
-        # جلب الموظفين النشطين
-        employees = Employee.query.filter_by(is_active=True).all()
+        # جلب الموظفين حسب صلاحية المستخدم
+        if current_user.role == 'admin':
+            employees = Employee.query.filter_by(is_active=True).all()
+        elif current_user.role == 'supervisor':
+            # المشرف يرى فقط عمال شركته
+            supervisor_employee = Employee.query.filter_by(user_id=current_user.id).first()
+            if supervisor_employee:
+                employees = Employee.query.filter_by(is_active=True, company_id=supervisor_employee.company_id).all()
+            else:
+                employees = []
+        else:
+            employees = []
 
-        # جلب المناطق والشركات للفلترة
         regions = get_regions()
         companies = Company.query.all()
 
@@ -860,147 +879,11 @@ def register_routes(app):
             print(f"Error in save_bulk_attendance: {e}")
 
         return redirect(url_for('attendance_list', date=date))
-    # ==================== المعاملات المالية ====================
-    @app.route('/financial/transactions')
-    @login_required
-    def transactions_list():
-        transaction_type = request.args.get('type', 'all')
-        employee_id = request.args.get('employee_id', type=int)
-
-        query = FinancialTransaction.query
-        if transaction_type != 'all':
-            query = query.filter_by(transaction_type=transaction_type)
-        if employee_id:
-            query = query.filter_by(employee_id=employee_id)
-
-        transactions = query.filter_by(is_settled=False).order_by(FinancialTransaction.date.desc()).all()
-        employees = Employee.query.filter_by(is_active=True).all()
-
-        return render_template('financial/transactions.html',
-                               transactions=transactions,
-                               employees=employees,
-                               selected_type=transaction_type,
-                               selected_employee=employee_id)
-
-    @app.route('/financial/add_transaction', methods=['GET', 'POST'])
-    @login_required
-    def add_transaction():
-        if request.method == 'POST':
-            transaction = FinancialTransaction(
-                employee_id=request.form.get('employee_id'),
-                transaction_type=request.form.get('transaction_type'),
-                amount=float(request.form.get('amount')),
-                description=request.form.get('description'),
-                date=datetime.strptime(request.form.get('date'), '%Y-%m-%d').date(),
-                created_by=current_user.id
-            )
-            db.session.add(transaction)
-            db.session.commit()
-            flash('تم إضافة المعاملة المالية بنجاح', 'success')
-            return redirect(url_for('transactions_list'))
-
-        employees = Employee.query.filter_by(is_active=True).all()
-        return render_template('financial/add_transaction.html',
-                               employees=employees,
-                               transaction_types=FinancialTransaction.TRANSACTION_TYPES)
-
-    @app.route('/financial/delete_transaction/<int:trans_id>')
-    @login_required
-    @role_required('admin', 'finance')
-    def delete_transaction(trans_id):
-        transaction = FinancialTransaction.query.get_or_404(trans_id)
-        db.session.delete(transaction)
-        db.session.commit()
-        flash('تم حذف المعاملة بنجاح', 'success')
-        return redirect(url_for('transactions_list'))
-
-    @app.route('/financial/transfer_to_salary', methods=['POST'])
-    @login_required
-    @role_required('admin', 'finance')
-    def transfer_transaction_to_salary():
-        """ترحيل معاملة واحدة إلى الراتب"""
-        try:
-            data = request.get_json()
-            transaction_id = data.get('transaction_id')
-
-            transaction = FinancialTransaction.query.get(transaction_id)
-            if not transaction:
-                return jsonify({'success': False, 'error': 'المعاملة غير موجودة'})
-
-            if transaction.is_settled:
-                return jsonify({'success': False, 'error': 'المعاملة تم ترحيلها مسبقاً'})
-
-            # ترحيل المعاملة
-            transaction.is_settled = True
-            transaction.settled_date = datetime.now().date()
-
-            db.session.commit()
-
-            return jsonify({'success': True, 'message': 'تم ترحيل المعاملة بنجاح'})
-
-        except Exception as e:
-            db.session.rollback()
-            return jsonify({'success': False, 'error': str(e)})
-
-    @app.route('/financial/bulk_transfer', methods=['POST'])
-    @login_required
-    @role_required('admin', 'finance')
-    def bulk_transfer_transactions():
-        """ترحيل معاملات متعددة إلى الراتب"""
-        try:
-            data = request.get_json()
-            transaction_ids = data.get('transaction_ids', [])
-
-            if not transaction_ids:
-                return jsonify({'success': False, 'error': 'لم يتم تحديد أي معاملات'})
-
-            count = 0
-            for trans_id in transaction_ids:
-                transaction = FinancialTransaction.query.get(trans_id)
-                if transaction and not transaction.is_settled:
-                    transaction.is_settled = True
-                    transaction.settled_date = datetime.now().date()
-                    count += 1
-
-            db.session.commit()
-
-            return jsonify({'success': True, 'message': f'تم ترحيل {count} معاملة بنجاح'})
-
-        except Exception as e:
-            db.session.rollback()
-            return jsonify({'success': False, 'error': str(e)})
-
-    # ==================== واجهات رئيسية ====================
-
-    @app.route('/financial/dashboard')
-    @login_required
-    def financial_dashboard():
-        """لوحة المالية الرئيسية"""
-        from sqlalchemy import func
-
-        # إحصائيات
-        total_advances = FinancialTransaction.query.filter_by(transaction_type='advance', is_settled=False).count()
-        total_overtime = FinancialTransaction.query.filter_by(transaction_type='overtime', is_settled=False).count()
-        total_deductions = FinancialTransaction.query.filter_by(transaction_type='deduction', is_settled=False).count()
-        total_salaries = Salary.query.filter_by(is_paid=False).count()
-
-        # آخر المعاملات
-        recent_transactions = FinancialTransaction.query.order_by(FinancialTransaction.date.desc()).limit(10).all()
-
-        # آخر الرواتب
-        recent_salaries = Salary.query.order_by(Salary.month_year.desc()).limit(10).all()
-
-        return render_template('financial/dashboard.html',
-                               total_advances=total_advances,
-                               total_overtime=total_overtime,
-                               total_deductions=total_deductions,
-                               total_salaries=total_salaries,
-                               recent_transactions=recent_transactions,
-                               recent_salaries=recent_salaries)
 
     # ==================== Company Management Routes ====================
     @app.route('/companies')
     @login_required
+    @role_required('admin')  # ✅ فقط المدير يمكنه الوصول إلى قائمة الشركات
     def companies_dashboard():
         """عرض قائمة الشركات"""
         companies = Company.query.all()
@@ -1198,73 +1081,50 @@ def register_routes(app):
         flash('تم حذف الموقع بنجاح', 'success')
         return redirect(url_for('company_details', company_id=company_id))
 
-    @app.route('/reports/dashboard')
-    @login_required
-    def reports_dashboard():
-        """لوحة التقارير الرئيسية"""
-        from sqlalchemy import func
-
-        total_employees = Employee.query.filter_by(is_active=True).count()
-        total_companies = Company.query.count()
-
-        # رواتب الشهر الحالي
-        current_month = datetime.now().strftime('%m-%Y')
-        total_salaries_month = db.session.query(func.sum(Salary.total_salary)).filter_by(
-            month_year=current_month).scalar() or 0
-
-        # نسبة الحضور اليومية
-        today = datetime.now().date()
-        today_attendance = Attendance.query.filter_by(date=today, attendance_status='present').count()
-        attendance_rate = round((today_attendance / total_employees * 100) if total_employees > 0 else 0)
-
-        return render_template('reports/dashboard.html',
-                               total_employees=total_employees,
-                               total_companies=total_companies,
-                               total_salaries_month=total_salaries_month,
-                               attendance_rate=attendance_rate)
-    # ==================== الرواتب ====================
-    # ==================== الرواتب ====================
+    # ==================== الرواتب (مع صلاحيات) ====================
     @app.route('/financial/salaries')
     @login_required
+    @role_required('admin', 'finance', 'supervisor')
     def salaries_list():
-        """عرض الرواتب مع دعم فلترة التاريخ"""
-        # الحصول على معاملات الفلترة
+        """عرض الرواتب - حسب صلاحية المستخدم"""
         start_date = request.args.get('start_date')
         end_date = request.args.get('end_date')
         selected_month = request.args.get('month')
 
-        # بناء الاستعلام الأساسي
         query = Salary.query
 
-        # تطبيق فلتر التاريخ إذا وجد
+        # تطبيق فلتر التاريخ
         if start_date and end_date:
-            # تحويل التواريخ إلى صيغة شهرية للمقارنة
             start_parts = start_date.split('-')
             end_parts = end_date.split('-')
-
             if len(start_parts) >= 2 and len(end_parts) >= 2:
                 start_month = f"{start_parts[0]}-{start_parts[1]}"
                 end_month = f"{end_parts[0]}-{end_parts[1]}"
-
-                # فلترة الرواتب حسب نطاق الأشهر
                 query = query.filter(
                     Salary.month_year >= start_month,
                     Salary.month_year <= end_month
                 )
 
-        # تطبيق فلتر الشهر إذا وجد
         if selected_month:
             query = query.filter_by(month_year=selected_month)
 
-        # جلب جميع الرواتب مرتبة
+        # تطبيق صلاحية المشرف (يرى فقط رواتب عمال شركته)
+        if current_user.role == 'supervisor':
+            supervisor_employee = Employee.query.filter_by(user_id=current_user.id).first()
+            if supervisor_employee:
+                worker_ids = [e.id for e in
+                              Employee.query.filter_by(supervisor_id=supervisor_employee.id, is_active=True).all()]
+                query = query.filter(Salary.employee_id.in_(worker_ids))
+            else:
+                query = query.filter(False)
+
         all_salaries = query.order_by(Salary.month_year.desc()).all()
 
-        # الحصول على قائمة الأشهر المتاحة من جميع الرواتب (للقائمة المنسدلة)
+        # الحصول على قائمة الأشهر المتاحة
         all_salaries_for_months = Salary.query.order_by(Salary.month_year.desc()).all()
         available_months = list(set([s.month_year for s in all_salaries_for_months]))
         available_months.sort(reverse=True)
 
-        # إذا لم يتم تحديد شهر، استخدم أحدث شهر متاح
         if not selected_month and available_months and not (start_date or end_date):
             selected_month = available_months[0]
             all_salaries = Salary.query.filter_by(month_year=selected_month).order_by(Salary.month_year.desc()).all()
@@ -1275,10 +1135,12 @@ def register_routes(app):
                                selected_month=selected_month or 'لا يوجد',
                                start_date=start_date,
                                end_date=end_date)
+
     @app.route('/financial/salary_calculation', methods=['GET', 'POST'])
     @login_required
     @role_required('admin', 'finance')
     def salary_calculation():
+        """حساب الرواتب - للمدير والموظف المالي فقط"""
         if request.method == 'POST':
             month_year = request.form.get('month_year')
             start_date, end_date = get_financial_month_dates(month_year)
@@ -1323,6 +1185,7 @@ def register_routes(app):
     @login_required
     @role_required('admin', 'finance')
     def pay_salary(salary_id):
+        """صرف راتب - للمدير والموظف المالي فقط"""
         salary = Salary.query.get_or_404(salary_id)
         salary.is_paid = True
         salary.paid_date = datetime.now().date()
@@ -1332,18 +1195,331 @@ def register_routes(app):
         flash('تم دفع الراتب بنجاح', 'success')
         return redirect(url_for('salaries_list'))
 
+    # ==================== المعاملات المالية (مع صلاحيات) ====================
+    @app.route('/financial/transactions')
+    @login_required
+    @role_required('admin', 'finance', 'supervisor')
+    def transactions_list():
+        """عرض المعاملات المالية"""
+        transaction_type = request.args.get('type', 'all')
+        employee_id = request.args.get('employee_id', type=int)
+
+        query = FinancialTransaction.query
+
+        if transaction_type != 'all':
+            query = query.filter_by(transaction_type=transaction_type)
+
+        # تطبيق صلاحية المشرف (يرى فقط معاملات عمال شركته)
+        if current_user.role == 'supervisor':
+            supervisor_employee = Employee.query.filter_by(user_id=current_user.id).first()
+            if supervisor_employee:
+                worker_ids = [e.id for e in
+                              Employee.query.filter_by(supervisor_id=supervisor_employee.id, is_active=True).all()]
+                query = query.filter(FinancialTransaction.employee_id.in_(worker_ids))
+            else:
+                query = query.filter(False)
+
+        if employee_id:
+            query = query.filter_by(employee_id=employee_id)
+
+        transactions = query.filter_by(is_settled=False).order_by(FinancialTransaction.date.desc()).all()
+        employees = Employee.query.filter_by(is_active=True).all()
+
+        return render_template('financial/transactions.html',
+                               transactions=transactions,
+                               employees=employees,
+                               selected_type=transaction_type,
+                               selected_employee=employee_id)
+
+    @app.route('/financial/add_transaction', methods=['GET', 'POST'])
+    @login_required
+    @role_required('admin', 'finance')
+    def add_transaction():
+        """إضافة معاملة مالية - للمدير والموظف المالي فقط"""
+        if request.method == 'POST':
+            transaction = FinancialTransaction(
+                employee_id=request.form.get('employee_id'),
+                transaction_type=request.form.get('transaction_type'),
+                amount=float(request.form.get('amount')),
+                description=request.form.get('description'),
+                date=datetime.strptime(request.form.get('date'), '%Y-%m-%d').date(),
+                created_by=current_user.id
+            )
+            db.session.add(transaction)
+            db.session.commit()
+            flash('تم إضافة المعاملة المالية بنجاح', 'success')
+            return redirect(url_for('transactions_list'))
+
+        employees = Employee.query.filter_by(is_active=True).all()
+        return render_template('financial/add_transaction.html',
+                               employees=employees,
+                               transaction_types=FinancialTransaction.TRANSACTION_TYPES)
+
+    @app.route('/financial/delete_transaction/<int:trans_id>')
+    @login_required
+    @role_required('admin', 'finance')
+    def delete_transaction(trans_id):
+        """حذف معاملة مالية - للمدير والموظف المالي فقط"""
+        transaction = FinancialTransaction.query.get_or_404(trans_id)
+        db.session.delete(transaction)
+        db.session.commit()
+        flash('تم حذف المعاملة بنجاح', 'success')
+        return redirect(url_for('transactions_list'))
+
+    @app.route('/financial/transfer_to_salary', methods=['POST'])
+    @login_required
+    @role_required('admin', 'finance')
+    def transfer_transaction_to_salary():
+        """ترحيل معاملة واحدة إلى الراتب"""
+        try:
+            data = request.get_json()
+            transaction_id = data.get('transaction_id')
+
+            transaction = FinancialTransaction.query.get(transaction_id)
+            if not transaction:
+                return jsonify({'success': False, 'error': 'المعاملة غير موجودة'})
+
+            if transaction.is_settled:
+                return jsonify({'success': False, 'error': 'المعاملة تم ترحيلها مسبقاً'})
+
+            transaction.is_settled = True
+            transaction.settled_date = datetime.now().date()
+            db.session.commit()
+
+            return jsonify({'success': True, 'message': 'تم ترحيل المعاملة بنجاح'})
+
+        except Exception as e:
+            db.session.rollback()
+            return jsonify({'success': False, 'error': str(e)})
+
+    @app.route('/financial/bulk_transfer', methods=['POST'])
+    @login_required
+    @role_required('admin', 'finance')
+    def bulk_transfer_transactions():
+        """ترحيل معاملات متعددة إلى الراتب"""
+        try:
+            data = request.get_json()
+            transaction_ids = data.get('transaction_ids', [])
+
+            if not transaction_ids:
+                return jsonify({'success': False, 'error': 'لم يتم تحديد أي معاملات'})
+
+            count = 0
+            for trans_id in transaction_ids:
+                transaction = FinancialTransaction.query.get(trans_id)
+                if transaction and not transaction.is_settled:
+                    transaction.is_settled = True
+                    transaction.settled_date = datetime.now().date()
+                    count += 1
+
+            db.session.commit()
+
+            return jsonify({'success': True, 'message': f'تم ترحيل {count} معاملة بنجاح'})
+
+        except Exception as e:
+            db.session.rollback()
+            return jsonify({'success': False, 'error': str(e)})
+
+    # ==================== واجهات رئيسية ====================
+    @app.route('/financial/dashboard')
+    @login_required
+    @role_required('admin', 'finance')
+    def financial_dashboard():
+        """لوحة المالية الرئيسية - للمدير والموظف المالي فقط"""
+        from sqlalchemy import func
+
+        total_advances = FinancialTransaction.query.filter_by(transaction_type='advance', is_settled=False).count()
+        total_overtime = FinancialTransaction.query.filter_by(transaction_type='overtime', is_settled=False).count()
+        total_deductions = FinancialTransaction.query.filter_by(transaction_type='deduction', is_settled=False).count()
+        total_salaries = Salary.query.filter_by(is_paid=False).count()
+
+        recent_transactions = FinancialTransaction.query.order_by(FinancialTransaction.date.desc()).limit(10).all()
+        recent_salaries = Salary.query.order_by(Salary.month_year.desc()).limit(10).all()
+
+        return render_template('financial/dashboard.html',
+                               total_advances=total_advances,
+                               total_overtime=total_overtime,
+                               total_deductions=total_deductions,
+                               total_salaries=total_salaries,
+                               recent_transactions=recent_transactions,
+                               recent_salaries=recent_salaries)
+
+    # ==================== العقود والفواتير (مع صلاحيات) ====================
+    @app.route('/contracts')
+    @login_required
+    @role_required('admin', 'finance')
+    def contracts_list():
+        """عرض العقود"""
+        if current_user.role == 'supervisor':
+            supervisor_employee = Employee.query.filter_by(user_id=current_user.id).first()
+            if supervisor_employee:
+                contracts = Contract.query.filter_by(company_id=supervisor_employee.company_id).all()
+            else:
+                contracts = []
+        else:
+            contracts = Contract.query.all()
+        return render_template('contracts/contracts.html', contracts=contracts)
+
+    @app.route('/contracts/add', methods=['GET', 'POST'])
+    @login_required
+    @role_required('admin', 'finance')
+    def add_contract():
+        """إضافة عقد - للمدير والموظف المالي فقط"""
+        if request.method == 'POST':
+            contract = Contract(
+                company_id=request.form.get('company_id'),
+                contract_type=request.form.get('contract_type'),
+                contract_value=float(request.form.get('contract_value')),
+                start_date=datetime.strptime(request.form.get('start_date'), '%Y-%m-%d').date(),
+                end_date=datetime.strptime(request.form.get('end_date'), '%Y-%m-%d').date() if request.form.get(
+                    'end_date') else None,
+                notes=request.form.get('notes')
+            )
+            contract.remaining_amount = contract.contract_value
+            db.session.add(contract)
+            db.session.commit()
+            flash('تم إضافة العقد بنجاح', 'success')
+            return redirect(url_for('contracts_list'))
+
+        companies = Company.query.all()
+        return render_template('contracts/add_contract.html', companies=companies)
+
+    @app.route('/invoices')
+    @login_required
+    @role_required('admin', 'finance')
+    def invoices_list():
+        """عرض الفواتير"""
+        if current_user.role == 'supervisor':
+            supervisor_employee = Employee.query.filter_by(user_id=current_user.id).first()
+            if supervisor_employee:
+                contracts = Contract.query.filter_by(company_id=supervisor_employee.company_id).all()
+                contract_ids = [c.id for c in contracts]
+                invoices = Invoice.query.filter(Invoice.contract_id.in_(contract_ids)).all()
+            else:
+                invoices = []
+        else:
+            invoices = Invoice.query.all()
+        return render_template('contracts/invoices.html', invoices=invoices)
+
+    @app.route('/invoices/add', methods=['GET', 'POST'])
+    @login_required
+    @role_required('admin', 'finance')
+    def add_invoice():
+        """إضافة فاتورة - للمدير والموظف المالي فقط"""
+        if request.method == 'POST':
+            invoice = Invoice(
+                contract_id=request.form.get('contract_id'),
+                invoice_number=request.form.get('invoice_number'),
+                amount=float(request.form.get('amount')),
+                invoice_date=datetime.strptime(request.form.get('invoice_date'), '%Y-%m-%d').date(),
+                due_date=datetime.strptime(request.form.get('due_date'), '%Y-%m-%d').date() if request.form.get(
+                    'due_date') else None,
+                notes=request.form.get('notes')
+            )
+            db.session.add(invoice)
+
+            contract = Contract.query.get(request.form.get('contract_id'))
+            if contract:
+                contract.amount_received += invoice.amount
+                contract.remaining_amount = contract.contract_value - contract.amount_received
+                if contract.remaining_amount <= 0:
+                    contract.status = 'completed'
+
+            db.session.commit()
+            flash('تم إضافة الفاتورة بنجاح', 'success')
+            return redirect(url_for('invoices_list'))
+
+        contracts = Contract.query.filter_by(status='active').all()
+        return render_template('contracts/add_invoice.html', contracts=contracts)
+
+    @app.route('/invoices/pay/<int:invoice_id>', methods=['GET', 'POST'])
+    @login_required
+    @role_required('admin', 'finance')
+    def pay_invoice(invoice_id):
+        """تسديد فاتورة - للمدير والموظف المالي فقط"""
+        invoice = Invoice.query.get_or_404(invoice_id)
+
+        if request.method == 'POST':
+            try:
+                paid_amount = float(request.form.get('paid_amount', 0))
+                payment_method = request.form.get('payment_method')
+                payment_reference = request.form.get('payment_reference')
+                notes = request.form.get('notes', '')
+
+                remaining = invoice.amount - invoice.paid_amount
+                if paid_amount <= 0:
+                    flash('المبلغ المدفوع يجب أن يكون أكبر من صفر', 'danger')
+                    return redirect(url_for('pay_invoice', invoice_id=invoice_id))
+
+                if paid_amount > remaining:
+                    flash('المبلغ المدفوع يتجاوز المبلغ المتبقي', 'danger')
+                    return redirect(url_for('pay_invoice', invoice_id=invoice_id))
+
+                invoice.paid_amount += paid_amount
+                invoice.payment_method = payment_method
+                invoice.payment_reference = payment_reference
+                invoice.notes = notes + (
+                    f'\nتسديد بتاريخ {datetime.now().strftime("%Y-%m-%d")}' if invoice.notes else f'تسديد بتاريخ {datetime.now().strftime("%Y-%m-%d")}')
+
+                if invoice.paid_amount >= invoice.amount:
+                    invoice.is_paid = True
+                    invoice.paid_date = datetime.now().date()
+                    flash('تم تسديد كامل قيمة الفاتورة بنجاح', 'success')
+                else:
+                    flash(
+                        f'تم تسديد مبلغ {paid_amount:,.0f} ريال، المتبقي {invoice.amount - invoice.paid_amount:,.0f} ريال',
+                        'success')
+
+                contract = invoice.contract
+                if contract:
+                    total_paid = sum(i.paid_amount for i in contract.invoices)
+                    contract.amount_received = total_paid
+                    contract.remaining_amount = contract.contract_value - total_paid
+                    if contract.remaining_amount <= 0:
+                        contract.status = 'completed'
+                    elif contract.status == 'completed':
+                        contract.status = 'active'
+                    db.session.commit()
+
+                db.session.commit()
+
+            except Exception as e:
+                db.session.rollback()
+                flash(f'حدث خطأ: {str(e)}', 'danger')
+
+            return redirect(url_for('invoices_list'))
+
+        remaining_amount = invoice.amount - (invoice.paid_amount or 0)
+        return render_template('contracts/pay_invoice.html',
+                               invoice=invoice,
+                               remaining_amount=remaining_amount,
+                               now=datetime.now())
     # ==================== التقييمات ====================
     @app.route('/evaluations')
     @login_required
     def evaluations_list():
-        evaluations = Evaluation.query.order_by(Evaluation.date.desc()).all()
+        if current_user.role == 'admin':
+            evaluations = Evaluation.query.order_by(Evaluation.date.desc()).all()
+        elif current_user.role == 'supervisor':
+            # المشرف يرى فقط تقييمات عمال شركته
+            supervisor_employee = Employee.query.filter_by(user_id=current_user.id).first()
+            if supervisor_employee:
+                # جلب عمال الشركة
+                workers = Employee.query.filter_by(company_id=supervisor_employee.company_id, is_active=True).all()
+                worker_ids = [w.id for w in workers]
+                evaluations = Evaluation.query.filter(Evaluation.employee_id.in_(worker_ids)).order_by(
+                    Evaluation.date.desc()).all()
+            else:
+                evaluations = []
+        else:
+            evaluations = []
+
         return render_template('evaluations/evaluations.html', evaluations=evaluations)
 
     @app.route('/evaluations/add', methods=['GET', 'POST'])
     @login_required
     def add_evaluation():
         if request.method == 'POST':
-            # حساب المجموع من المعايير
             total_score = 0
             for i in range(1, 8):
                 score = request.form.get(f'criteria_{i}', 0)
@@ -1363,32 +1539,27 @@ def register_routes(app):
             flash('تم إضافة التقييم بنجاح', 'success')
             return redirect(url_for('evaluations_list'))
 
-        # تحديد الشركة بناءً على صلاحية المستخدم
         company_filter = None
 
         if current_user.role == 'admin':
-            # المدير يرى جميع العمال من جميع الشركات (فقط العمال الذين ليس لديهم حساب مستخدم)
             employees = Employee.query.filter(
                 Employee.is_active == True,
-                Employee.employee_type == 'worker'  # فقط العمال
+                Employee.employee_type == 'worker'
             ).all()
-        else:
-            # المشرف: نبحث عن الشركة التابع لها
+        elif current_user.role == 'supervisor':
             supervisor_employee = Employee.query.filter_by(user_id=current_user.id).first()
             if supervisor_employee and supervisor_employee.company_id:
                 company_filter = supervisor_employee.company_id
                 employees = Employee.query.filter(
                     Employee.is_active == True,
-                    Employee.employee_type == 'worker',  # فقط العمال
+                    Employee.employee_type == 'worker',
                     Employee.company_id == company_filter
                 ).all()
             else:
-                employees = Employee.query.filter(
-                    Employee.is_active == True,
-                    Employee.employee_type == 'worker'  # فقط العمال
-                ).all()
+                employees = []
+        else:
+            employees = []
 
-        # تحويل بيانات العمال إلى JSON مع معلومات إضافية
         employees_data = [{
             'id': e.id,
             'name': e.name,
@@ -1398,22 +1569,12 @@ def register_routes(app):
             'employee_type': e.employee_type
         } for e in employees]
 
-        # جلب الشركات
         companies = Company.query.all()
-        companies_data = [{
-            'id': c.id,
-            'name': c.name
-        } for c in companies]
+        companies_data = [{'id': c.id, 'name': c.name} for c in companies]
 
-        # تحويل المناطق إلى JSON
         regions = Region.query.all()
-        regions_data = [{
-            'id': r.id,
-            'name': r.name,
-            'company_id': r.company_id
-        } for r in regions]
+        regions_data = [{'id': r.id, 'name': r.name, 'company_id': r.company_id} for r in regions]
 
-        # تحويل المواقع إلى JSON
         locations = Location.query.all()
         locations_data = [{
             'id': l.id,
@@ -1422,15 +1583,6 @@ def register_routes(app):
             'address': l.address or ''
         } for l in locations]
 
-        # طباعة للتصحيح
-        print("=" * 50)
-        print(f"Current User: {current_user.role}")
-        print(f"Company Filter: {company_filter}")
-        print(f"Employees found: {len(employees_data)}")
-        for emp in employees_data:
-            print(f"  - {emp['name']} (Company: {emp['company_id']})")
-        print("=" * 50)
-
         return render_template('evaluations/add_evaluation.html',
                                employees=employees_data,
                                companies=companies_data,
@@ -1438,6 +1590,7 @@ def register_routes(app):
                                locations=locations_data,
                                company_filter=company_filter,
                                now=datetime.now())
+
     @app.route('/api/regions_by_company/<int:company_id>')
     @login_required
     def get_regions_by_company(company_id):
@@ -1579,142 +1732,6 @@ def register_routes(app):
                                employees=employees,
                                now=datetime.now())
 
-    @app.route('/contracts')
-    @login_required
-    def contracts_list():
-        contracts = Contract.query.all()
-        return render_template('contracts/contracts.html', contracts=contracts)
-
-    @app.route('/contracts/add', methods=['GET', 'POST'])
-    @login_required
-    @role_required('admin')
-    def add_contract():
-        if request.method == 'POST':
-            contract = Contract(
-                company_id=request.form.get('company_id'),
-                contract_type=request.form.get('contract_type'),
-                contract_value=float(request.form.get('contract_value')),
-                start_date=datetime.strptime(request.form.get('start_date'), '%Y-%m-%d').date(),
-                end_date=datetime.strptime(request.form.get('end_date'), '%Y-%m-%d').date() if request.form.get(
-                    'end_date') else None,
-                notes=request.form.get('notes')
-            )
-            contract.remaining_amount = contract.contract_value
-            db.session.add(contract)
-            db.session.commit()
-            flash('تم إضافة العقد بنجاح', 'success')
-            return redirect(url_for('contracts_list'))
-
-        companies = Company.query.all()
-        return render_template('contracts/add_contract.html', companies=companies)
-
-    @app.route('/invoices')
-    @login_required
-    def invoices_list():
-        invoices = Invoice.query.all()
-        return render_template('contracts/invoices.html', invoices=invoices)
-
-    @app.route('/invoices/add', methods=['GET', 'POST'])
-    @login_required
-    @role_required('admin', 'finance')
-    def add_invoice():
-        if request.method == 'POST':
-            invoice = Invoice(
-                contract_id=request.form.get('contract_id'),
-                invoice_number=request.form.get('invoice_number'),
-                amount=float(request.form.get('amount')),
-                invoice_date=datetime.strptime(request.form.get('invoice_date'), '%Y-%m-%d').date(),
-                due_date=datetime.strptime(request.form.get('due_date'), '%Y-%m-%d').date() if request.form.get(
-                    'due_date') else None,
-                notes=request.form.get('notes')
-            )
-            db.session.add(invoice)
-
-            contract = Contract.query.get(request.form.get('contract_id'))
-            if contract:
-                contract.amount_received += invoice.amount
-                contract.remaining_amount = contract.contract_value - contract.amount_received
-                if contract.remaining_amount <= 0:
-                    contract.status = 'completed'
-
-            db.session.commit()
-            flash('تم إضافة الفاتورة بنجاح', 'success')
-            return redirect(url_for('invoices_list'))
-
-        contracts = Contract.query.filter_by(status='active').all()
-        return render_template('contracts/add_invoice.html', contracts=contracts)
-
-    @app.route('/invoices/pay/<int:invoice_id>', methods=['GET', 'POST'])
-    @login_required
-    @role_required('admin', 'finance')
-    def pay_invoice(invoice_id):
-        """صفحة تسديد الفاتورة"""
-        invoice = Invoice.query.get_or_404(invoice_id)
-
-        if request.method == 'POST':
-            try:
-                paid_amount = float(request.form.get('paid_amount', 0))
-                payment_method = request.form.get('payment_method')
-                payment_reference = request.form.get('payment_reference')
-                notes = request.form.get('notes', '')
-
-                # التحقق من صحة المبلغ
-                remaining = invoice.amount - invoice.paid_amount
-                if paid_amount <= 0:
-                    flash('المبلغ المدفوع يجب أن يكون أكبر من صفر', 'danger')
-                    return redirect(url_for('pay_invoice', invoice_id=invoice_id))
-
-                if paid_amount > remaining:
-                    flash(f'المبلغ المدفوع ({paid_amount} ريال) يتجاوز المبلغ المتبقي ({remaining} ريال)', 'danger')
-                    return redirect(url_for('pay_invoice', invoice_id=invoice_id))
-
-                # تحديث الفاتورة
-                invoice.paid_amount += paid_amount
-                invoice.payment_method = payment_method
-                invoice.payment_reference = payment_reference
-                invoice.notes = notes + (
-                    f'\nتسديد بتاريخ {datetime.now().strftime("%Y-%m-%d")}' if invoice.notes else f'تسديد بتاريخ {datetime.now().strftime("%Y-%m-%d")}')
-
-                # إذا تم دفع كامل المبلغ
-                if invoice.paid_amount >= invoice.amount:
-                    invoice.is_paid = True
-                    invoice.paid_date = datetime.now().date()
-                    flash('تم تسديد كامل قيمة الفاتورة بنجاح', 'success')
-                else:
-                    flash(
-                        f'تم تسديد مبلغ {paid_amount:,.0f} ريال، المتبقي {invoice.amount - invoice.paid_amount:,.0f} ريال',
-                        'success')
-
-                # تحديث العقد
-                contract = invoice.contract
-                if contract:
-                    # حساب إجمالي المدفوعات لهذا العقد
-                    total_paid = sum(i.paid_amount for i in contract.invoices)
-                    contract.amount_received = total_paid
-                    contract.remaining_amount = contract.contract_value - total_paid
-
-                    if contract.remaining_amount <= 0:
-                        contract.status = 'completed'
-                    elif contract.status == 'completed':
-                        contract.status = 'active'
-
-                    db.session.commit()
-
-                db.session.commit()
-
-            except Exception as e:
-                db.session.rollback()
-                flash(f'حدث خطأ: {str(e)}', 'danger')
-
-            return redirect(url_for('invoices_list'))
-
-        # حساب المتبقي
-        remaining_amount = invoice.amount - (invoice.paid_amount or 0)
-
-        return render_template('contracts/pay_invoice.html',
-                               invoice=invoice,
-                               remaining_amount=remaining_amount,
-                               now=datetime.now())
 
     @app.route('/invoices/partial_payments/<int:invoice_id>')
     @login_required
@@ -1724,6 +1741,51 @@ def register_routes(app):
         return render_template('contracts/invoice_payments.html', invoice=invoice)
 
     # ==================== التقارير ====================
+    @app.route('/reports/dashboard')
+    @login_required
+    def reports_dashboard():
+        from sqlalchemy import func
+
+        if current_user.role == 'admin':
+            total_employees = Employee.query.filter_by(is_active=True).count()
+            total_companies = Company.query.count()
+            today_attendance = Attendance.query.filter_by(date=datetime.now().date(),
+                                                          attendance_status='present').count()
+        elif current_user.role == 'supervisor':
+            # المشرف يرى فقط عمال شركته
+            supervisor_employee = Employee.query.filter_by(user_id=current_user.id).first()
+            if supervisor_employee:
+                total_employees = Employee.query.filter_by(is_active=True,
+                                                           company_id=supervisor_employee.company_id).count()
+                total_companies = 1
+                # جلب عمال الشركة للحضور
+                workers = Employee.query.filter_by(company_id=supervisor_employee.company_id, is_active=True).all()
+                worker_ids = [w.id for w in workers]
+                today_attendance = Attendance.query.filter(
+                    Attendance.date == datetime.now().date(),
+                    Attendance.attendance_status == 'present',
+                    Attendance.employee_id.in_(worker_ids)
+                ).count()
+            else:
+                total_employees = 0
+                total_companies = 0
+                today_attendance = 0
+        else:
+            total_employees = 0
+            total_companies = 0
+            today_attendance = 0
+
+        current_month = datetime.now().strftime('%m-%Y')
+        total_salaries_month = db.session.query(func.sum(Salary.total_salary)).filter_by(
+            month_year=current_month).scalar() or 0
+
+        attendance_rate = round((today_attendance / total_employees * 100) if total_employees > 0 else 0)
+
+        return render_template('reports/dashboard.html',
+                               total_employees=total_employees,
+                               total_companies=total_companies,
+                               total_salaries_month=total_salaries_month,
+                               attendance_rate=attendance_rate)
 
     @app.route('/reports/attendance')
     @login_required

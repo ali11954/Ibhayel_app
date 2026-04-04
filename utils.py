@@ -54,3 +54,26 @@ def get_regions():
         Employee.region != ''
     ).distinct().all()
     return [r[0] for r in regions if r[0]]
+
+
+def get_user_company(user):
+    """الحصول على الشركة التابع لها المستخدم"""
+    if user.role == 'admin':
+        return None  # المدير يرى كل الشركات
+    elif user.role == 'supervisor':
+        # المشرف يرى فقط شركته
+        employee = Employee.query.filter_by(user_id=user.id).first()
+        return employee.company_id if employee else None
+    return None
+
+
+def filter_by_user_role(query, model, user, company_field='company_id'):
+    """تصفية الاستعلام حسب دور المستخدم"""
+    if user.role == 'admin':
+        return query
+    elif user.role == 'supervisor':
+        company_id = get_user_company(user)
+        if company_id:
+            return query.filter(getattr(model, company_field) == company_id)
+        return query.filter(False)  # لا يرى شيئاً
+    return query.filter(False)  # المشاهد لا يرى شيئاً
