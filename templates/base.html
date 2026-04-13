@@ -451,7 +451,13 @@
                         <span class="link-tooltip">تقييم أداء الموظفين والعمال</span>
                     </a>
                 </li>
-
+<!-- داخل القائمة الجانبية، أضف هذا الرابط -->
+<li class="nav-item">
+    <a class="nav-link" href="{{ url_for('evaluation_criteria_list') }}">
+        <i class="fas fa-clipboard-list"></i>
+        <span>معايير التقييم</span>
+    </a>
+</li>
                 <!-- الشركات -->
                 <li class="nav-item">
                     <a class="nav-link" href="{{ url_for('companies_dashboard') }}">

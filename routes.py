@@ -1494,6 +1494,7 @@ def register_routes(app):
                                invoice=invoice,
                                remaining_amount=remaining_amount,
                                now=datetime.now())
+
     # ==================== التقييمات ====================
     @app.route('/evaluations')
     @login_required
@@ -1520,25 +1521,49 @@ def register_routes(app):
     @login_required
     def add_evaluation():
         if request.method == 'POST':
+            employee_id = request.form.get('employee_id')
+            comments = request.form.get('comments')
+            date = datetime.strptime(request.form.get('date'), '%Y-%m-%d').date()
+
+            # جمع درجات المعايير
+            criteria_scores = []
             total_score = 0
-            for i in range(1, 8):
-                score = request.form.get(f'criteria_{i}', 0)
-                if score:
-                    total_score += int(score)
+            max_possible = 0
+
+            for key, value in request.form.items():
+                if key.startswith('criteria_'):
+                    criteria_id = int(key.split('_')[1])
+                    score = int(value)
+
+                    criteria = EvaluationCriteria.query.get(criteria_id)
+                    if criteria:
+                        criteria_scores.append({
+                            'criteria_id': criteria_id,
+                            'name': criteria.name,
+                            'score': score,
+                            'max_score': criteria.max_score
+                        })
+                        total_score += score
+                        max_possible += criteria.max_score
+
+            percentage = (total_score / max_possible * 100) if max_possible > 0 else 0
 
             evaluation = Evaluation(
-                employee_id=request.form.get('employee_id'),
+                employee_id=employee_id,
                 evaluator_id=current_user.id,
                 evaluation_type='supervisor',
-                score=total_score,
-                comments=request.form.get('comments'),
-                date=datetime.strptime(request.form.get('date'), '%Y-%m-%d').date()
+                date=date,
+                score=percentage,
+                comments=comments
             )
+            evaluation.set_criteria_scores(criteria_scores)
             db.session.add(evaluation)
             db.session.commit()
+
             flash('تم إضافة التقييم بنجاح', 'success')
             return redirect(url_for('evaluations_list'))
 
+        # جلب الموظفين حسب الصلاحية
         company_filter = None
 
         if current_user.role == 'admin':
@@ -1548,7 +1573,7 @@ def register_routes(app):
             ).all()
         elif current_user.role == 'supervisor':
             supervisor_employee = Employee.query.filter_by(user_id=current_user.id).first()
-            if supervisor_employee and supervisor_employee.company_id:
+            if supervisor_employee:
                 company_filter = supervisor_employee.company_id
                 employees = Employee.query.filter(
                     Employee.is_active == True,
@@ -1560,15 +1585,23 @@ def register_routes(app):
         else:
             employees = []
 
+        # ✅ تحويل الموظفين إلى قواميس (لإرسالها كـ JSON)
         employees_data = [{
             'id': e.id,
             'name': e.name,
             'job_title': e.job_title or 'عامل',
             'company_id': e.company_id,
-            'company_name': e.employee_company.name if e.employee_company else 'ابن هائل',
             'employee_type': e.employee_type
         } for e in employees]
 
+        # جلب المسميات الوظيفية المتاحة
+        job_titles = db.session.query(Employee.job_title).filter(
+            Employee.job_title != None,
+            Employee.job_title != ''
+        ).distinct().all()
+        job_titles = [j[0] for j in job_titles if j[0]]
+
+        # جلب الشركات والمناطق والمواقع
         companies = Company.query.all()
         companies_data = [{'id': c.id, 'name': c.name} for c in companies]
 
@@ -1588,6 +1621,7 @@ def register_routes(app):
                                companies=companies_data,
                                regions=regions_data,
                                locations=locations_data,
+                               job_titles=job_titles,
                                company_filter=company_filter,
                                now=datetime.now())
 
@@ -1629,74 +1663,169 @@ def register_routes(app):
             print(f"Error in get_criteria_by_location: {e}")
             return jsonify({'success': False, 'data': []})
 
-    @app.route('/criteria/add', methods=['POST'])
+    # ==================== إدارة معايير التقييم حسب الوظيفة ====================
+    @app.route('/evaluation-criteria/add', methods=['GET'])
     @login_required
     @role_required('admin')
-    def add_criteria():
-        """إضافة معيار تقييم جديد لموقع"""
+    def add_evaluation_criteria_form():
+        """عرض نموذج إضافة معيار تقييم"""
+        job_titles = db.session.query(Employee.job_title).filter(
+            Employee.job_title != None,
+            Employee.job_title != ''
+        ).distinct().all()
+        job_titles = [j[0] for j in job_titles if j[0]]
+
+        return render_template('criteria/add.html', job_titles=job_titles)
+
+    @app.route('/evaluation-criteria/edit/<int:id>', methods=['GET'])
+    @login_required
+    @role_required('admin')
+    def edit_evaluation_criteria_form(id):
+        """عرض نموذج تعديل معيار تقييم"""
+        criteria = EvaluationCriteria.query.get_or_404(id)
+
+        job_titles = db.session.query(Employee.job_title).filter(
+            Employee.job_title != None,
+            Employee.job_title != ''
+        ).distinct().all()
+        job_titles = [j[0] for j in job_titles if j[0]]
+
+        return render_template('criteria/edit.html',
+                               criteria=criteria,
+                               job_titles=job_titles)
+
+    # ==================== إدارة معايير التقييم (للوظائف) ====================
+
+    @app.route('/evaluation-criteria')
+    @login_required
+    @role_required('admin')
+    def evaluation_criteria_list():
+        """عرض جميع معايير التقييم حسب الوظيفة"""
+        criteria = EvaluationCriteria.query.filter_by(is_active=True).all()
+        job_titles = db.session.query(Employee.job_title).filter(
+            Employee.job_title != None,
+            Employee.job_title != ''
+        ).distinct().all()
+        job_titles = [j[0] for j in job_titles if j[0]]
+
+        return render_template('criteria/index.html',
+                               criteria=criteria,
+                               job_titles=job_titles)
+
+    @app.route('/evaluation-criteria/add', methods=['POST'])
+    @login_required
+    @role_required('admin')
+    def add_evaluation_criteria():
+        """إضافة معيار تقييم جديد"""
         try:
-            location_id = request.form.get('location_id')
+            job_title = request.form.get('job_title')
             name = request.form.get('name')
             description = request.form.get('description')
+            min_score = int(request.form.get('min_score', 0))
             max_score = int(request.form.get('max_score', 10))
 
-            # التحقق من وجود الموقع
-            location = Location.query.get_or_404(location_id)
+            if min_score >= max_score:
+                flash('الحد الأدنى يجب أن يكون أقل من الحد الأقصى', 'danger')
+                return redirect(url_for('companies_dashboard'))
 
             criteria = EvaluationCriteria(
-                location_id=location_id,
+                job_title=job_title,
                 name=name,
                 description=description,
+                min_score=min_score,
                 max_score=max_score
             )
             db.session.add(criteria)
             db.session.commit()
-
-            flash('تم إضافة معيار التقييم بنجاح', 'success')
-            return redirect(url_for('company_details', company_id=location.region.company_id))
+            flash(f'تم إضافة معيار "{name}" للوظيفة "{job_title}" بنجاح', 'success')
 
         except Exception as e:
             db.session.rollback()
             flash(f'حدث خطأ: {str(e)}', 'danger')
-            return redirect(url_for('companies_dashboard'))
 
-    @app.route('/criteria/<int:criteria_id>/edit', methods=['POST'])
+        return redirect(url_for('companies_dashboard'))
+
+    @app.route('/evaluation-criteria/edit/<int:id>', methods=['POST'])
     @login_required
     @role_required('admin')
-    def edit_criteria(criteria_id):
+    def edit_evaluation_criteria(id):
         """تعديل معيار التقييم"""
         try:
-            criteria = EvaluationCriteria.query.get_or_404(criteria_id)
+            criteria = EvaluationCriteria.query.get_or_404(id)
             criteria.name = request.form.get('name')
             criteria.description = request.form.get('description')
+            criteria.min_score = int(request.form.get('min_score', 0))
             criteria.max_score = int(request.form.get('max_score', 10))
+
+            if criteria.min_score >= criteria.max_score:
+                flash('الحد الأدنى يجب أن يكون أقل من الحد الأقصى', 'danger')
+                return redirect(url_for('companies_dashboard'))
 
             db.session.commit()
             flash('تم تحديث معيار التقييم بنجاح', 'success')
-            return redirect(url_for('company_details', company_id=criteria.location.region.company_id))
 
         except Exception as e:
             db.session.rollback()
             flash(f'حدث خطأ: {str(e)}', 'danger')
-            return redirect(url_for('companies_dashboard'))
 
-    @app.route('/criteria/<int:criteria_id>/delete', methods=['POST'])
+        return redirect(url_for('companies_dashboard'))
+
+    @app.route('/evaluation-criteria/delete/<int:id>')
     @login_required
     @role_required('admin')
-    def delete_criteria(criteria_id):
+    def delete_evaluation_criteria(id):
         """حذف معيار التقييم"""
         try:
-            criteria = EvaluationCriteria.query.get_or_404(criteria_id)
-            company_id = criteria.location.region.company_id
-            db.session.delete(criteria)
+            criteria = EvaluationCriteria.query.get_or_404(id)
+            criteria.is_active = False
             db.session.commit()
             flash('تم حذف معيار التقييم بنجاح', 'success')
-            return redirect(url_for('company_details', company_id=company_id))
-
         except Exception as e:
             db.session.rollback()
             flash(f'حدث خطأ: {str(e)}', 'danger')
-            return redirect(url_for('companies_dashboard'))
+
+        return redirect(url_for('companies_dashboard'))
+
+    @app.route('/api/evaluation-criteria/<int:id>')
+    @login_required
+    @role_required('admin')
+    def get_evaluation_criteria_api(id):
+        """API لجلب معيار تقييم واحد للتعديل"""
+        criteria = EvaluationCriteria.query.get_or_404(id)
+        return jsonify({
+            'success': True,
+            'id': criteria.id,
+            'job_title': criteria.job_title,
+            'name': criteria.name,
+            'description': criteria.description,
+            'min_score': criteria.min_score,
+            'max_score': criteria.max_score
+        })
+
+    @app.route('/api/criteria-by-job-title')
+    @login_required
+    def get_criteria_by_job_title():
+        """API لجلب معايير التقييم حسب الوظيفة"""
+        job_title = request.args.get('job_title')
+        if not job_title:
+            return jsonify({'success': False, 'data': []})
+
+        criteria = EvaluationCriteria.query.filter_by(
+            job_title=job_title,
+            is_active=True
+        ).all()
+
+        return jsonify({
+            'success': True,
+            'data': [{
+                'id': c.id,
+                'name': c.name,
+                'description': c.description,
+                'min_score': c.min_score,
+                'max_score': c.max_score
+            } for c in criteria]
+        })
+
 
     @app.route('/evaluations/add_supervisor', methods=['GET', 'POST'])
     @login_required

@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% block title %}تقييم عامل - ابن هائل لأعمال الزراعة{% endblock %}
+{% block title %}تقييم عامل - النخلة الخضراء{% endblock %}
 
 {% block extra_css %}
 <style>
@@ -37,11 +37,6 @@
         color: red;
     }
 
-    .info-highlight {
-        background: #e8f5e9;
-        border-right: 4px solid #4caf50;
-    }
-
     .criteria-card {
         background: white;
         border-radius: 15px;
@@ -60,6 +55,15 @@
         text-align: center;
         padding: 2rem;
     }
+
+    .job-badge {
+        background: #e8f5e9;
+        color: #2e7d32;
+        padding: 5px 12px;
+        border-radius: 20px;
+        font-size: 14px;
+        margin-right: 10px;
+    }
 </style>
 {% endblock %}
 
@@ -67,14 +71,13 @@
 <div class="container-fluid">
     <div class="page-header">
         <h2><i class="fas fa-star"></i> تقييم أداء العامل</h2>
-        <p class="text-muted">تقييم أداء العمال في أعمال الزراعة حسب المعايير المحددة لكل موقع</p>
+        <p class="text-muted">تقييم أداء العمال حسب معايير الوظيفة المحددة لكل مسمى وظيفي</p>
     </div>
 
     <div class="card">
         <div class="card-body">
             <form method="POST" id="evaluationForm">
                 <div class="row">
-                    <!-- العمود الأيمن: معلومات العامل -->
                     <div class="col-md-6">
                         <div class="form-section">
                             <h5><i class="fas fa-user"></i> معلومات العامل</h5>
@@ -89,7 +92,7 @@
                                     {% endif %}
                                     {% endfor %}
                                 </select>
-                                <input type="hidden" id="companySelect" value="{{ company_filter }}">
+                                <input type="hidden" id="companySelectHidden" value="{{ company_filter }}">
                                 <small class="text-muted text-success">
                                     <i class="fas fa-lock"></i> أنت مرتبط بهذه الشركة
                                 </small>
@@ -113,38 +116,14 @@
                             <div id="selectedEmployeeInfo" class="alert alert-info mt-2" style="display: none;">
                                 <i class="fas fa-info-circle"></i>
                                 <span id="selectedEmployeeText"></span>
-                            </div>
-                        </div>
-
-                        <!-- المنطقة والموقع -->
-                        <div class="form-section">
-                            <h5><i class="fas fa-map-marker-alt"></i> موقع العمل</h5>
-
-                            <div class="mb-3">
-                                <label class="form-label fw-bold">المنطقة</label>
-                                <select class="form-select" id="regionSelect" name="region_id" disabled>
-                                    <option value="">-- اختر الشركة أولاً --</option>
-                                </select>
-                            </div>
-
-                            <div class="mb-3">
-                                <label class="form-label fw-bold required-field">الموقع</label>
-                                <select class="form-select" id="locationSelect" name="location_id" disabled>
-                                    <option value="">-- اختر المنطقة أولاً --</option>
-                                </select>
-                            </div>
-
-                            <div id="locationInfo" class="small text-muted mt-2" style="display: none;">
-                                <i class="fas fa-map-pin"></i> يتم تحديد الموقع بناءً على الشركة المختارة
+                                <div id="jobTitleInfo" class="mt-1"></div>
                             </div>
                         </div>
                     </div>
 
-                    <!-- العمود الأيسر: تاريخ التقييم -->
                     <div class="col-md-6">
                         <div class="form-section">
                             <h5><i class="fas fa-calendar-alt"></i> معلومات التقييم</h5>
-
                             <div class="mb-3">
                                 <label class="form-label fw-bold">تاريخ التقييم</label>
                                 <input type="date" class="form-control" name="date" value="{{ now.strftime('%Y-%m-%d') }}" required>
@@ -155,13 +134,11 @@
 
                 <input type="hidden" name="evaluation_type" value="supervisor">
 
-                <!-- معايير التقييم (تظهر ديناميكياً حسب الموقع) -->
                 <div id="criteriaSection" style="display: none;">
-                    <h4 class="mt-4"><i class="fas fa-clipboard-list"></i> معايير التقييم</h4>
+                    <h4 class="mt-4"><i class="fas fa-clipboard-list"></i> معايير التقييم حسب الوظيفة</h4>
                     <div id="criteriaContainer"></div>
                 </div>
 
-                <!-- المجموع والتقييم النهائي -->
                 <div class="row mt-4" id="totalScoreSection" style="display: none;">
                     <div class="col-md-6">
                         <div class="alert alert-success text-center">
@@ -191,19 +168,12 @@
 <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 <script>
     $(document).ready(function() {
-        // بيانات العمال والمناطق والمواقع
         const employeesData = {{ employees | tojson | safe }};
-        const regionsData = {{ regions | tojson | safe }};
-        const locationsData = {{ locations | tojson | safe }};
         const companyFilter = {{ company_filter | tojson | safe }};
-
         let currentCriteria = [];
 
         console.log('Employees Data:', employeesData);
-        console.log('Regions Data:', regionsData);
-        console.log('Locations Data:', locationsData);
 
-        // دالة لتعبئة قائمة العمال حسب الشركة
         function populateEmployeesByCompany(companyId) {
             const employeeSelect = $('#employeeSelect');
             employeeSelect.empty();
@@ -215,7 +185,8 @@
                 employeeSelect.prop('disabled', false);
 
                 for (let emp of filteredEmployees) {
-                    employeeSelect.append(`<option value="${emp.id}" data-company="${emp.company_id}" data-name="${emp.name}">${emp.name} (${emp.job_title || 'عامل'})</option>`);
+                    const jobTitle = emp.job_title || 'عامل';
+                    employeeSelect.append(`<option value="${emp.id}" data-job-title="${jobTitle}" data-name="${emp.name}">${emp.name} (${jobTitle})</option>`);
                 }
 
                 if (filteredEmployees.length === 0) {
@@ -227,100 +198,36 @@
             }
         }
 
-        // دالة لتعبئة المناطق حسب الشركة
-        function populateRegionsByCompany(companyId) {
-            const regionSelect = $('#regionSelect');
-            const locationSelect = $('#locationSelect');
-
-            regionSelect.empty();
-            locationSelect.empty();
-
-            if (companyId) {
-                const filteredRegions = regionsData.filter(r => r.company_id == companyId);
-
-                regionSelect.prop('disabled', false);
-                regionSelect.append('<option value="">-- اختر المنطقة --</option>');
-
-                for (let region of filteredRegions) {
-                    regionSelect.append(`<option value="${region.id}">${region.name}</option>`);
-                }
-
-                if (filteredRegions.length === 0) {
-                    regionSelect.append('<option value="" disabled>لا توجد مناطق</option>');
-                }
-
-                locationSelect.prop('disabled', true);
-                locationSelect.append('<option value="">-- اختر المنطقة أولاً --</option>');
-                $('#locationInfo').show();
-
-                // إخفاء معايير التقييم عند تغيير الشركة
-                $('#criteriaSection').hide();
-                $('#totalScoreSection').hide();
-                $('#submitBtn').hide();
-            } else {
-                regionSelect.prop('disabled', true);
-                regionSelect.append('<option value="">-- اختر الشركة أولاً --</option>');
-                locationSelect.prop('disabled', true);
-                locationSelect.append('<option value="">-- اختر المنطقة أولاً --</option>');
-                $('#locationInfo').hide();
-            }
-        }
-
-        // دالة لتعبئة المواقع حسب المنطقة
-        function populateLocationsByRegion(regionId) {
-            const locationSelect = $('#locationSelect');
-
-            locationSelect.empty();
-
-            if (regionId) {
-                const filteredLocations = locationsData.filter(l => l.region_id == regionId);
-
-                locationSelect.prop('disabled', false);
-                locationSelect.append('<option value="">-- اختر الموقع --</option>');
-
-                for (let location of filteredLocations) {
-                    let text = location.name;
-                    if (location.address) text += ' - ' + location.address;
-                    locationSelect.append(`<option value="${location.id}">${text}</option>`);
-                }
-
-                if (filteredLocations.length === 0) {
-                    locationSelect.append('<option value="" disabled>لا توجد مواقع</option>');
-                }
-            } else {
-                locationSelect.prop('disabled', true);
-                locationSelect.append('<option value="">-- اختر المنطقة أولاً --</option>');
-            }
-        }
-
-        // دالة لجلب معايير التقييم حسب الموقع
-        async function loadCriteriaByLocation(locationId) {
+        async function loadCriteriaByJobTitle(jobTitle) {
             const criteriaContainer = $('#criteriaContainer');
             const criteriaSection = $('#criteriaSection');
 
-            criteriaContainer.html('<div class="loading-spinner"><i class="fas fa-spinner fa-spin fa-2x"></i> جاري تحميل المعايير...</div>');
+            criteriaContainer.html('<div class="loading-spinner"><i class="fas fa-spinner fa-spin fa-2x"></i> جاري تحميل معايير التقييم...</div>');
             criteriaSection.show();
 
             try {
-                const response = await fetch(`/api/criteria_by_location/${locationId}`);
-                const data = await response.json();
+                const response = await fetch(`/api/criteria-by-job-title?job_title=${encodeURIComponent(jobTitle)}`);
+                const result = await response.json();
 
-                if (data.success && data.data.length > 0) {
-                    currentCriteria = data.data;
+                if (result.success && result.data.length > 0) {
+                    currentCriteria = result.data;
                     let html = '';
 
                     for (let i = 0; i < currentCriteria.length; i++) {
                         const criterion = currentCriteria[i];
+                        const minScore = criterion.min_score || 0;
+                        const maxScore = criterion.max_score || 10;
+
                         html += `
                         <div class="criteria-card">
                             <div class="criteria-title">
                                 <i class="fas fa-check-circle text-success"></i> ${i+1}. ${criterion.name}
                             </div>
-                            ${criterion.description ? `<div class="criteria-desc">${criterion.description}</div>` : ''}
+                            ${criterion.description ? `<div class="criteria-desc text-muted small mb-2">${criterion.description}</div>` : ''}
                             <div class="rating-scale d-flex gap-2 flex-wrap mt-2">
                         `;
 
-                        for (let j = 1; j <= criterion.max_score; j++) {
+                        for (let j = minScore; j <= maxScore; j++) {
                             html += `
                             <label class="rating-option">
                                 <input type="radio" name="criteria_${criterion.id}" value="${j}" required>
@@ -329,20 +236,18 @@
                             `;
                         }
 
-                        html += `</div></div>`;
+                        html += `</div><div class="small text-muted mt-1">الدرجة من ${minScore} إلى ${maxScore}</div></div>`;
                     }
 
                     criteriaContainer.html(html);
                     $('#totalScoreSection').show();
                     $('#submitBtn').show();
-
-                    // إضافة حدث حساب المجموع
                     $('input[type="radio"]').on('change', calculateTotal);
                 } else {
                     criteriaContainer.html(`
                         <div class="alert alert-warning">
                             <i class="fas fa-exclamation-triangle"></i>
-                            لا توجد معايير تقييم مسجلة لهذا الموقع. يرجى إضافة معايير أولاً من صفحة تفاصيل الشركة.
+                            لا توجد معايير تقييم مسجلة للوظيفة "${jobTitle}".
                         </div>
                     `);
                     $('#totalScoreSection').hide();
@@ -350,16 +255,10 @@
                 }
             } catch (error) {
                 console.error('Error loading criteria:', error);
-                criteriaContainer.html(`
-                    <div class="alert alert-danger">
-                        <i class="fas fa-exclamation-circle"></i>
-                        حدث خطأ في تحميل معايير التقييم
-                    </div>
-                `);
+                criteriaContainer.html('<div class="alert alert-danger">حدث خطأ في تحميل معايير التقييم</div>');
             }
         }
 
-        // حساب المجموع
         function calculateTotal() {
             let total = 0;
             let maxTotal = 0;
@@ -371,99 +270,60 @@
             }
 
             $('#totalScore').text(total);
-
             const percentage = maxTotal > 0 ? (total / maxTotal) * 100 : 0;
 
-            let rating = '';
-            let ratingColor = '';
-            if (percentage >= 90) {
-                rating = 'ممتاز ⭐⭐⭐⭐⭐';
-                ratingColor = '#28a745';
-            } else if (percentage >= 75) {
-                rating = 'جيد جداً ⭐⭐⭐⭐';
-                ratingColor = '#17a2b8';
-            } else if (percentage >= 60) {
-                rating = 'جيد ⭐⭐⭐';
-                ratingColor = '#ffc107';
-            } else if (percentage >= 50) {
-                rating = 'مقبول ⭐⭐';
-                ratingColor = '#fd7e14';
-            } else {
-                rating = 'يحتاج تحسين ⭐';
-                ratingColor = '#dc3545';
-            }
+            let rating = '', ratingColor = '';
+            if (percentage >= 90) { rating = 'ممتاز ⭐⭐⭐⭐⭐'; ratingColor = '#28a745'; }
+            else if (percentage >= 75) { rating = 'جيد جداً ⭐⭐⭐⭐'; ratingColor = '#17a2b8'; }
+            else if (percentage >= 60) { rating = 'جيد ⭐⭐⭐'; ratingColor = '#ffc107'; }
+            else if (percentage >= 50) { rating = 'مقبول ⭐⭐'; ratingColor = '#fd7e14'; }
+            else { rating = 'يحتاج تحسين ⭐'; ratingColor = '#dc3545'; }
+
             $('#scoreRating').html('<span class="badge" style="background: ' + ratingColor + '; padding: 0.5rem 1rem;">' + rating + '</span>');
         }
 
-        // عند تغيير الشركة
         $('#companySelect').on('change', function() {
             const companyId = $(this).val();
-            console.log('Company selected:', companyId);
-
             populateEmployeesByCompany(companyId);
-            populateRegionsByCompany(companyId);
             $('#selectedEmployeeInfo').hide();
+            $('#criteriaSection').hide();
+            $('#totalScoreSection').hide();
+            $('#submitBtn').hide();
+            currentCriteria = [];
         });
 
-        // عند اختيار العامل
         $('#employeeSelect').on('change', function() {
             const selectedOption = $(this).find('option:selected');
             const employeeId = $(this).val();
             const employeeName = selectedOption.data('name');
+            const jobTitle = selectedOption.data('job-title');
 
-            if (employeeId) {
+            if (employeeId && jobTitle) {
                 $('#selectedEmployeeInfo').show();
                 $('#selectedEmployeeText').html(`تم اختيار العامل: <strong>${employeeName}</strong>`);
+                $('#jobTitleInfo').html(`<span class="job-badge"><i class="fas fa-briefcase"></i> الوظيفة: ${jobTitle}</span>`);
+                loadCriteriaByJobTitle(jobTitle);
             } else {
                 $('#selectedEmployeeInfo').hide();
-            }
-        });
-
-        // عند تغيير المنطقة
-        $('#regionSelect').on('change', function() {
-            const regionId = $(this).val();
-            populateLocationsByRegion(regionId);
-        });
-
-        // عند اختيار الموقع - تحميل معايير التقييم
-        $('#locationSelect').on('change', function() {
-            const locationId = $(this).val();
-            console.log('Location selected:', locationId);
-
-            if (locationId) {
-                loadCriteriaByLocation(locationId);
-            } else {
                 $('#criteriaSection').hide();
                 $('#totalScoreSection').hide();
                 $('#submitBtn').hide();
+                currentCriteria = [];
             }
         });
 
-        // إذا كان هناك فلتر شركة (للمشرف), قم بتعبئة البيانات تلقائياً
         if (companyFilter) {
             $('#companySelect').val(companyFilter).trigger('change');
             $('#companySelect').prop('disabled', true);
-            $('#locationInfo').show();
         }
 
-        // التحقق من صحة النموذج قبل الإرسال
         $('#evaluationForm').on('submit', function(e) {
-            const employeeId = $('#employeeSelect').val();
-            const locationId = $('#locationSelect').val();
-
-            if (!employeeId) {
+            if (!$('#employeeSelect').val()) {
                 e.preventDefault();
                 alert('❌ الرجاء اختيار العامل المراد تقييمه');
                 return false;
             }
 
-            if (!locationId) {
-                e.preventDefault();
-                alert('❌ الرجاء اختيار الموقع');
-                return false;
-            }
-
-            // التحقق من أن جميع المعايير تم اختيارها
             let allSelected = true;
             for (let criterion of currentCriteria) {
                 if (!$(`input[name="criteria_${criterion.id}"]:checked`).val()) {
@@ -477,7 +337,6 @@
                 alert('❌ الرجاء تقييم جميع المعايير');
                 return false;
             }
-
             return true;
         });
     });

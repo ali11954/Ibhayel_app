@@ -1,43 +1,42 @@
 # update_db_company.py
 import sqlite3
 
-
 def update_database():
     try:
-        # الاتصال بقاعدة البيانات
+        # الاتصال بقاعدة البيانات - تأكد من اسم الملف الصحيح
+        # جرب كلا الاسمين:
+        # conn = sqlite3.connect('thaljat_alsaleef.db')
         conn = sqlite3.connect('ibn_hail.db')
         cursor = conn.cursor()
 
-        # إضافة عمود company_id إلى جدول employees إذا لم يكن موجوداً
+        # ✅ إضافة عمود criteria_scores إلى جدول evaluations
         try:
-            cursor.execute("ALTER TABLE employees ADD COLUMN company_id INTEGER REFERENCES companies(id)")
-            print("✅ تم إضافة العمود company_id إلى جدول employees")
+            cursor.execute("ALTER TABLE evaluations ADD COLUMN criteria_scores TEXT")
+            print("✅ تم إضافة العمود criteria_scores إلى جدول evaluations")
         except sqlite3.OperationalError as e:
             if "duplicate column name" in str(e):
-                print("⚠️ العمود company_id موجود بالفعل")
+                print("⚠️ العمود criteria_scores موجود بالفعل")
+            else:
+                print(f"❌ خطأ في إضافة criteria_scores: {e}")
+
+        # ✅ التأكد من وجود أعمدة min_score و max_score في evaluation_criteria
+        try:
+            cursor.execute("ALTER TABLE evaluation_criteria ADD COLUMN min_score INTEGER DEFAULT 0")
+            print("✅ تم إضافة العمود min_score")
+        except sqlite3.OperationalError as e:
+            if "duplicate column name" in str(e):
+                print("⚠️ العمود min_score موجود بالفعل")
             else:
                 print(f"❌ خطأ: {e}")
 
-        # إضافة الأعمدة الجديدة إلى جدول attendances (إذا لم تكن موجودة)
-        attendance_columns = [
-            "attendance_status VARCHAR(20) DEFAULT 'present'",
-            "late_minutes INTEGER DEFAULT 0",
-            "sick_leave BOOLEAN DEFAULT 0",
-            "sick_leave_days INTEGER DEFAULT 0",
-            "check_in_time TIME",
-            "check_out_time TIME",
-            "notes TEXT"
-        ]
-
-        for column in attendance_columns:
-            try:
-                cursor.execute(f"ALTER TABLE attendances ADD COLUMN {column}")
-                print(f"✅ تم إضافة العمود إلى attendances: {column}")
-            except sqlite3.OperationalError as e:
-                if "duplicate column name" in str(e):
-                    print(f"⚠️ العمود موجود بالفعل: {column}")
-                else:
-                    print(f"❌ خطأ في {column}: {e}")
+        try:
+            cursor.execute("ALTER TABLE evaluation_criteria ADD COLUMN max_score INTEGER DEFAULT 10")
+            print("✅ تم إضافة العمود max_score")
+        except sqlite3.OperationalError as e:
+            if "duplicate column name" in str(e):
+                print("⚠️ العمود max_score موجود بالفعل")
+            else:
+                print(f"❌ خطأ: {e}")
 
         conn.commit()
         conn.close()
@@ -45,7 +44,6 @@ def update_database():
 
     except Exception as e:
         print(f"❌ خطأ: {e}")
-
 
 if __name__ == '__main__':
     update_database()

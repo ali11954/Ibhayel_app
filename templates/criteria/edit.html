@@ -1,0 +1,164 @@
+{% extends "base.html" %}
+
+{% block title %}تعديل معيار تقييم - النخلة الخضراء{% endblock %}
+
+{% block extra_css %}
+<style>
+    .form-card {
+        background: white;
+        border-radius: 20px;
+        padding: 2rem;
+        box-shadow: var(--shadow-sm);
+        max-width: 800px;
+        margin: 0 auto;
+    }
+
+    .form-header {
+        border-bottom: 2px solid #e9ecef;
+        padding-bottom: 1rem;
+        margin-bottom: 1.5rem;
+    }
+
+    .required-field:after {
+        content: " *";
+        color: red;
+    }
+
+    .help-text {
+        font-size: 12px;
+        color: #6c757d;
+        margin-top: 5px;
+    }
+
+    .score-range-preview {
+        background: #e8f5e9;
+        border-radius: 10px;
+        padding: 1rem;
+        text-align: center;
+        margin-top: 1rem;
+    }
+
+    .preview-value {
+        font-size: 1.5rem;
+        font-weight: bold;
+        color: #2e7d32;
+    }
+
+    .info-box {
+        background: #e3f2fd;
+        border-radius: 10px;
+        padding: 1rem;
+        margin-bottom: 1.5rem;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="page-header">
+        <h2><i class="fas fa-edit"></i> تعديل معيار التقييم</h2>
+        <p class="text-muted">تعديل بيانات معيار التقييم حسب الوظيفة</p>
+    </div>
+
+    <div class="form-card">
+        <div class="form-header">
+            <h5><i class="fas fa-clipboard-list"></i> بيانات المعيار</h5>
+        </div>
+
+        <div class="info-box">
+            <i class="fas fa-info-circle text-primary"></i>
+            <strong>ملاحظة:</strong> تعديل المعيار سيؤثر على جميع التقييمات المستقبلية. التقييمات السابقة لن تتأثر.
+        </div>
+
+        <form method="POST" action="{{ url_for('edit_evaluation_criteria', id=criteria.id) }}">
+            <div class="mb-3">
+                <label class="form-label fw-bold required-field">الوظيفة</label>
+                <select name="job_title" class="form-select" required>
+                    <option value="">-- اختر الوظيفة --</option>
+                    {% for job in job_titles %}
+                    <option value="{{ job }}" {% if criteria.job_title == job %}selected{% endif %}>{{ job }}</option>
+                    {% endfor %}
+                </select>
+                <div class="help-text">
+                    <i class="fas fa-info-circle"></i> يمكنك إضافة وظائف جديدة من صفحة <a href="{{ url_for('employees_list') }}">الموظفين</a>
+                </div>
+            </div>
+
+            <div class="mb-3">
+                <label class="form-label fw-bold required-field">اسم المعيار</label>
+                <input type="text" name="name" class="form-control" value="{{ criteria.name }}" required>
+                <div class="help-text">اسم واضح ومختصر للمعيار</div>
+            </div>
+
+            <div class="mb-3">
+                <label class="form-label fw-bold">الوصف</label>
+                <textarea name="description" class="form-control" rows="3">{{ criteria.description or '' }}</textarea>
+                <div class="help-text">شرح مفصل للمعيار لتوضيح طريقة التقييم</div>
+            </div>
+
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">الحد الأدنى للدرجة</label>
+                        <input type="number" name="min_score" id="min_score" class="form-control" value="{{ criteria.min_score }}" min="0" onchange="updatePreview()">
+                        <div class="help-text">أقل درجة يمكن منحها لهذا المعيار</div>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">الحد الأقصى للدرجة</label>
+                        <input type="number" name="max_score" id="max_score" class="form-control" value="{{ criteria.max_score }}" min="1" onchange="updatePreview()">
+                        <div class="help-text">أعلى درجة يمكن منحها لهذا المعيار</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="score-range-preview" id="preview">
+                <i class="fas fa-chart-line"></i>
+                نطاق الدرجة: <span class="preview-value" id="previewRange">{{ criteria.min_score }} - {{ criteria.max_score }}</span>
+            </div>
+
+            <div class="mt-4 d-flex gap-2">
+                <button type="submit" class="btn btn-primary">
+                    <i class="fas fa-save"></i> حفظ التغييرات
+                </button>
+                <a href="{{ url_for('evaluation_criteria_list') }}" class="btn btn-secondary">
+                    <i class="fas fa-times"></i> إلغاء
+                </a>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+function updatePreview() {
+    const min = document.getElementById('min_score').value || 0;
+    const max = document.getElementById('max_score').value || 10;
+    document.getElementById('previewRange').innerText = `${min} - ${max}`;
+
+    if (parseInt(min) >= parseInt(max)) {
+        document.getElementById('preview').style.background = '#ffebee';
+        document.getElementById('preview').style.border = '1px solid #dc3545';
+    } else {
+        document.getElementById('preview').style.background = '#e8f5e9';
+        document.getElementById('preview').style.border = 'none';
+    }
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    updatePreview();
+
+    document.querySelector('form').addEventListener('submit', function(e) {
+        const min = parseInt(document.getElementById('min_score').value);
+        const max = parseInt(document.getElementById('max_score').value);
+
+        if (min >= max) {
+            e.preventDefault();
+            alert('❌ الحد الأدنى يجب أن يكون أقل من الحد الأقصى');
+            return false;
+        }
+        return true;
+    });
+});
+</script>
+{% endblock %}

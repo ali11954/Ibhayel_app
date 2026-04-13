@@ -200,8 +200,22 @@ class Evaluation(db.Model):
     date = db.Column(db.Date, nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
+    # ✅ أضف هذا السطر الجديد
+    criteria_scores = db.Column(db.Text)  # تخزين درجات المعايير كـ JSON
+
     employee = db.relationship('Employee', backref='evaluations')
     evaluator = db.relationship('User', backref='evaluations')
+
+    # ✅ أضف هاتين الدالتين
+    def set_criteria_scores(self, scores_list):
+        """تخزين درجات المعايير"""
+        import json
+        self.criteria_scores = json.dumps(scores_list)
+
+    def get_criteria_scores(self):
+        """استرجاع درجات المعايير"""
+        import json
+        return json.loads(self.criteria_scores) if self.criteria_scores else []
 
     def get_type_name(self):
         return self.EVALUATION_TYPES.get(self.evaluation_type, self.evaluation_type)
@@ -227,8 +241,10 @@ class Evaluation(db.Model):
             'score': self.score,
             'rating': self.get_rating(),
             'comments': self.comments,
-            'date': self.date.strftime('%Y-%m-%d') if self.date else None
+            'date': self.date.strftime('%Y-%m-%d') if self.date else None,
+            'criteria_scores': self.get_criteria_scores()  # ✅ أضف هذا
         }
+
 # ==================== Company Region Location Models ====================
 class Company(db.Model):
     """نموذج الشركات"""
@@ -471,29 +487,25 @@ class Invoice(db.Model):
             'paid_amount': self.paid_amount,
             'remaining_amount': self.amount - self.paid_amount
         }
-
 class EvaluationCriteria(db.Model):
-    """نموذج معايير التقييم المرتبطة بموقع"""
+    """معايير التقييم حسب الوظيفة"""
     __tablename__ = 'evaluation_criteria'
 
     id = db.Column(db.Integer, primary_key=True)
-    location_id = db.Column(db.Integer, db.ForeignKey('locations.id'), nullable=False)
-    name = db.Column(db.String(100), nullable=False)  # اسم المعيار
-    description = db.Column(db.String(500))  # وصف المعيار
-    max_score = db.Column(db.Integer, default=10)  # الدرجة القصوى
+    job_title = db.Column(db.String(100), nullable=False)  # 'عامل تسقية', 'عامل قص وتشكيل', 'مشرف', 'اداري'
+    name = db.Column(db.String(200), nullable=False)  # اسم المعيار
+    description = db.Column(db.Text)  # وصف المعيار
+    min_score = db.Column(db.Integer, default=0)  # الحد الأدنى للدرجة
+    max_score = db.Column(db.Integer, default=10)  # الحد الأقصى للدرجة
     is_active = db.Column(db.Boolean, default=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    company_id = db.Column(db.Integer, db.ForeignKey('companies.id'), nullable=True)
 
     # العلاقات
-    location = db.relationship('Location', backref='evaluation_criteria')
+    company = db.relationship('Company', foreign_keys=[company_id])
 
-    def to_dict(self):
-        return {
-            'id': self.id,
-            'name': self.name,
-            'description': self.description,
-            'max_score': self.max_score
-        }
+    def __repr__(self):
+        return f"<EvaluationCriteria {self.job_title} - {self.name}>"
 
 
 class Expense(db.Model):
