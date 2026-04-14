@@ -2,7 +2,10 @@ services:
   - type: web
     name: talaat-company-system
     runtime: python
-    buildCommand: pip install -r requirements.txt
+    buildCommand: |
+      apt-get update
+      apt-get install -y fonts-dejavu libpango-1.0-0 libpangoft2-1.0-0 libcairo2 libffi-dev libgdk-pixbuf2.0-0
+      pip install -r requirements.txt
     startCommand: gunicorn app:app
     envVars:
       - key: PYTHON_VERSION
