@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html dir="rtl" lang="ar">
+<head>
+    <meta charset="UTF-8">
+    <title>تقرير التقييمات حسب المنطقة</title>
+    <style>
+        @page {
+            size: A4;
+            margin: 2cm;
+        }
+        body {
+            font-family: 'DejaVu Sans', 'Tahoma', sans-serif;
+            font-size: 12px;
+            line-height: 1.5;
+            color: #333;
+        }
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+            border-bottom: 2px solid #17a2b8;
+            padding-bottom: 15px;
+        }
+        .header h1 {
+            color: #17a2b8;
+            margin-bottom: 5px;
+        }
+        .header p {
+            color: #666;
+            margin: 0;
+        }
+        .stats {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 30px;
+            gap: 15px;
+        }
+        .stat-box {
+            flex: 1;
+            background: #f8f9fa;
+            border-radius: 10px;
+            padding: 12px;
+            text-align: center;
+            border: 1px solid #e0e0e0;
+        }
+        .stat-number {
+            font-size: 24px;
+            font-weight: bold;
+            color: #17a2b8;
+        }
+        .region-card {
+            margin-bottom: 25px;
+            border: 1px solid #e0e0e0;
+            border-radius: 10px;
+            overflow: hidden;
+            page-break-inside: avoid;
+        }
+        .region-header {
+            background: linear-gradient(135deg, #e3f2fd, #bbdef5);
+            padding: 12px 15px;
+            border-bottom: 2px solid #17a2b8;
+        }
+        .region-header h4 {
+            margin: 0;
+            color: #0d6efd;
+        }
+        .evaluation-item {
+            padding: 10px 15px;
+            border-bottom: 1px solid #f0f0f0;
+        }
+        .score-badge {
+            display: inline-block;
+            width: 40px;
+            height: 40px;
+            line-height: 40px;
+            text-align: center;
+            border-radius: 50%;
+            font-weight: bold;
+        }
+        .score-excellent { background: #28a745; color: white; }
+        .score-good { background: #17a2b8; color: white; }
+        .score-average { background: #ffc107; color: #333; }
+        .score-poor { background: #dc3545; color: white; }
+        .rating-stars {
+            color: #ffc107;
+            font-size: 12px;
+        }
+        .footer {
+            text-align: center;
+            margin-top: 40px;
+            padding-top: 15px;
+            border-top: 1px solid #e0e0e0;
+            font-size: 10px;
+            color: #999;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        th, td {
+            padding: 8px;
+            text-align: right;
+            border-bottom: 1px solid #e0e0e0;
+        }
+        th {
+            background: #f8f9fa;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🌿طلعت هائل للخدمات والاستشارات الزراعية</h1>
+        <h2>تقرير التقييمات حسب المنطقة</h2>
+        <p>تاريخ التقرير: {{ now.strftime('%Y-%m-%d %H:%M:%S') }}</p>
+        <p>تم إنشاؤه بواسطة: {{ current_user.full_name }}</p>
+    </div>
+
+    <div class="stats">
+        <div class="stat-box">
+            <div class="stat-number">{{ total_evaluations }}</div>
+            <div>إجمالي التقييمات</div>
+        </div>
+        <div class="stat-box">
+            <div class="stat-number">{{ region_stats|length }}</div>
+            <div>مناطق بها تقييمات</div>
+        </div>
+        <div class="stat-box">
+            <div class="stat-number">{{ total_employees }}</div>
+            <div>عدد العمال المقيّمين</div>
+        </div>
+        <div class="stat-box">
+            <div class="stat-number">{{ overall_avg }}/10</div>
+            <div>متوسط التقييم العام</div>
+        </div>
+    </div>
+
+    {% for stat in region_stats %}
+    <div class="region-card">
+        <div class="region-header">
+            <h4>
+                <i>📍</i> {{ stat.region_name }}
+                <span style="font-size: 12px; color: #666;">({{ stat.company_name }})</span>
+            </h4>
+            <div style="font-size: 11px; margin-top: 5px;">
+                عدد التقييمات: {{ stat.count }} | متوسط الدرجة: {{ stat.avg_score }}/10
+                <div class="rating-stars">
+                    {% for i in range(5) %}
+                        {% if stat.avg_score >= (i+1)*2 %}★
+                        {% elif stat.avg_score >= (i+1)*2 - 1 %}½
+                        {% else %}☆
+                        {% endif %}
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+        <div>
+            <table>
+                <thead>
+                    <tr><th>اسم العامل</th><th>الوظيفة</th><th>الدرجة</th><th>التقييم</th><th>التاريخ</th></tr>
+                </thead>
+                <tbody>
+                    {% for eval in stat.evaluations %}
+                    <tr>
+                        <td>{{ eval.employee.name }}</td>
+                        <td>{{ eval.employee.job_title or 'عامل' }}</td>
+                        <td style="text-align: center;">
+                            <span class="score-badge
+                                {% if eval.score >= 8 %}score-excellent
+                                {% elif eval.score >= 5 %}score-good
+                                {% elif eval.score >= 3 %}score-average
+                                {% else %}score-poor{% endif %}">
+                                {{ eval.score|round(0)|int }}
+                            </span>
+                        </td>
+                        <td>
+                            {% for i in range(5) %}
+                                {% if (eval.score/2) > i %}★{% else %}☆{% endif %}
+                            {% endfor %}
+                        </td>
+                        <td>{{ eval.date.strftime('%Y-%m-%d') }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {% endfor %}
+
+    <div class="footer">
+        <p>هذا تقرير تلقائي تم إنشاؤه بواسطة نظام طلعت هائل للخدمات والاستشارات الزراعية</p>
+        <p>© 2025 جميع الحقوق محفوظة</p>
+    </div>
+</body>
+</html>

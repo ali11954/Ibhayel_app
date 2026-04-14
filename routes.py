@@ -1522,6 +1522,8 @@ def register_routes(app):
     def add_evaluation():
         if request.method == 'POST':
             employee_id = request.form.get('employee_id')
+            region_id = request.form.get('region_id')
+            location_id = request.form.get('location_id')
             comments = request.form.get('comments')
             date = datetime.strptime(request.form.get('date'), '%Y-%m-%d').date()
 
@@ -1554,7 +1556,9 @@ def register_routes(app):
                 evaluation_type='supervisor',
                 date=date,
                 score=percentage,
-                comments=comments
+                comments=comments,
+                region_id=region_id if region_id else None,  # ✅ حفظ المنطقة
+                location_id=location_id if location_id else None  # ✅ حفظ الموقع
             )
             evaluation.set_criteria_scores(criteria_scores)
             db.session.add(evaluation)
@@ -1563,7 +1567,7 @@ def register_routes(app):
             flash('تم إضافة التقييم بنجاح', 'success')
             return redirect(url_for('evaluations_list'))
 
-        # جلب الموظفين حسب الصلاحية
+        # جلب البيانات للـ GET
         company_filter = None
 
         if current_user.role == 'admin':
@@ -1571,6 +1575,7 @@ def register_routes(app):
                 Employee.is_active == True,
                 Employee.employee_type == 'worker'
             ).all()
+            companies = Company.query.all()
         elif current_user.role == 'supervisor':
             supervisor_employee = Employee.query.filter_by(user_id=current_user.id).first()
             if supervisor_employee:
@@ -1580,12 +1585,15 @@ def register_routes(app):
                     Employee.employee_type == 'worker',
                     Employee.company_id == company_filter
                 ).all()
+                companies = Company.query.filter_by(id=company_filter).all()
             else:
                 employees = []
+                companies = []
         else:
             employees = []
+            companies = []
 
-        # ✅ تحويل الموظفين إلى قواميس (لإرسالها كـ JSON)
+        # تحويل الموظفين إلى قواميس
         employees_data = [{
             'id': e.id,
             'name': e.name,
@@ -1594,17 +1602,7 @@ def register_routes(app):
             'employee_type': e.employee_type
         } for e in employees]
 
-        # جلب المسميات الوظيفية المتاحة
-        job_titles = db.session.query(Employee.job_title).filter(
-            Employee.job_title != None,
-            Employee.job_title != ''
-        ).distinct().all()
-        job_titles = [j[0] for j in job_titles if j[0]]
-
-        # جلب الشركات والمناطق والمواقع
-        companies = Company.query.all()
-        companies_data = [{'id': c.id, 'name': c.name} for c in companies]
-
+        # جلب المناطق والمواقع
         regions = Region.query.all()
         regions_data = [{'id': r.id, 'name': r.name, 'company_id': r.company_id} for r in regions]
 
@@ -1616,9 +1614,16 @@ def register_routes(app):
             'address': l.address or ''
         } for l in locations]
 
+        # جلب المسميات الوظيفية
+        job_titles = db.session.query(Employee.job_title).filter(
+            Employee.job_title != None,
+            Employee.job_title != ''
+        ).distinct().all()
+        job_titles = [j[0] for j in job_titles if j[0]]
+
         return render_template('evaluations/add_evaluation.html',
                                employees=employees_data,
-                               companies=companies_data,
+                               companies=companies,
                                regions=regions_data,
                                locations=locations_data,
                                job_titles=job_titles,
@@ -2383,3 +2388,295 @@ def register_routes(app):
                                selected_region=region_id,
                                selected_location=location_id,
                                now=datetime.now())
+
+    @app.route('/reports/evaluations_by_location')
+    @login_required
+    def evaluations_by_location_report():
+        """تقرير تقييمات العمال حسب الموقع"""
+        location_id = request.args.get('location_id', type=int)
+
+        # جلب جميع التقييمات من نوع المشرف
+        query = Evaluation.query.filter(Evaluation.evaluation_type == 'supervisor')
+
+        if location_id:
+            query = query.filter(Evaluation.location_id == location_id)
+
+        evaluations = query.order_by(Evaluation.date.desc()).all()
+
+        # جلب جميع المواقع
+        locations = Location.query.all()
+
+        # إنشاء قاموس للمواقع مع إحصائياتها
+        location_stats = []
+        for location in locations:
+            # جلب التقييمات الخاصة بهذا الموقع
+            location_evaluations = [e for e in evaluations if e.location_id == location.id]
+            if location_evaluations:
+                avg_score = sum(e.score for e in location_evaluations) / len(location_evaluations)
+                location_stats.append({
+                    'location_id': location.id,
+                    'location_name': location.name,
+                    'region_name': location.region.name if location.region else '-',
+                    'count': len(location_evaluations),
+                    'avg_score': round(avg_score, 1),
+                    'evaluations': location_evaluations
+                })
+
+        # ترتيب المواقع حسب عدد التقييمات
+        location_stats.sort(key=lambda x: x['count'], reverse=True)
+
+        return render_template('reports/evaluations_by_location.html',
+                               evaluations=evaluations,
+                               locations=locations,
+                               location_stats=location_stats,
+                               selected_location=location_id,
+                               now=datetime.now())
+
+    @app.route('/reports/evaluations_by_region')
+    @login_required
+    def evaluations_by_region_report():
+        """تقرير تقييمات العمال حسب المنطقة"""
+        region_id = request.args.get('region_id', type=int)
+
+        # جلب جميع التقييمات من نوع المشرف
+        query = Evaluation.query.filter(Evaluation.evaluation_type == 'supervisor')
+
+        if region_id:
+            query = query.filter(Evaluation.region_id == region_id)
+
+        evaluations = query.order_by(Evaluation.date.desc()).all()
+
+        # جلب جميع المناطق
+        regions = Region.query.all()
+
+        # إنشاء قاموس للمناطق مع إحصائياتها
+        region_stats = []
+        for region in regions:
+            # جلب التقييمات الخاصة بهذه المنطقة
+            region_evaluations = [e for e in evaluations if e.region_id == region.id]
+            if region_evaluations:
+                avg_score = sum(e.score for e in region_evaluations) / len(region_evaluations)
+                region_stats.append({
+                    'region_id': region.id,
+                    'region_name': region.name,
+                    'company_name': region.company.name if region.company else '-',
+                    'count': len(region_evaluations),
+                    'avg_score': round(avg_score, 1),
+                    'evaluations': region_evaluations  # ✅ حفظ التقييمات مباشرة
+                })
+
+        # ترتيب المناطق حسب عدد التقييمات
+        region_stats.sort(key=lambda x: x['count'], reverse=True)
+
+        return render_template('reports/evaluations_by_region.html',
+                               evaluations=evaluations,
+                               regions=regions,
+                               region_stats=region_stats,
+                               selected_region=region_id,
+                               now=datetime.now())
+
+    @app.route('/api/evaluation/<int:evaluation_id>')
+    @login_required
+    def get_evaluation_details(evaluation_id):
+        """API لجلب تفاصيل التقييم للـ Modal"""
+        evaluation = Evaluation.query.get_or_404(evaluation_id)
+
+        return jsonify({
+            'success': True,
+            'id': evaluation.id,
+            'employee_name': evaluation.employee.name,
+            'job_title': evaluation.employee.job_title,
+            'region_name': evaluation.region.name if evaluation.region else None,
+            'location_name': evaluation.location.name if evaluation.location else None,
+            'date': evaluation.date.strftime('%Y-%m-%d'),
+            'score': evaluation.score,
+            'comments': evaluation.comments,
+            'criteria_scores': evaluation.get_criteria_scores()
+        })
+
+    # ==================== تصدير التقارير إلى PDF ====================
+
+    from flask import make_response
+    from weasyprint import HTML
+    import tempfile
+    import os
+
+    @app.route('/reports/evaluations_by_region/pdf')
+    @login_required
+    def export_evaluations_by_region_pdf():
+        """تصدير تقرير التقييمات حسب المنطقة إلى PDF"""
+
+        # جلب نفس البيانات المستخدمة في التقرير
+        evaluations = Evaluation.query.filter(
+            Evaluation.evaluation_type == 'supervisor'
+        ).order_by(Evaluation.date.desc()).all()
+
+        regions = Region.query.all()
+
+        region_stats = []
+        for region in regions:
+            region_evaluations = [e for e in evaluations if e.region_id == region.id]
+            if region_evaluations:
+                avg_score = sum(e.score for e in region_evaluations) / len(region_evaluations)
+                region_stats.append({
+                    'region_id': region.id,
+                    'region_name': region.name,
+                    'company_name': region.company.name if region.company else '-',
+                    'count': len(region_evaluations),
+                    'avg_score': round(avg_score, 1),
+                    'evaluations': region_evaluations
+                })
+
+        # ترتيب المناطق حسب عدد التقييمات
+        region_stats.sort(key=lambda x: x['count'], reverse=True)
+
+        # إحصائيات عامة
+        total_evaluations = len(evaluations)
+        total_employees = len(set([e.employee_id for e in evaluations]))
+        overall_avg = sum(e.score for e in evaluations) / total_evaluations if total_evaluations > 0 else 0
+
+        # إنشاء HTML للـ PDF
+        html_content = render_template('reports/pdf/evaluations_by_region_pdf.html',
+                                       region_stats=region_stats,
+                                       total_evaluations=total_evaluations,
+                                       total_employees=total_employees,
+                                       overall_avg=round(overall_avg, 1),
+                                       now=datetime.now(),
+                                       current_user=current_user)
+
+        # تحويل HTML إلى PDF
+        pdf = HTML(string=html_content).write_pdf()
+
+        # إنشاء استجابة PDF
+        response = make_response(pdf)
+        response.headers['Content-Type'] = 'application/pdf'
+        response.headers[
+            'Content-Disposition'] = f'attachment; filename=evaluations_by_region_{datetime.now().strftime("%Y%m%d_%H%M%S")}.pdf'
+
+        return response
+
+    @app.route('/reports/evaluations_by_location/pdf')
+    @login_required
+    def export_evaluations_by_location_pdf():
+        """تصدير تقرير التقييمات حسب الموقع إلى PDF"""
+
+        evaluations = Evaluation.query.filter(
+            Evaluation.evaluation_type == 'supervisor'
+        ).order_by(Evaluation.date.desc()).all()
+
+        locations = Location.query.all()
+
+        location_stats = []
+        for location in locations:
+            location_evaluations = [e for e in evaluations if e.location_id == location.id]
+            if location_evaluations:
+                avg_score = sum(e.score for e in location_evaluations) / len(location_evaluations)
+                location_stats.append({
+                    'location_id': location.id,
+                    'location_name': location.name,
+                    'region_name': location.region.name if location.region else '-',
+                    'count': len(location_evaluations),
+                    'avg_score': round(avg_score, 1),
+                    'evaluations': location_evaluations
+                })
+
+        location_stats.sort(key=lambda x: x['count'], reverse=True)
+
+        total_evaluations = len(evaluations)
+        total_employees = len(set([e.employee_id for e in evaluations]))
+        overall_avg = sum(e.score for e in evaluations) / total_evaluations if total_evaluations > 0 else 0
+
+        html_content = render_template('reports/pdf/evaluations_by_location_pdf.html',
+                                       location_stats=location_stats,
+                                       total_evaluations=total_evaluations,
+                                       total_employees=total_employees,
+                                       overall_avg=round(overall_avg, 1),
+                                       now=datetime.now(),
+                                       current_user=current_user)
+
+        pdf = HTML(string=html_content).write_pdf()
+
+        response = make_response(pdf)
+        response.headers['Content-Type'] = 'application/pdf'
+        response.headers[
+            'Content-Disposition'] = f'attachment; filename=evaluations_by_location_{datetime.now().strftime("%Y%m%d_%H%M%S")}.pdf'
+
+        return response
+
+    @app.route('/reports/attendance/pdf')
+    @login_required
+    def export_attendance_pdf():
+        """تصدير تقرير الحضور إلى PDF"""
+
+        start_date = request.args.get('start_date')
+        end_date = request.args.get('end_date')
+        employee_id = request.args.get('employee_id', type=int)
+
+        query = Attendance.query
+        if start_date:
+            query = query.filter(Attendance.date >= datetime.strptime(start_date, '%Y-%m-%d').date())
+        if end_date:
+            query = query.filter(Attendance.date <= datetime.strptime(end_date, '%Y-%m-%d').date())
+        if employee_id:
+            query = query.filter(Attendance.employee_id == employee_id)
+
+        attendances = query.order_by(Attendance.date.desc()).all()
+        employees = Employee.query.filter_by(is_active=True).all()
+
+        html_content = render_template('reports/pdf/attendance_pdf.html',
+                                       attendances=attendances,
+                                       employees=employees,
+                                       start_date=start_date,
+                                       end_date=end_date,
+                                       now=datetime.now(),
+                                       current_user=current_user)
+
+        pdf = HTML(string=html_content).write_pdf()
+
+        response = make_response(pdf)
+        response.headers['Content-Type'] = 'application/pdf'
+        response.headers[
+            'Content-Disposition'] = f'attachment; filename=attendance_report_{datetime.now().strftime("%Y%m%d_%H%M%S")}.pdf'
+
+        return response
+
+    @app.route('/reports/financial/pdf')
+    @login_required
+    def export_financial_pdf():
+        """تصدير التقرير المالي إلى PDF"""
+
+        month_year = request.args.get('month_year')
+
+        if month_year and month_year != 'all':
+            salaries = Salary.query.filter_by(month_year=month_year).all()
+            start_date, end_date = get_financial_month_dates(month_year)
+            report_title = f'تقرير الرواتب - {month_year}'
+        else:
+            salaries = Salary.query.order_by(Salary.month_year.desc()).all()
+            start_date = None
+            end_date = None
+            report_title = 'تقرير الرواتب - جميع الأشهر'
+
+        total_salaries = sum(s.total_salary for s in salaries)
+        total_attendance_days = sum(s.attendance_days for s in salaries)
+        paid_salaries = sum(1 for s in salaries if s.is_paid)
+
+        html_content = render_template('reports/pdf/financial_pdf.html',
+                                       salaries=salaries,
+                                       total_salaries=total_salaries,
+                                       total_attendance_days=total_attendance_days,
+                                       paid_salaries=paid_salaries,
+                                       report_title=report_title,
+                                       start_date=start_date,
+                                       end_date=end_date,
+                                       now=datetime.now(),
+                                       current_user=current_user)
+
+        pdf = HTML(string=html_content).write_pdf()
+
+        response = make_response(pdf)
+        response.headers['Content-Type'] = 'application/pdf'
+        response.headers[
+            'Content-Disposition'] = f'attachment; filename=financial_report_{datetime.now().strftime("%Y%m%d_%H%M%S")}.pdf'
+
+        return response

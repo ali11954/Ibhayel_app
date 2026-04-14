@@ -1,0 +1,510 @@
+{% extends "base.html" %}
+
+{% block title %}تقرير التقييمات حسب الموقع - النخلة الخضراء{% endblock %}
+
+{% block extra_css %}
+<style>
+    .report-header {
+        background: linear-gradient(135deg, #28a745, #20c997);
+        border-radius: 20px;
+        padding: 1.5rem;
+        margin-bottom: 1.5rem;
+        color: white;
+    }
+
+    .stats-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 1rem;
+        margin-bottom: 1.5rem;
+    }
+
+    .stat-card {
+        background: white;
+        border-radius: 15px;
+        padding: 1rem;
+        text-align: center;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    }
+
+    .stat-number {
+        font-size: 2rem;
+        font-weight: 800;
+        color: #28a745;
+    }
+
+    .filter-section {
+        background: white;
+        border-radius: 15px;
+        padding: 1rem;
+        margin-bottom: 1.5rem;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+    }
+
+    .location-card {
+        background: white;
+        border-radius: 15px;
+        margin-bottom: 1rem;
+        overflow: hidden;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+        transition: transform 0.3s;
+    }
+
+    .location-card:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+    }
+
+    .location-header {
+        background: linear-gradient(135deg, #e8f5e9, #c8e6c9);
+        padding: 1rem;
+        border-bottom: 2px solid #28a745;
+        cursor: pointer;
+        transition: all 0.3s ease;
+    }
+
+    .location-header:hover {
+        background: linear-gradient(135deg, #d4edd4, #b8dfb8);
+    }
+
+    .toggle-icon {
+        transition: transform 0.3s ease;
+        display: inline-block;
+    }
+
+    .toggle-icon.rotated {
+        transform: rotate(90deg);
+    }
+
+    .location-evaluations {
+        transition: all 0.3s ease;
+    }
+
+    .location-evaluations.collapsed {
+        display: none;
+    }
+
+    .evaluation-item {
+        border-bottom: 1px solid #e9ecef;
+        padding: 0.75rem 1rem;
+        transition: background 0.3s;
+    }
+
+    .evaluation-item:hover {
+        background: #f8f9fa;
+    }
+
+    .score-badge {
+        width: 45px;
+        height: 45px;
+        border-radius: 50%;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: bold;
+        font-size: 1rem;
+    }
+
+    .score-excellent { background: #28a745; color: white; }
+    .score-good { background: #17a2b8; color: white; }
+    .score-average { background: #ffc107; color: #333; }
+    .score-poor { background: #dc3545; color: white; }
+
+    .print-btn {
+        background: #6c757d;
+        color: white;
+        border: none;
+        padding: 8px 20px;
+        border-radius: 8px;
+        cursor: pointer;
+    }
+
+    .print-btn:hover {
+        background: #5a6268;
+    }
+
+    .expand-all-btn, .collapse-all-btn {
+        background: white;
+        border: 1px solid #dee2e6;
+        padding: 6px 12px;
+        border-radius: 8px;
+        cursor: pointer;
+        transition: all 0.3s;
+        font-size: 0.85rem;
+    }
+
+    .expand-all-btn:hover, .collapse-all-btn:hover {
+        background: #e9ecef;
+    }
+
+    .employee-count-badge {
+        background: rgba(40, 167, 69, 0.15);
+        color: #28a745;
+        padding: 2px 8px;
+        border-radius: 20px;
+        font-size: 0.75rem;
+        margin-right: 8px;
+    }
+
+    @media print {
+        .no-print, .filter-section, .action-buttons, .page-header .btn,
+        .expand-all-btn, .collapse-all-btn, .toggle-icon {
+            display: none;
+        }
+        .location-card {
+            break-inside: avoid;
+            page-break-inside: avoid;
+        }
+        .location-evaluations {
+            display: block !important;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="report-header">
+    <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+        <div>
+            <h2><i class="fas fa-location-dot"></i> تقرير التقييمات حسب الموقع</h2>
+            <p class="mb-0 mt-2 opacity-75">تحليل أداء العمال حسب المواقع المختلفة</p>
+        </div>
+        <div class="d-flex gap-2">
+            <div class="btn-group no-print">
+                <button onclick="expandAllLocations()" class="btn btn-light btn-sm">
+                    <i class="fas fa-plus-circle"></i> فتح الكل
+                </button>
+                <button onclick="collapseAllLocations()" class="btn btn-light btn-sm">
+                    <i class="fas fa-minus-circle"></i> إغلاق الكل
+                </button>
+            </div>
+            <button onclick="window.print()" class="btn btn-light no-print">
+                <i class="fas fa-print me-2"></i> طباعة
+            </button>
+            <a href="{{ url_for('reports_dashboard') }}" class="btn btn-outline-light">
+                <i class="fas fa-arrow-right me-2"></i> رجوع
+            </a>
+        </div>
+    </div>
+</div>
+
+<!-- إحصائيات عامة -->
+<div class="stats-grid">
+    <div class="stat-card">
+        <i class="fas fa-chart-line fa-2x text-info mb-2"></i>
+        <div class="stat-number">{{ evaluations|length }}</div>
+        <small class="text-muted">إجمالي التقييمات</small>
+    </div>
+    <div class="stat-card">
+        <i class="fas fa-location-dot fa-2x text-success mb-2"></i>
+        <div class="stat-number">{{ location_stats|length }}</div>
+        <small class="text-muted">مواقع بها تقييمات</small>
+    </div>
+    <div class="stat-card">
+        <i class="fas fa-star fa-2x text-warning mb-2"></i>
+        <div class="stat-number">{{ (evaluations|sum(attribute='score') / evaluations|length)|round(1) if evaluations else 0 }}</div>
+        <small class="text-muted">متوسط التقييم العام</small>
+    </div>
+    <div class="stat-card">
+        <i class="fas fa-users fa-2x text-primary mb-2"></i>
+        <div class="stat-number">{{ evaluations|map(attribute='employee_id')|unique|list|length }}</div>
+        <small class="text-muted">عدد العمال المقيّمين</small>
+    </div>
+</div>
+
+<!-- فلتر حسب الموقع -->
+<div class="filter-section no-print">
+    <div class="row align-items-end">
+        <div class="col-md-4">
+            <label class="form-label fw-bold"><i class="fas fa-filter"></i> فلتر حسب الموقع</label>
+            <select id="locationFilter" class="form-select">
+                <option value="all">جميع المواقع</option>
+                {% for location in locations %}
+                <option value="{{ location.id }}" {% if selected_location == location.id %}selected{% endif %}>
+                    {{ location.name }} ({{ location.region.name if location.region else '-' }})
+                </option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="col-md-4">
+            <label class="form-label fw-bold"><i class="fas fa-search"></i> بحث</label>
+            <input type="text" id="searchInput" class="form-control" placeholder="بحث باسم العامل...">
+        </div>
+        <div class="col-md-4">
+            <label class="form-label fw-bold"><i class="fas fa-chart-simple"></i> ترتيب حسب</label>
+            <select id="sortBy" class="form-select">
+                <option value="location">الموقع</option>
+                <option value="score">الدرجة (الأعلى أولاً)</option>
+                <option value="date">التاريخ (الأحدث أولاً)</option>
+            </select>
+        </div>
+    </div>
+</div>
+
+<!-- التقييمات حسب الموقع -->
+<div id="locationsContainer">
+    {% for stat in location_stats %}
+    <div class="location-card" data-location-id="{{ stat.location_id }}" data-location-name="{{ stat.location_name }}">
+        <div class="location-header" onclick="toggleLocation(this)">
+            <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+                <div>
+                    <span class="toggle-icon">
+                        <i class="fas fa-chevron-down"></i>
+                    </span>
+                    <i class="fas fa-location-dot text-success"></i>
+                    <strong>{{ stat.location_name }}</strong>
+                    <span class="employee-count-badge">
+                        <i class="fas fa-users"></i> {{ stat.count }} عامل
+                    </span>
+                    <small class="text-muted">
+                        <i class="fas fa-map-marker-alt"></i> {{ stat.region_name }}
+                    </small>
+                </div>
+                <div>
+                    <div class="rating-stars d-inline-block me-2">
+                        {% set avg = stat.avg_score %}
+                        {% for i in range(5) %}
+                            {% if avg >= (i+1)*2 %}
+                                <i class="fas fa-star text-warning"></i>
+                            {% elif avg >= (i+1)*2 - 1 %}
+                                <i class="fas fa-star-half-alt text-warning"></i>
+                            {% else %}
+                                <i class="far fa-star text-muted"></i>
+                            {% endif %}
+                        {% endfor %}
+                    </div>
+                    <small class="text-muted">متوسط: {{ stat.avg_score }}/10</small>
+                </div>
+            </div>
+        </div>
+        <div class="location-evaluations">
+            {% for eval in evaluations if eval.location_id == stat.location_id %}
+            <div class="evaluation-item" data-score="{{ eval.score }}" data-date="{{ eval.date.strftime('%Y-%m-%d') }}" data-employee="{{ eval.employee.name }}">
+                <div class="row align-items-center">
+                    <div class="col-md-3">
+                        <strong>{{ eval.employee.name }}</strong>
+                        <br>
+                        <small class="text-muted">{{ eval.employee.job_title or 'عامل' }}</small>
+                    </div>
+                    <div class="col-md-2">
+                        <div class="score-badge
+                            {% if eval.score >= 8 %}score-excellent
+                            {% elif eval.score >= 5 %}score-good
+                            {% elif eval.score >= 3 %}score-average
+                            {% else %}score-poor{% endif %}">
+                            {{ eval.score|round(0)|int }}
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="rating-stars">
+                            {% for i in range(5) %}
+                                {% set star_val = (eval.score / 2) %}
+                                {% if i < star_val|round(0)|int %}
+                                    <i class="fas fa-star text-warning"></i>
+                                {% elif i < star_val %}
+                                    <i class="fas fa-star-half-alt text-warning"></i>
+                                {% else %}
+                                    <i class="far fa-star text-muted"></i>
+                                {% endif %}
+                            {% endfor %}
+                        </div>
+                    </div>
+                    <div class="col-md-2">
+                        <i class="far fa-calendar-alt text-muted me-1"></i>
+                        {{ eval.date.strftime('%Y-%m-%d') }}
+                    </div>
+                    <div class="col-md-2">
+                        <button class="btn btn-sm btn-outline-info" onclick="event.stopPropagation(); showDetails({{ eval.id }})">
+                            <i class="fas fa-eye"></i> تفاصيل
+                        </button>
+                    </div>
+                </div>
+                {% if eval.comments %}
+                <div class="mt-2 text-muted small">
+                    <i class="fas fa-quote-right"></i> {{ eval.comments[:100] }}{% if eval.comments|length > 100 %}...{% endif %}
+                </div>
+                {% endif %}
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% else %}
+    <div class="text-center py-5">
+        <i class="fas fa-chart-line fa-4x text-muted mb-3"></i>
+        <h5>لا توجد تقييمات مسجلة</h5>
+        <p class="text-muted">قم بإضافة تقييمات جديدة لعرضها في التقرير</p>
+        <a href="{{ url_for('add_evaluation') }}" class="btn btn-primary">
+            <i class="fas fa-plus-circle"></i> إضافة تقييم
+        </a>
+    </div>
+    {% endfor %}
+</div>
+
+<!-- Modal تفاصيل التقييم -->
+<div class="modal fade" id="detailsModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title"><i class="fas fa-clipboard-list"></i> تفاصيل التقييم</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" id="detailsContent">
+                <div class="text-center py-4">
+                    <i class="fas fa-spinner fa-spin fa-2x"></i>
+                    <p class="mt-2">جاري التحميل...</p>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">إغلاق</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// دالة إظهار/إخفاء الموظفين في موقع معين
+function toggleLocation(headerElement) {
+    const locationCard = headerElement.closest('.location-card');
+    const evaluationsDiv = locationCard.querySelector('.location-evaluations');
+    const icon = headerElement.querySelector('.toggle-icon i');
+
+    if (evaluationsDiv.classList.contains('collapsed')) {
+        evaluationsDiv.classList.remove('collapsed');
+        icon.classList.remove('fa-chevron-left');
+        icon.classList.add('fa-chevron-down');
+    } else {
+        evaluationsDiv.classList.add('collapsed');
+        icon.classList.remove('fa-chevron-down');
+        icon.classList.add('fa-chevron-left');
+    }
+}
+
+// فتح جميع المواقع
+function expandAllLocations() {
+    document.querySelectorAll('.location-evaluations').forEach(div => {
+        div.classList.remove('collapsed');
+    });
+    document.querySelectorAll('.toggle-icon i').forEach(icon => {
+        icon.classList.remove('fa-chevron-left');
+        icon.classList.add('fa-chevron-down');
+    });
+}
+
+// إغلاق جميع المواقع
+function collapseAllLocations() {
+    document.querySelectorAll('.location-evaluations').forEach(div => {
+        div.classList.add('collapsed');
+    });
+    document.querySelectorAll('.toggle-icon i').forEach(icon => {
+        icon.classList.remove('fa-chevron-down');
+        icon.classList.add('fa-chevron-left');
+    });
+}
+
+function showDetails(evaluationId) {
+    event.stopPropagation();
+    const modal = new bootstrap.Modal(document.getElementById('detailsModal'));
+    const content = document.getElementById('detailsContent');
+    content.innerHTML = '<div class="text-center py-4"><i class="fas fa-spinner fa-spin fa-2x"></i><p class="mt-2">جاري التحميل...</p></div>';
+    modal.show();
+
+    fetch(`/api/evaluation/${evaluationId}`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                let html = `
+                    <div class="mb-3">
+                        <strong>الموظف:</strong> ${data.employee_name}
+                        <br><strong>الوظيفة:</strong> ${data.job_title || 'عامل'}
+                        <br><strong>المنطقة:</strong> ${data.region_name || '-'}
+                        <br><strong>الموقع:</strong> ${data.location_name || '-'}
+                        <br><strong>تاريخ التقييم:</strong> ${data.date}
+                        <br><strong>الدرجة النهائية:</strong> ${data.score}/10
+                    </div>
+                    <hr>
+                    <h6>معايير التقييم:</h6>
+                    <table class="table table-sm">
+                        <thead><tr><th>المعيار</th><th>الدرجة</th><th>الدرجة القصوى</th></tr></thead>
+                        <tbody>
+                `;
+                for (const c of data.criteria_scores) {
+                    html += `<tr><td><strong>${c.name}</strong></td><td>${c.score}</td><td>${c.max_score}</td></tr>`;
+                }
+                html += `</tbody>点心`;
+                if (data.comments) {
+                    html += `<hr><strong>التعليقات:</strong><p>${data.comments}</p>`;
+                }
+                content.innerHTML = html;
+            } else {
+                content.innerHTML = '<div class="alert alert-danger">حدث خطأ في تحميل البيانات</div>';
+            }
+        })
+        .catch(() => {
+            content.innerHTML = '<div class="alert alert-danger">حدث خطأ في تحميل البيانات</div>';
+        });
+}
+
+$(document).ready(function() {
+    // فلتر حسب الموقع
+    $('#locationFilter').on('change', function() {
+        const val = $(this).val();
+        if (val === 'all') {
+            $('.location-card').show();
+        } else {
+            $('.location-card').hide();
+            $(`.location-card[data-location-id="${val}"]`).show();
+        }
+    });
+
+    // بحث
+    $('#searchInput').on('keyup', function() {
+        const search = $(this).val().toLowerCase();
+        $('.evaluation-item').each(function() {
+            const text = $(this).data('employee').toLowerCase();
+            if (search === '' || text.indexOf(search) > -1) {
+                $(this).show();
+                // إظهار الموقع الأب إذا كان هناك نتائج
+                $(this).closest('.location-card').find('.location-evaluations').removeClass('collapsed');
+            } else {
+                $(this).hide();
+            }
+        });
+
+        // إخفاء المواقع التي لا تحتوي على نتائج بحث
+        $('.location-card').each(function() {
+            const visibleItems = $(this).find('.evaluation-item:visible').length;
+            if (visibleItems === 0 && $('#searchInput').val() !== '') {
+                $(this).hide();
+            } else if ($('#locationFilter').val() === 'all' || $('#locationFilter').val() === $(this).data('location-id')) {
+                $(this).show();
+            }
+        });
+    });
+
+    // ترتيب
+    $('#sortBy').on('change', function() {
+        const sortBy = $(this).val();
+        const container = $('#locationsContainer');
+        const cards = $('.location-card').toArray();
+
+        if (sortBy === 'location') {
+            cards.sort((a, b) => $(a).data('location-name').localeCompare($(b).data('location-name')));
+        } else if (sortBy === 'score') {
+            cards.sort((a, b) => {
+                const avgA = parseFloat($(a).find('.location-header small').text().match(/متوسط: ([\d.]+)/)?.[1] || 0);
+                const avgB = parseFloat($(b).find('.location-header small').text().match(/متوسط: ([\d.]+)/)?.[1] || 0);
+                return avgB - avgA;
+            });
+        } else if (sortBy === 'date') {
+            cards.sort((a, b) => {
+                const dateA = $(a).find('.evaluation-item:first').data('date') || '';
+                const dateB = $(b).find('.evaluation-item:first').data('date') || '';
+                return dateB.localeCompare(dateA);
+            });
+        }
+
+        container.empty().append(cards);
+    });
+});
+</script>
+{% endblock %}

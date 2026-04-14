@@ -180,7 +180,6 @@ class Salary(db.Model):
             'is_paid': self.is_paid
         }
 
-
 # ==================== Evaluation Model ====================
 class Evaluation(db.Model):
     """نموذج تقييم العمال"""
@@ -200,13 +199,19 @@ class Evaluation(db.Model):
     date = db.Column(db.Date, nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
-    # ✅ أضف هذا السطر الجديد
-    criteria_scores = db.Column(db.Text)  # تخزين درجات المعايير كـ JSON
+    # تخزين درجات المعايير كـ JSON
+    criteria_scores = db.Column(db.Text)
 
+    # ✅ حقول المنطقة والموقع (جديدة)
+    region_id = db.Column(db.Integer, db.ForeignKey('regions.id'), nullable=True)
+    location_id = db.Column(db.Integer, db.ForeignKey('locations.id'), nullable=True)
+
+    # العلاقات
     employee = db.relationship('Employee', backref='evaluations')
     evaluator = db.relationship('User', backref='evaluations')
+    region = db.relationship('Region', foreign_keys=[region_id], backref='evaluations')
+    location = db.relationship('Location', foreign_keys=[location_id], backref='evaluations')
 
-    # ✅ أضف هاتين الدالتين
     def set_criteria_scores(self, scores_list):
         """تخزين درجات المعايير"""
         import json
@@ -242,9 +247,12 @@ class Evaluation(db.Model):
             'rating': self.get_rating(),
             'comments': self.comments,
             'date': self.date.strftime('%Y-%m-%d') if self.date else None,
-            'criteria_scores': self.get_criteria_scores()  # ✅ أضف هذا
+            'criteria_scores': self.get_criteria_scores(),
+            'region_id': self.region_id,
+            'region_name': self.region.name if self.region else None,
+            'location_id': self.location_id,
+            'location_name': self.location.name if self.location else None
         }
-
 # ==================== Company Region Location Models ====================
 class Company(db.Model):
     """نموذج الشركات"""

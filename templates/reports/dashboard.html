@@ -25,7 +25,7 @@
         display: flex;
         align-items: center;
         justify-content: center;
-        margin-bottom: 1rem;
+        margin: 0 auto 1rem auto;
     }
 
     .report-icon i {
@@ -33,10 +33,10 @@
     }
 
     .report-section {
-        background: var(--primary-soft);
+        background: linear-gradient(135deg, #f8f9fa, #e9ecef);
         border-radius: 15px;
-        padding: 1rem;
-        margin-bottom: 1rem;
+        padding: 1.5rem;
+        margin-bottom: 1.5rem;
     }
 
     .quick-stat-card {
@@ -45,12 +45,45 @@
         padding: 1rem;
         text-align: center;
         transition: all 0.3s ease;
-        box-shadow: var(--shadow-sm);
+        box-shadow: 0 2px 8px rgba(0,0,0,0.05);
     }
 
     .quick-stat-card:hover {
         transform: translateY(-3px);
-        box-shadow: var(--shadow-lg);
+        box-shadow: 0 10px 20px rgba(0,0,0,0.1);
+    }
+
+    .stat-number {
+        font-size: 1.8rem;
+        font-weight: 800;
+        margin: 0.5rem 0;
+    }
+
+    .bg-purple {
+        background-color: #9c27b0 !important;
+    }
+    .text-purple {
+        color: #9c27b0 !important;
+    }
+    .bg-teal {
+        background-color: #20c997 !important;
+    }
+    .text-teal {
+        color: #20c997 !important;
+    }
+
+    .list-group-item {
+        transition: all 0.3s ease;
+    }
+
+    .list-group-item:hover {
+        background-color: #f8f9fa;
+        transform: translateX(-5px);
+    }
+
+    .badge-stat {
+        font-size: 0.75rem;
+        padding: 0.25rem 0.5rem;
     }
 </style>
 {% endblock %}
@@ -58,19 +91,27 @@
 {% block content %}
 <div class="container-fluid">
     <div class="page-header mb-4">
-        <h2>
-            <i class="fas fa-chart-line"></i>
-            لوحة التقارير
-        </h2>
-        <p class="text-muted mb-0">تقارير وإحصائيات شاملة</p>
+        <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+            <div>
+                <h2>
+                    <i class="fas fa-chart-line"></i>
+                    لوحة التقارير
+                </h2>
+                <p class="text-muted mb-0">تقارير وإحصائيات شاملة للأداء والمالية والتقييمات</p>
+            </div>
+            <div class="text-muted">
+                <i class="fas fa-calendar-alt"></i>
+                {{ now.strftime('%Y-%m-%d') if now else datetime.now().strftime('%Y-%m-%d') }}
+            </div>
+        </div>
     </div>
 
-    <!-- التقارير الرئيسية -->
+    <!-- التقارير الرئيسية - الصف الأول -->
     <div class="row mb-4">
         <div class="col-md-6 col-lg-3 mb-3">
             <div class="report-card card" onclick="window.location.href='{{ url_for('attendance_report') }}'">
                 <div class="card-body text-center">
-                    <div class="report-icon bg-success bg-opacity-10 mx-auto">
+                    <div class="report-icon bg-success bg-opacity-10">
                         <i class="fas fa-calendar-check text-success"></i>
                     </div>
                     <h5>تقرير الحضور</h5>
@@ -83,7 +124,7 @@
         <div class="col-md-6 col-lg-3 mb-3">
             <div class="report-card card" onclick="window.location.href='{{ url_for('financial_report') }}'">
                 <div class="card-body text-center">
-                    <div class="report-icon bg-primary bg-opacity-10 mx-auto">
+                    <div class="report-icon bg-primary bg-opacity-10">
                         <i class="fas fa-chart-line text-primary"></i>
                     </div>
                     <h5>تقرير الرواتب</h5>
@@ -96,7 +137,7 @@
         <div class="col-md-6 col-lg-3 mb-3">
             <div class="report-card card" onclick="window.location.href='{{ url_for('financial_monthly_report') }}'">
                 <div class="card-body text-center">
-                    <div class="report-icon bg-info bg-opacity-10 mx-auto">
+                    <div class="report-icon bg-info bg-opacity-10">
                         <i class="fas fa-file-invoice-dollar text-info"></i>
                     </div>
                     <h5>التقرير المالي الشهري</h5>
@@ -109,7 +150,7 @@
         <div class="col-md-6 col-lg-3 mb-3">
             <div class="report-card card" onclick="window.location.href='{{ url_for('evaluations_analysis_report') }}'">
                 <div class="card-body text-center">
-                    <div class="report-icon bg-purple bg-opacity-10 mx-auto">
+                    <div class="report-icon bg-purple bg-opacity-10">
                         <i class="fas fa-star text-purple"></i>
                     </div>
                     <h5>تحليل التقييمات</h5>
@@ -120,11 +161,12 @@
         </div>
     </div>
 
+    <!-- التقارير الرئيسية - الصف الثاني -->
     <div class="row mb-4">
         <div class="col-md-6 col-lg-3 mb-3">
             <div class="report-card card" onclick="window.location.href='{{ url_for('employees_report') }}'">
                 <div class="card-body text-center">
-                    <div class="report-icon bg-secondary bg-opacity-10 mx-auto">
+                    <div class="report-icon bg-secondary bg-opacity-10">
                         <i class="fas fa-users text-secondary"></i>
                     </div>
                     <h5>تقرير الموظفين</h5>
@@ -137,7 +179,7 @@
         <div class="col-md-6 col-lg-3 mb-3">
             <div class="report-card card" onclick="window.location.href='{{ url_for('regions_report') }}'">
                 <div class="card-body text-center">
-                    <div class="report-icon bg-warning bg-opacity-10 mx-auto">
+                    <div class="report-icon bg-warning bg-opacity-10">
                         <i class="fas fa-map-marker-alt text-warning"></i>
                     </div>
                     <h5>تقرير المناطق</h5>
@@ -150,7 +192,7 @@
         <div class="col-md-6 col-lg-3 mb-3">
             <div class="report-card card" onclick="window.location.href='{{ url_for('monthly_close') }}'">
                 <div class="card-body text-center">
-                    <div class="report-icon bg-danger bg-opacity-10 mx-auto">
+                    <div class="report-icon bg-danger bg-opacity-10">
                         <i class="fas fa-file-alt text-danger"></i>
                     </div>
                     <h5>الإغلاق الشهري</h5>
@@ -163,12 +205,41 @@
         <div class="col-md-6 col-lg-3 mb-3">
             <div class="report-card card" onclick="window.location.href='{{ url_for('contracts_list') }}'">
                 <div class="card-body text-center">
-                    <div class="report-icon bg-dark bg-opacity-10 mx-auto">
-                        <i class="fas fa-file-contract text-dark"></i>
+                    <div class="report-icon bg-teal bg-opacity-10">
+                        <i class="fas fa-file-contract text-teal"></i>
                     </div>
                     <h5>تقرير العقود</h5>
                     <p class="text-muted small">عقود الشركات والمقاولين</p>
-                    <span class="badge bg-dark">عرض التقرير <i class="fas fa-arrow-left"></i></span>
+                    <span class="badge bg-teal">عرض التقرير <i class="fas fa-arrow-left"></i></span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- التقارير الجديدة - تقييمات المناطق والمواقع -->
+    <div class="row mb-4">
+        <div class="col-md-6 mb-3">
+            <div class="report-card card" onclick="window.location.href='{{ url_for('evaluations_by_region_report') }}'">
+                <div class="card-body text-center">
+                    <div class="report-icon bg-info bg-opacity-10">
+                        <i class="fas fa-map-marker-alt text-info"></i>
+                    </div>
+                    <h5>تقرير التقييمات حسب المنطقة</h5>
+                    <p class="text-muted small">تحليل أداء العمال حسب المناطق المختلفة</p>
+                    <span class="badge bg-info">عرض التقرير <i class="fas fa-arrow-left"></i></span>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-6 mb-3">
+            <div class="report-card card" onclick="window.location.href='{{ url_for('evaluations_by_location_report') }}'">
+                <div class="card-body text-center">
+                    <div class="report-icon bg-success bg-opacity-10">
+                        <i class="fas fa-location-dot text-success"></i>
+                    </div>
+                    <h5>تقرير التقييمات حسب الموقع</h5>
+                    <p class="text-muted small">تحليل أداء العمال حسب المواقع المختلفة</p>
+                    <span class="badge bg-success">عرض التقرير <i class="fas fa-arrow-left"></i></span>
                 </div>
             </div>
         </div>
@@ -181,28 +252,28 @@
             <div class="col-md-3 col-sm-6 mb-2">
                 <div class="quick-stat-card">
                     <i class="fas fa-users fa-2x text-primary"></i>
-                    <h4 class="mb-0 mt-2">{{ total_employees|default(0) }}</h4>
+                    <div class="stat-number">{{ total_employees|default(0) }}</div>
                     <small class="text-muted">إجمالي الموظفين</small>
                 </div>
             </div>
             <div class="col-md-3 col-sm-6 mb-2">
                 <div class="quick-stat-card">
                     <i class="fas fa-building fa-2x text-success"></i>
-                    <h4 class="mb-0 mt-2">{{ total_companies|default(0) }}</h4>
+                    <div class="stat-number">{{ total_companies|default(0) }}</div>
                     <small class="text-muted">إجمالي الشركات</small>
                 </div>
             </div>
             <div class="col-md-3 col-sm-6 mb-2">
                 <div class="quick-stat-card">
                     <i class="fas fa-money-bill-wave fa-2x text-warning"></i>
-                    <h4 class="mb-0 mt-2">{{ "{:,.0f}".format(total_salaries_month|default(0)) }} ر.ي</h4>
-                    <small class="text-muted">رواتب الشهر الحالي</small>
+                    <div class="stat-number">{{ "{:,.0f}".format(total_salaries_month|default(0)) }}</div>
+                    <small class="text-muted">رواتب الشهر (ر.ي)</small>
                 </div>
             </div>
             <div class="col-md-3 col-sm-6 mb-2">
                 <div class="quick-stat-card">
                     <i class="fas fa-calendar-check fa-2x text-info"></i>
-                    <h4 class="mb-0 mt-2">{{ attendance_rate|default(0) }}%</h4>
+                    <div class="stat-number">{{ attendance_rate|default(0) }}%</div>
                     <small class="text-muted">نسبة الحضور اليومية</small>
                 </div>
             </div>
@@ -211,8 +282,8 @@
 
     <!-- روابط سريعة للتقارير المتقدمة -->
     <div class="row">
-        <div class="col-md-6">
-            <div class="card">
+        <div class="col-md-6 mb-3">
+            <div class="card h-100">
                 <div class="card-header bg-white">
                     <h6 class="mb-0"><i class="fas fa-chart-line text-primary"></i> التقارير المالية</h6>
                 </div>
@@ -240,10 +311,10 @@
                 </div>
             </div>
         </div>
-        <div class="col-md-6">
-            <div class="card">
+        <div class="col-md-6 mb-3">
+            <div class="card h-100">
                 <div class="card-header bg-white">
-                    <h6 class="mb-0"><i class="fas fa-star text-warning"></i> تقارير الأداء</h6>
+                    <h6 class="mb-0"><i class="fas fa-star text-warning"></i> تقارير الأداء والتقييمات</h6>
                 </div>
                 <div class="card-body p-0">
                     <ul class="list-group list-group-flush">
@@ -254,7 +325,19 @@
                             </a>
                         </li>
                         <li class="list-group-item d-flex justify-content-between align-items-center">
-                            <span><i class="fas fa-calendar-check text-info"></i> تقرير الحضور</span>
+                            <span><i class="fas fa-map-marker-alt text-info"></i> التقييمات حسب المنطقة</span>
+                            <a href="{{ url_for('evaluations_by_region_report') }}" class="btn btn-sm btn-outline-primary">
+                                عرض <i class="fas fa-arrow-left"></i>
+                            </a>
+                        </li>
+                        <li class="list-group-item d-flex justify-content-between align-items-center">
+                            <span><i class="fas fa-location-dot text-success"></i> التقييمات حسب الموقع</span>
+                            <a href="{{ url_for('evaluations_by_location_report') }}" class="btn btn-sm btn-outline-primary">
+                                عرض <i class="fas fa-arrow-left"></i>
+                            </a>
+                        </li>
+                        <li class="list-group-item d-flex justify-content-between align-items-center">
+                            <span><i class="fas fa-calendar-check text-secondary"></i> تقرير الحضور</span>
                             <a href="{{ url_for('attendance_report') }}" class="btn btn-sm btn-outline-primary">
                                 عرض <i class="fas fa-arrow-left"></i>
                             </a>
@@ -271,25 +354,4 @@
         </div>
     </div>
 </div>
-
-<style>
-    .bg-purple {
-        background-color: #9c27b0 !important;
-    }
-    .text-purple {
-        color: #9c27b0 !important;
-    }
-    .quick-stat-card {
-        background: white;
-        border-radius: 12px;
-        padding: 1rem;
-        text-align: center;
-        transition: all 0.3s ease;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.05);
-    }
-    .quick-stat-card:hover {
-        transform: translateY(-3px);
-        box-shadow: 0 10px 15px rgba(0,0,0,0.1);
-    }
-</style>
 {% endblock %}
