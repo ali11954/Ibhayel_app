@@ -1,0 +1,125 @@
+{% extends "base.html" %}
+
+{% block title %}قائمة الدخل - طلعت هائل{% endblock %}
+
+{% block extra_css %}
+<style>
+    /* تغيير لون عناوين الجداول إلى الأسود */
+    .table th {
+        color: #000000 !important;
+        background-color: #f8f9fa !important;
+        font-weight: 700;
+    }
+
+    /* تغيير لون خلايا البيانات إلى الأسود */
+    .table td {
+        color: #000000 !important;
+    }
+
+    /* تغيير لون النصوص في الأرقام */
+    .text-end {
+        color: #000000 !important;
+    }
+
+    /* الحفاظ على لون الخلفية للصف النشط ولكن مع نص أسود */
+    .table-active th, .table-active td {
+        background-color: #e9ecef !important;
+        color: #000000 !important;
+    }
+
+    /* تغيير لون عناوين البطاقات */
+    .card-title {
+        color: #000000 !important;
+    }
+
+    /* تغيير لون التسميات */
+    label {
+        color: #000000 !important;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="card">
+        <div class="card-header">
+            <h3 class="card-title">
+                <i class="fas fa-chart-line"></i> قائمة الدخل (الأرباح والخسائر)
+            </h3>
+            <div class="card-tools">
+                <form class="form-inline">
+                    <label class="mr-2">من تاريخ:</label>
+                    <input type="date" name="start_date" class="form-control form-control-sm" value="{{ start_date.strftime('%Y-%m-%d') }}">
+                    <label class="mr-2 ml-2">إلى تاريخ:</label>
+                    <input type="date" name="end_date" class="form-control form-control-sm" value="{{ end_date.strftime('%Y-%m-%d') }}">
+                    <button type="submit" class="btn btn-sm btn-primary ml-2">عرض</button>
+                </form>
+            </div>
+        </div>
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="card">
+                        <div class="card-header bg-success text-white">
+                            <h5 class="mb-0" style="color: #000000;">الإيرادات</h5>
+                        </div>
+                        <div class="card-body p-0">
+                            <table class="table table-bordered mb-0">
+                                {% for item in revenue_data %}
+                                <tr>
+                                    <td>{{ item.account.name_ar }}</td>
+                                    <td class="text-end">{{ "{:,.2f}".format(item.balance) }} ر.ي</td>
+                                </tr>
+                                {% endfor %}
+                                <tr class="table-active">
+                                    <th style="color: #000000;">إجمالي الإيرادات</th>
+                                    <th class="text-end" style="color: #000000;">{{ "{:,.2f}".format(total_revenue) }} ر.ي</th>
+                                </tr>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="card">
+                        <div class="card-header bg-danger text-white">
+                            <h5 class="mb-0" style="color: #000000;">المصروفات</h5>
+                        </div>
+                        <div class="card-body p-0">
+                            <table class="table table-bordered mb-0">
+                                {% for item in expense_data %}
+                                <tr>
+                                    <td>{{ item.account.name_ar }}</td>
+                                    <td class="text-end">{{ "{:,.2f}".format(item.balance) }} ر.ي</td>
+                                </tr>
+                                {% endfor %}
+                                <tr class="table-active">
+                                    <th style="color: #000000;">إجمالي المصروفات</th>
+                                    <th class="text-end" style="color: #000000;">{{ "{:,.2f}".format(total_expense) }} ر.ي</th>
+                                </tr>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card mt-3">
+                <div class="card-header {% if net_income >= 0 %}bg-success{% else %}bg-danger{% endif %} text-white">
+                    <h5 class="mb-0">صافي الربح / الخسارة</h5>
+                </div>
+                <div class="card-body text-center">
+                    <h2 class="{% if net_income >= 0 %}text-success{% else %}text-danger{% endif %}">
+                        {{ "{:,.2f}".format(net_income) }} ر.ي
+                    </h2>
+                    <p class="mb-0">
+                        {% if net_income >= 0 %}
+                        <i class="fas fa-chart-line"></i> أرباح الفترة
+                        {% else %}
+                        <i class="fas fa-chart-line"></i> خسائر الفترة
+                        {% endif %}
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

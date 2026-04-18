@@ -38,6 +38,21 @@
         box-shadow: var(--shadow-sm);
     }
 
+    .quick-filters {
+        display: flex;
+        gap: 0.5rem;
+        flex-wrap: wrap;
+        margin-top: 0.5rem;
+    }
+
+    .quick-filter-btn {
+        transition: all 0.3s ease;
+    }
+
+    .quick-filter-btn:hover {
+        transform: translateY(-2px);
+    }
+
     .stats-grid {
         display: grid;
         grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
@@ -158,6 +173,13 @@
         gap: 0.5rem;
     }
 
+    .period-badge {
+        background: #e9ecef;
+        padding: 0.3rem 0.8rem;
+        border-radius: 20px;
+        font-size: 0.75rem;
+    }
+
     @media print {
         .sidebar, .navbar, .footer, .btn, .filter-section, .no-print, .export-buttons {
             display: none !important;
@@ -193,7 +215,7 @@
                 <i class="fas fa-chart-line me-2"></i>
                 التقرير المالي
             </h2>
-            <p class="mb-0 opacity-75">تقرير شامل للرواتب والإضافات والخصميات حسب الشهر المالي</p>
+            <p class="mb-0 opacity-75">تقرير شامل للرواتب والإضافات والخصميات</p>
         </div>
         <div class="col-md-4 text-center">
             <i class="fas fa-chart-pie fa-3x opacity-50"></i>
@@ -201,39 +223,81 @@
     </div>
 </div>
 
-<!-- شريط الفلترة -->
+<!-- شريط الفلترة المتقدمة -->
 <div class="filter-section">
-    <form method="GET" class="row g-3">
-        <div class="col-md-4">
-            <label class="form-label fw-bold">
-                <i class="fas fa-calendar-alt text-success"></i> اختر الشهر المالي
-            </label>
-            <select class="form-select" id="month_year" name="month_year">
-                <option value="all" {% if selected_month == 'all' %}selected{% endif %}>📅 جميع الأشهر</option>
-                {% for month in available_months %}
-                <option value="{{ month }}" {% if selected_month == month %}selected{% endif %}>
-                    {{ month }}
-                </option>
-                {% endfor %}
-            </select>
-            <small class="text-muted">الشهر المالي: من 26 إلى 25 من الشهر التالي</small>
-        </div>
-        <div class="col-md-4 d-flex align-items-end">
-            <button type="submit" class="btn btn-primary w-100">
-                <i class="fas fa-search me-2"></i> عرض التقرير
+    <!-- فلاتر سريعة -->
+    <div class="mb-3">
+        <label class="fw-bold mb-2">
+            <i class="fas fa-bolt text-warning"></i> فترات سريعة
+        </label>
+        <div class="quick-filters">
+            <button type="button" class="btn btn-sm btn-outline-primary quick-filter-btn" data-filter="last_month">
+                <i class="fas fa-calendar-alt"></i> آخر شهر
+            </button>
+            <button type="button" class="btn btn-sm btn-outline-primary quick-filter-btn" data-filter="last_3_months">
+                <i class="fas fa-calendar-week"></i> آخر 3 أشهر
+            </button>
+            <button type="button" class="btn btn-sm btn-outline-primary quick-filter-btn" data-filter="last_6_months">
+                <i class="fas fa-calendar-check"></i> آخر 6 أشهر
+            </button>
+            <button type="button" class="btn btn-sm btn-outline-primary quick-filter-btn" data-filter="this_year">
+                <i class="fas fa-calendar-year"></i> هذا العام
+            </button>
+            <button type="button" class="btn btn-sm btn-outline-secondary" id="clearFiltersBtn">
+                <i class="fas fa-times"></i> إلغاء الفلترة
             </button>
         </div>
-        <div class="col-md-4 d-flex align-items-end">
-            <div class="export-buttons w-100">
-                <button type="button" id="exportExcel" class="btn btn-success w-50" title="تصدير إلى Excel">
-                    <i class="fas fa-file-excel"></i> Excel
-                </button>
-                <button type="button" onclick="window.print()" class="btn btn-secondary w-50" title="طباعة التقرير">
-                    <i class="fas fa-print"></i> طباعة
+    </div>
+
+    <form method="GET" id="filterForm">
+        <div class="row g-3">
+            <div class="col-md-3">
+                <label class="form-label fw-bold">
+                    <i class="fas fa-calendar-alt text-success"></i> اختر الشهر المالي
+                </label>
+                <select class="form-select" id="month_year" name="month_year">
+                    <option value="all" {% if selected_month == 'all' %}selected{% endif %}>📅 جميع الأشهر</option>
+                    {% for month in available_months %}
+                    <option value="{{ month }}" {% if selected_month == month %}selected{% endif %}>
+                        {{ month }}
+                    </option>
+                    {% endfor %}
+                </select>
+                <small class="text-muted">الشهر المالي: من 26 إلى 25 من الشهر التالي</small>
+            </div>
+            <div class="col-md-3">
+                <label class="form-label fw-bold">
+                    <i class="fas fa-calendar-start text-success"></i> من تاريخ
+                </label>
+                <input type="date" class="form-control" name="start_date" id="start_date" value="{{ start_date or '' }}">
+            </div>
+            <div class="col-md-3">
+                <label class="form-label fw-bold">
+                    <i class="fas fa-calendar-end text-success"></i> إلى تاريخ
+                </label>
+                <input type="date" class="form-control" name="end_date" id="end_date" value="{{ end_date or '' }}">
+            </div>
+            <div class="col-md-3 d-flex align-items-end">
+                <button type="submit" class="btn btn-primary w-100">
+                    <i class="fas fa-search me-2"></i> عرض التقرير
                 </button>
             </div>
         </div>
+        <input type="hidden" name="quick_filter" id="quick_filter" value="{{ quick_filter or '' }}">
     </form>
+
+    <!-- عرض الفترة المحددة -->
+    {% if start_date and end_date %}
+    <div class="alert alert-info mt-3 mb-0">
+        <i class="fas fa-info-circle"></i>
+        عرض البيانات للفترة: <strong>{{ start_date }}</strong> إلى <strong>{{ end_date }}</strong>
+    </div>
+    {% elif selected_month and selected_month != 'all' %}
+    <div class="alert alert-info mt-3 mb-0">
+        <i class="fas fa-calendar-alt"></i>
+        عرض بيانات شهر: <strong>{{ selected_month }}</strong>
+    </div>
+    {% endif %}
 </div>
 
 {% if report and report.salaries %}
@@ -276,19 +340,23 @@
             <h5 class="mb-0">
                 <i class="fas fa-table text-success me-2"></i>
                 تفاصيل الرواتب
-                {% if selected_month and selected_month != 'all' %}
+                {% if start_date and end_date %}
+                - الفترة {{ start_date }} إلى {{ end_date }}
+                {% elif selected_month and selected_month != 'all' %}
                 - شهر {{ selected_month }}
                 {% else %}
-                - جميع الأشهر
+                - جميع الفترات
                 {% endif %}
             </h5>
             <div>
                 <span class="badge bg-secondary">
                     <i class="fas fa-calendar-alt"></i>
-                    {% if report.start_date and report.end_date %}
+                    {% if start_date and end_date %}
+                    {{ start_date }} - {{ end_date }}
+                    {% elif report.start_date and report.end_date %}
                     {{ report.start_date.strftime('%Y-%m-%d') }} - {{ report.end_date.strftime('%Y-%m-%d') }}
                     {% else %}
-                    جميع الأشهر المالية
+                    جميع الفترات
                     {% endif %}
                 </span>
             </div>
@@ -301,7 +369,7 @@
                     <tr>
                         <th style="width: 5%">#</th>
                         <th style="width: 12%">الموظف</th>
-                        <th style="width: 8%">الشهر</th>
+                        <th style="width: 8%">الفترة/الشهر</th>
                         <th style="width: 8%">أيام الحضور</th>
                         <th style="width: 10%">راتب الحضور</th>
                         <th style="width: 8%">بدل السكن</th>
@@ -324,7 +392,7 @@
                             <small class="text-muted">{{ salary.employee.job_title or 'موظف' }}</small>
                         </td>
                         <td>
-                            <span class="badge bg-secondary">{{ salary.month_year }}</span>
+                            <span class="period-badge">{{ salary.period_display }}</span>
                         </td>
                         <td>
                             <span class="badge bg-info">{{ salary.attendance_days }} يوم</span>
@@ -436,7 +504,16 @@
         <div class="empty-state">
             <i class="fas fa-chart-line"></i>
             <h5>لا توجد بيانات</h5>
-            <p class="text-muted">الرجاء اختيار شهر لعرض التقرير المالي</p>
+            <p class="text-muted">
+                {% if start_date and end_date %}
+                لا توجد رواتب في الفترة المحددة ({{ start_date }} إلى {{ end_date }})
+                {% else %}
+                الرجاء اختيار شهر أو فترة زمنية لعرض التقرير المالي
+                {% endif %}
+            </p>
+            <button type="button" class="btn btn-primary mt-3" onclick="document.getElementById('filterForm').submit()">
+                <i class="fas fa-calendar-alt"></i> عرض آخر شهر
+            </button>
         </div>
     </div>
 </div>
@@ -444,22 +521,43 @@
 
 <script>
     $(document).ready(function() {
+        // تفعيل الفلاتر السريعة
+        $('.quick-filter-btn').on('click', function() {
+            var filterValue = $(this).data('filter');
+            $('#quick_filter').val(filterValue);
+            $('#start_date').val('');
+            $('#end_date').val('');
+            $('#month_year').val('all');
+            $('#filterForm').submit();
+        });
+
+        // إلغاء الفلترة
+        $('#clearFiltersBtn').on('click', function() {
+            $('#quick_filter').val('');
+            $('#start_date').val('');
+            $('#end_date').val('');
+            $('#month_year').val('all');
+            $('#filterForm').submit();
+        });
+
         // تصدير إلى Excel
         $('#exportExcel').on('click', function() {
             var table = document.getElementById('financialTable');
             var html = table.outerHTML;
             var style = '<style>th, td { border: 1px solid #ddd; padding: 8px; text-align: center; } th { background: #2e7d32; color: white; } .total-row { background: #f8f9fa; font-weight: bold; }</style>';
             var title = 'التقرير المالي';
-            {% if selected_month and selected_month != 'all' %}
+            {% if start_date and end_date %}
+                title = title + ' - {{ start_date }} إلى {{ end_date }}';
+            {% elif selected_month and selected_month != 'all' %}
                 title = title + ' - {{ selected_month }}';
             {% else %}
-                title = title + ' - جميع الأشهر';
+                title = title + ' - جميع الفترات';
             {% endif %}
             var fullHtml = '<html><head><meta charset="UTF-8"><title>' + title + '</title>' + style + '</head><body>' + html + '</body></html>';
             var blob = new Blob([fullHtml], {type: 'application/vnd.ms-excel'});
             var link = document.createElement('a');
             link.href = URL.createObjectURL(blob);
-            link.download = 'financial_report_{{ selected_month if selected_month and selected_month != "all" else "all_months" }}.xls';
+            link.download = 'financial_report_{{ selected_month if selected_month and selected_month != "all" else "all" }}.xls';
             link.click();
             URL.revokeObjectURL(link.href);
         });

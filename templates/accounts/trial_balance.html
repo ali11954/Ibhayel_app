@@ -1,0 +1,66 @@
+{% extends "base.html" %}
+
+{% block title %}ميزان المراجعة - طلعت هائل{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="card">
+        <div class="card-header">
+            <h3 class="card-title">
+                <i class="fas fa-balance-scale"></i> ميزان المراجعة
+            </h3>
+            <div class="card-tools">
+                <form class="form-inline">
+                    <label class="mr-2">حتى تاريخ:</label>
+                    <input type="date" name="as_of_date" class="form-control form-control-sm" value="{{ as_of_date.strftime('%Y-%m-%d') }}" onchange="this.form.submit()">
+                </form>
+            </div>
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-bordered table-hover">
+                    <thead>
+                        <tr>
+                            <th>رقم الحساب</th>
+                            <th>اسم الحساب</th>
+                            <th>الرصيد الافتتاحي</th>
+                            <th>مدين</th>
+                            <th>دائن</th>
+                            <th>الرصيد</th>
+                        </thead>
+                        <tbody>
+                            {% for item in trial_balance %}
+                            <tr>
+                                <td><code>{{ item.account.code }}</code></td>
+                                <td>{{ item.account.name_ar }}</td>
+                                <td class="text-end">{{ "{:,.2f}".format(item.opening_balance) }} ر.ي</td>
+                                <td class="text-danger">{{ "{:,.2f}".format(item.debit) }} ر.ي</td>
+                                <td class="text-success">{{ "{:,.2f}".format(item.credit) }} ر.ي</td>
+                                <td class="text-end">{{ "{:,.2f}".format(item.balance) }} ر.ي</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                        <tfoot>
+                            <tr class="table-dark">
+                                <th colspan="3">الإجمالي</th>
+                                <th class="text-danger">{{ "{:,.2f}".format(total_debit) }} ر.ي</th>
+                                <th class="text-success">{{ "{:,.2f}".format(total_credit) }} ر.ي</th>
+                                <th></th>
+                            </tr>
+                            {% if is_balanced %}
+                            <tr class="table-success">
+                                <td colspan="6" class="text-center">✅ الميزان متوازن</td>
+                            </tr>
+                            {% else %}
+                            <tr class="table-danger">
+                                <td colspan="6" class="text-center">❌ الميزان غير متوازن - الفرق: {{ "{:,.2f}".format(total_debit - total_credit) }} ر.ي</td>
+                            </tr>
+                            {% endif %}
+                        </tfoot>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

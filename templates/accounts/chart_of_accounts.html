@@ -1,0 +1,97 @@
+{% extends "base.html" %}
+
+{% block title %}دليل الحسابات - طلعت هائل{% endblock %}
+
+{% block extra_css %}
+<style>
+    .account-tree {
+        list-style: none;
+        padding-right: 0;
+    }
+    .account-tree ul {
+        list-style: none;
+        padding-right: 20px;
+    }
+    .account-item {
+        padding: 8px 12px;
+        border-bottom: 1px solid #e9ecef;
+        transition: all 0.3s;
+    }
+    .account-item:hover {
+        background: #f8f9fa;
+        transform: translateX(-5px);
+    }
+    .account-code {
+        font-family: monospace;
+        font-weight: bold;
+        color: #6c757d;
+        width: 100px;
+        display: inline-block;
+    }
+    .account-name {
+        font-weight: 600;
+    }
+    .account-type {
+        font-size: 0.75rem;
+        padding: 2px 8px;
+        border-radius: 20px;
+    }
+    .type-asset { background: #d4edda; color: #155724; }
+    .type-liability { background: #f8d7da; color: #721c24; }
+    .type-equity { background: #d1ecf1; color: #0c5460; }
+    .type-revenue { background: #d4edda; color: #155724; }
+    .type-expense { background: #f8d7da; color: #721c24; }
+    .type-cost { background: #fff3cd; color: #856404; }
+    .nature-debit { color: #dc3545; }
+    .nature-credit { color: #28a745; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="card">
+        <div class="card-header">
+            <h3 class="card-title">
+                <i class="fas fa-book"></i> دليل الحسابات
+            </h3>
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-bordered table-hover">
+                    <thead>
+                        <tr>
+                            <th>رقم الحساب</th>
+                            <th>اسم الحساب</th>
+                            <th>نوع الحساب</th>
+                            <th>الطبيعة</th>
+                            <th>الرصيد الافتتاحي</th>
+                            <th>الرصيد الحالي</th>
+                        </thead>
+                        <tbody>
+                            {% for account in accounts %}
+                            <tr>
+                                <td><code>{{ account.code }}</code></td>
+                                <td>
+                                    <strong>{{ account.name_ar }}</strong><br>
+                                    <small class="text-muted">{{ account.name }}</small>
+                                </td>
+                                <td>
+                                    <span class="account-type type-{{ account.account_type }}">
+                                        {{ account.get_type_name() }}
+                                    </span>
+                                </td>
+                                <td class="nature-{{ account.nature }}">
+                                    {{ account.get_nature_name() }}
+                                </td>
+                                <td class="text-end">{{ "{:,.2f}".format(account.opening_balance) }} ر.ي</td>
+                                <td class="text-end">{{ "{:,.2f}".format(account.get_balance()) }} ر.ي</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

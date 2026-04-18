@@ -1,8 +1,9 @@
 from flask import Flask
 from flask_login import LoginManager
 from werkzeug.security import generate_password_hash
-from datetime import datetime
+from datetime import datetime, timedelta
 import os
+import sys
 
 from config import Config
 from models import db, User
@@ -37,12 +38,53 @@ def load_user(user_id):
 def utility_processor():
     return {
         'now': datetime.now(),
-        'app_name': 'ابن هائل لأعمال الزراعة'
+        'app_name': 'طلعت هائل للخدمات والاستشارات الزراعية'
     }
 
 
+# محاولة استيراد المجدول (مع التعامل مع الخطأ إذا لم تكن المكتبة مثبتة)
+try:
+    from apscheduler.schedulers.background import BackgroundScheduler
+
+
+    def schedule_monthly_closing():
+        """جدولة إقفال المصروفات في آخر يوم من كل شهر"""
+        from utils import auto_close_expenses
+
+        today = datetime.now().date()
+        # حساب أول يوم من الشهر القادم
+        if today.month == 12:
+            next_month = today.replace(year=today.year + 1, month=1, day=1)
+        else:
+            next_month = today.replace(month=today.month + 1, day=1)
+
+        is_last_day = (next_month - timedelta(days=1)) == today
+
+        if is_last_day:
+            print(f"📆 اليوم {today} هو آخر يوم في الشهر - جاري إقفال المصروفات...")
+            try:
+                auto_close_expenses()
+                print("✅ تم إقفال المصروفات تلقائياً")
+            except Exception as e:
+                print(f"❌ خطأ في إقفال المصروفات: {e}")
+
+
+    # تشغيل المجدول - فقط إذا لم يكن في بيئة Render (لتجنب عمليات متعددة)
+    if 'gunicorn' not in sys.argv[0] and 'waitress' not in sys.argv[0]:
+        scheduler = BackgroundScheduler()
+        scheduler.add_job(func=schedule_monthly_closing, trigger="interval", days=1)
+        scheduler.start()
+        print("✅ تم تشغيل المجدول التلقائي لإقفال المصروفات")
+    else:
+        print("ℹ️ تم تعطيل المجدول التلقائي في بيئة الإنتاج")
+
+except ImportError:
+    print("⚠️ مكتبة apscheduler غير مثبتة - تم تعطيل المجدول التلقائي")
+    print("   للتثبيت: pip install apscheduler")
+
 # تسجيل جميع الروت
 register_routes(app)
+
 
 def init_db():
     with app.app_context():
@@ -66,9 +108,10 @@ def init_db():
             print("✅ تم تحديث كلمة مرور admin")
 
         db.session.commit()
-# استدعاء init_db() عند بدء التطبيق (لـ gunicorn)
-init_db()
 
+
+# استدعاء init_db() عند بدء التطبيق
+init_db()
 
 if __name__ == '__main__':
     # استخدام PORT من متغيرات البيئة لـ Render

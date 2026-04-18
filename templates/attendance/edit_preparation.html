@@ -1,0 +1,228 @@
+{% extends "base.html" %}
+
+{% block title %}تعديل تحضير الدوام - {{ preparation.month_year }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <!-- بطاقة الإحصائيات -->
+            <div class="row">
+                <div class="col-md-3">
+                    <div class="info-box">
+                        <span class="info-box-icon bg-info"><i class="fas fa-users"></i></span>
+                        <div class="info-box-content">
+                            <span class="info-box-text">إجمالي الموظفين</span>
+                            <span class="info-box-number">{{ stats.total_employees }}</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="info-box">
+                        <span class="info-box-icon bg-success"><i class="fas fa-lock"></i></span>
+                        <div class="info-box-content">
+                            <span class="info-box-text">الموظفين المقفولين</span>
+                            <span class="info-box-number">{{ stats.locked_count }}/{{ stats.total_employees }}</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="info-box">
+                        <span class="info-box-icon bg-warning"><i class="fas fa-calendar-day"></i></span>
+                        <div class="info-box-content">
+                            <span class="info-box-text">إجمالي أيام الحضور</span>
+                            <span class="info-box-number">{{ stats.total_attendance_days }}</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="info-box">
+                        <span class="info-box-icon bg-primary"><i class="fas fa-clock"></i></span>
+                        <div class="info-box-content">
+                            <span class="info-box-text">إجمالي ساعات الإضافي</span>
+                            <span class="info-box-number">{{ stats.total_overtime_hours }}</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- فلتر البحث -->
+            <div class="card">
+                <div class="card-header">
+                    <h3 class="card-title">فلترة الموظفين</h3>
+                    <div class="card-tools">
+                        <button type="button" class="btn btn-tool" data-card-widget="collapse">
+                            <i class="fas fa-minus"></i>
+                        </button>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <form method="GET" class="row">
+                        <div class="col-md-3">
+                            <label>الشركة</label>
+                            <select name="filter_company" class="form-control">
+                                <option value="">الكل</option>
+                                {% for company in companies %}
+                                <option value="{{ company.id }}" {% if filter_company == company.id|string %}selected{% endif %}>
+                                    {{ company.name }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <label>المنطقة</label>
+                            <select name="filter_region" class="form-control">
+                                <option value="">الكل</option>
+                                {% for region in regions %}
+                                <option value="{{ region }}" {% if filter_region == region %}selected{% endif %}>
+                                    {{ region }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <label>الحالة</label>
+                            <select name="filter_status" class="form-control">
+                                <option value="all" {% if filter_status == 'all' %}selected{% endif %}>الكل</option>
+                                <option value="locked" {% if filter_status == 'locked' %}selected{% endif %}>مقفول</option>
+                                <option value="unlocked" {% if filter_status == 'unlocked' %}selected{% endif %}>غير مقفول</option>
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <label>بحث</label>
+                            <input type="text" name="search" class="form-control" placeholder="اسم الموظف أو الكود..." value="{{ search }}">
+                        </div>
+                        <div class="col-md-12 mt-3">
+                            <button type="submit" class="btn btn-primary"><i class="fas fa-filter"></i> فلترة</button>
+                            <a href="{{ url_for('edit_attendance_preparation', prep_id=preparation.id) }}" class="btn btn-default">إعادة تعيين</a>
+                            {% if stats.locked_count < stats.total_employees %}
+                            <button type="button" class="btn btn-success float-right" onclick="lockAll()">
+                                <i class="fas fa-lock"></i> قفل الكل
+                            </button>
+                            {% endif %}
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <!-- جدول الموظفين -->
+            <div class="card">
+                <div class="card-header">
+                    <h3 class="card-title">تفاصيل الدوام - {{ preparation.month_year }}</h3>
+                </div>
+                <div class="card-body">
+                    <form method="POST">
+                        <div class="table-responsive">
+                            <table class="table table-bordered table-hover">
+                                <thead>
+                                    <tr>
+                                        <th>#</th>
+                                        <th>الموظف</th>
+                                        <th>الشركة</th>
+                                        <th>المنطقة</th>
+                                        <th>أيام الحضور</th>
+                                        <th>أيام الغياب</th>
+                                        <th>أيام مرضية</th>
+                                        <th>دقائق تأخير</th>
+                                        <th>ساعات إضافي</th>
+                                        <th>البدل اليومي</th>
+                                        <th>قفل</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for detail in details %}
+                                    <tr>
+                                        <td>{{ loop.index }}</td>
+                                        <td>
+                                            <strong>{{ detail.employee.name }}</strong><br>
+                                            <small class="text-muted">{{ detail.employee.code or '' }}</small>
+                                        </td>
+                                        <td>{{ detail.employee.company.name if detail.employee.company else '-' }}</td>
+                                        <td>{{ detail.employee.region or '-' }}</td>
+                                        <td>
+                                            <input type="number" name="attendance_days_{{ detail.id }}"
+                                                   value="{{ detail.attendance_days }}" class="form-control form-control-sm"
+                                                   style="width: 80px;" step="1" min="0" max="31">
+                                        </td>
+                                        <td class="text-center">{{ detail.absent_days }}</td>
+                                        <td class="text-center">{{ detail.sick_days }}</td>
+                                        <td class="text-center">{{ detail.late_minutes_total }}</td>
+                                        <td>
+                                            <input type="number" name="overtime_hours_{{ detail.id }}"
+                                                   value="{{ detail.overtime_hours }}" class="form-control form-control-sm"
+                                                   style="width: 80px;" step="0.5">
+                                        </td>
+                                        <td>
+                                            <input type="number" name="daily_allowance_{{ detail.id }}"
+                                                   value="{{ detail.daily_allowance }}" class="form-control form-control-sm"
+                                                   style="width: 100px;" step="1000">
+                                        </td>
+                                        <td class="text-center">
+                                            <input type="checkbox" name="is_locked_{{ detail.id }}"
+                                                   {% if detail.is_locked %}checked{% endif %}
+                                                   class="form-check-input" style="transform: scale(1.2);">
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <div class="row mt-3">
+                            <div class="col-12">
+                                <button type="submit" class="btn btn-primary">
+                                    <i class="fas fa-save"></i> حفظ التعديلات
+                                </button>
+
+                                {% if stats.locked_count == stats.total_employees and stats.total_employees > 0 %}
+                                <button type="button" class="btn btn-success" onclick="processPreparation()">
+                                    <i class="fas fa-calculator"></i> تصفية وترحيل إلى الرواتب
+                                </button>
+                                {% endif %}
+
+                                <a href="{{ url_for('attendance_preparation_list') }}" class="btn btn-default">رجوع</a>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function lockAll() {
+    if (confirm('هل أنت متأكد من قفل جميع الموظفين؟ بعد القفل لن تتمكن من تعديل البيانات.')) {
+        fetch('/attendance/preparation/lock_all', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                prep_id: {{ preparation.id }}
+            })
+        }).then(response => response.json())
+          .then(data => {
+              if (data.success) {
+                  window.location.reload();
+              } else {
+                  alert(data.error);
+              }
+          });
+    }
+}
+
+function processPreparation() {
+    if (confirm('هل أنت متأكد من تصفية وترحيل هذا التحضير إلى الرواتب؟\nلا يمكن التراجع عن هذه العملية.')) {
+        fetch('/attendance/preparation/process/{{ preparation.id }}', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            }
+        }).then(response => {
+            window.location.href = "{{ url_for('attendance_preparation_list') }}";
+        });
+    }
+}
+</script>
+{% endblock %}

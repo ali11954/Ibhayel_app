@@ -1,0 +1,101 @@
+{% extends "base.html" %}
+
+{% block title %}إضافة مورد - طلعت هائل{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-md-8 offset-md-2">
+            <div class="card">
+                <div class="card-header bg-primary text-white">
+                    <h3 class="card-title"><i class="fas fa-truck"></i> إضافة مورد جديد</h3>
+                    <div class="card-tools">
+                        <a href="{{ url_for('suppliers_list') }}" class="btn btn-light btn-sm">
+                            <i class="fas fa-arrow-right"></i> رجوع
+                        </a>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <form method="POST">
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label fw-bold">الاسم (إنجليزي) <span class="text-danger">*</span></label>
+                                <input type="text" name="name" class="form-control" required>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label fw-bold">الاسم (عربي) <span class="text-danger">*</span></label>
+                                <input type="text" name="name_ar" class="form-control" required>
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label fw-bold">جهة الاتصال</label>
+                                <input type="text" name="contact_person" class="form-control">
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label fw-bold">نوع المورد</label>
+                                <select name="supplier_type" class="form-control">
+                                    <option value="general">عام</option>
+                                    <option value="utility">كهرباء وماء</option>
+                                    <option value="rent">إيجار</option>
+                                    <option value="office">مستلزمات مكتبية</option>
+                                    <option value="equipment">معدات وأدوات</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label fw-bold">الهاتف</label>
+                                <input type="text" name="phone" class="form-control">
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label fw-bold">البريد الإلكتروني</label>
+                                <input type="email" name="email" class="form-control">
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">العنوان</label>
+                            <textarea name="address" class="form-control" rows="2"></textarea>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label fw-bold">الرقم الضريبي</label>
+                                <input type="text" name="tax_number" class="form-control">
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label fw-bold">اسم البنك</label>
+                                <input type="text" name="bank_name" class="form-control">
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label fw-bold">رقم الحساب البنكي</label>
+                                <input type="text" name="bank_account" class="form-control">
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">ملاحظات</label>
+                            <textarea name="notes" class="form-control" rows="2"></textarea>
+                        </div>
+
+                        <div class="text-center">
+                            <button type="submit" class="btn btn-primary btn-lg px-5">
+                                <i class="fas fa-save"></i> حفظ
+                            </button>
+                            <a href="{{ url_for('suppliers_list') }}" class="btn btn-secondary btn-lg px-5">
+                                <i class="fas fa-times"></i> إلغاء
+                            </a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

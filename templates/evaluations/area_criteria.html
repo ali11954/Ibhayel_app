@@ -1,0 +1,155 @@
+{% extends "base.html" %}
+
+{% block title %}إدارة معايير التقييم - المناطق والمواقع{% endblock %}
+
+{% block extra_css %}
+<style>
+    .criteria-card {
+        background: white;
+        border-radius: 12px;
+        padding: 1rem;
+        margin-bottom: 1rem;
+        border: 1px solid #e9ecef;
+        transition: all 0.3s;
+    }
+
+    .criteria-card:hover {
+        box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+    }
+
+    .weight-badge {
+        background: #9b59b6;
+        color: white;
+        padding: 0.2rem 0.6rem;
+        border-radius: 20px;
+        font-size: 0.7rem;
+    }
+
+    .add-form {
+        background: #f8f9fa;
+        border-radius: 15px;
+        padding: 1.5rem;
+        margin-bottom: 1.5rem;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header bg-white">
+                    <h3 class="card-title">
+                        <i class="fas fa-cog text-primary"></i>
+                        إدارة معايير التقييم
+                    </h3>
+                    <div class="card-tools">
+                        <a href="{{ url_for('area_evaluations_list') }}" class="btn btn-default">
+                            <i class="fas fa-arrow-right"></i> رجوع
+                        </a>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <!-- نموذج إضافة معيار جديد -->
+                    <div class="add-form">
+                        <h5><i class="fas fa-plus-circle text-success"></i> إضافة معيار جديد</h5>
+                        <form method="POST" class="row g-3">
+                            <div class="col-md-3">
+                                <select name="evaluation_type" class="form-control" required>
+                                    <option value="">نوع التقييم</option>
+                                    <option value="region">منطقة</option>
+                                    <option value="location">موقع</option>
+                                </select>
+                            </div>
+                            <div class="col-md-3">
+                                <input type="text" name="name" class="form-control" placeholder="اسم المعيار" required>
+                            </div>
+                            <div class="col-md-3">
+                                <input type="text" name="description" class="form-control" placeholder="الوصف (اختياري)">
+                            </div>
+                            <div class="col-md-1">
+                                <input type="number" name="weight" class="form-control" placeholder="الوزن" value="1" step="0.5">
+                            </div>
+                            <div class="col-md-1">
+                                <input type="number" name="max_score" class="form-control" placeholder="الدرجة القصوى" value="10">
+                            </div>
+                            <div class="col-md-1">
+                                <input type="number" name="order" class="form-control" placeholder="الترتيب" value="0">
+                            </div>
+                            <div class="col-md-12">
+                                <button type="submit" class="btn btn-success">
+                                    <i class="fas fa-save"></i> إضافة معيار
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+
+                    <!-- معايير المناطق -->
+                    <h4 class="mt-4"><i class="fas fa-globe text-primary"></i> معايير تقييم المناطق</h4>
+                    <div class="row">
+                        {% for criteria in region_criteria %}
+                        <div class="col-md-6">
+                            <div class="criteria-card">
+                                <div class="d-flex justify-content-between align-items-start">
+                                    <div>
+                                        <strong>{{ criteria.name }}</strong>
+                                        <span class="weight-badge mx-2">وزن: {{ criteria.weight }}</span>
+                                        <span class="badge bg-info">الدرجة القصوى: {{ criteria.max_score }}</span>
+                                        <div class="text-muted small mt-1">{{ criteria.description or 'لا يوجد وصف' }}</div>
+                                    </div>
+                                    <button class="btn btn-sm btn-danger" onclick="deleteCriteria({{ criteria.id }})">
+                                        <i class="fas fa-trash"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                        {% else %}
+                        <div class="col-12">
+                            <div class="alert alert-info">لا توجد معايير مضافة لتقييم المناطق</div>
+                        </div>
+                        {% endfor %}
+                    </div>
+
+                    <!-- معايير المواقع -->
+                    <h4 class="mt-4"><i class="fas fa-map-pin text-primary"></i> معايير تقييم المواقع</h4>
+                    <div class="row">
+                        {% for criteria in location_criteria %}
+                        <div class="col-md-6">
+                            <div class="criteria-card">
+                                <div class="d-flex justify-content-between align-items-start">
+                                    <div>
+                                        <strong>{{ criteria.name }}</strong>
+                                        <span class="weight-badge mx-2">وزن: {{ criteria.weight }}</span>
+                                        <span class="badge bg-info">الدرجة القصوى: {{ criteria.max_score }}</span>
+                                        <div class="text-muted small mt-1">{{ criteria.description or 'لا يوجد وصف' }}</div>
+                                    </div>
+                                    <button class="btn btn-sm btn-danger" onclick="deleteCriteria({{ criteria.id }})">
+                                        <i class="fas fa-trash"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                        {% else %}
+                        <div class="col-12">
+                            <div class="alert alert-info">لا توجد معايير مضافة لتقييم المواقع</div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function deleteCriteria(criteriaId) {
+    if (confirm('⚠️ هل أنت متأكد من حذف هذا المعيار؟')) {
+        fetch(`/evaluations/areas/criteria/delete/${criteriaId}`, {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'}
+        }).then(() => window.location.reload());
+    }
+}
+</script>
+{% endblock %}

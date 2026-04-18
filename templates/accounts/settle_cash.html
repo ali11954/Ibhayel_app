@@ -1,0 +1,69 @@
+{% extends "base.html" %}
+
+{% block title %}تسوية الصندوق{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-md-6 mx-auto">
+            <div class="card">
+                <div class="card-header bg-primary text-white">
+                    <h4><i class="fas fa-money-bill-wave"></i> تسوية رصيد الصندوق</h4>
+                </div>
+                <div class="card-body">
+                    <div class="alert alert-info">
+                        <strong>الرصيد الحالي للصندوق:</strong>
+                        <h3 class="text-center">{{ "{:,.2f}".format(cash_balance) }} ريال</h3>
+                    </div>
+
+                    <form method="POST">
+                        <div class="mb-3">
+                            <label>نوع العملية</label>
+                            <select name="transaction_type" class="form-select" required>
+                                <option value="deposit">إيداع (زيادة الرصيد)</option>
+                                <option value="withdraw">سحب (نقص الرصيد)</option>
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label>المبلغ</label>
+                            <input type="number" name="amount" class="form-control" step="0.01" required>
+                        </div>
+                        <div class="mb-3">
+                            <label>الوصف</label>
+                            <input type="text" name="description" class="form-control" required>
+                        </div>
+                        <button type="submit" class="btn btn-success w-100">
+                            <i class="fas fa-check"></i> تنفيذ العملية
+                        </button>
+                    </form>
+                </div>
+            </div>
+
+            <div class="card mt-3">
+                <div class="card-header bg-secondary text-white">
+                    <h5>آخر عمليات الصندوق</h5>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-sm">
+                            <thead>
+                                <tr><th>التاريخ</th><th>الوصف</th><th>المبلغ</th><th>النوع</th></tr>
+                            </thead>
+                            <tbody>
+                                {% for entry in entries %}
+                                <tr>
+                                    <td>{{ entry.date.strftime('%Y-%m-%d') }}</td>
+                                    <td>{{ entry.description|truncate(40) }}</td>
+                                    <td class="text-end">{{ "{:,.2f}".format(entry.get_total_debit()) }}</td>
+                                    <td>{% if entry.reference_type == 'cash_settlement' %}تسوية{% endif %}</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

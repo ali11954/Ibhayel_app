@@ -1,0 +1,373 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <title>فاتورة رقم {{ invoice.invoice_number }} - طلعت هائل</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Cairo', 'Segoe UI', 'Tahoma', sans-serif;
+            background: #fff;
+            padding: 20px;
+            color: #333;
+        }
+
+        .invoice-container {
+            max-width: 1000px;
+            margin: 0 auto;
+            background: white;
+            border: 1px solid #e0e0e0;
+            box-shadow: 0 0 20px rgba(0,0,0,0.1);
+        }
+
+        /* رأس الفاتورة */
+        .invoice-header {
+            background: linear-gradient(135deg, #2e7d32, #1b5e20);
+            color: white;
+            padding: 20px;
+            text-align: center;
+            position: relative;
+        }
+
+        .invoice-header h1 {
+            margin: 0;
+            font-size: 28px;
+        }
+
+        .invoice-header .subtitle {
+            font-size: 12px;
+            opacity: 0.9;
+            margin-top: 5px;
+        }
+
+        /* معلومات الشركة */
+        .company-info {
+            text-align: center;
+            padding: 15px;
+            border-bottom: 2px solid #2e7d32;
+            margin-bottom: 20px;
+        }
+
+        .company-name {
+            font-size: 20px;
+            font-weight: bold;
+            color: #2e7d32;
+        }
+
+        .company-details {
+            font-size: 11px;
+            color: #666;
+            margin-top: 5px;
+        }
+
+        /* معلومات الفاتورة */
+        .invoice-info {
+            display: flex;
+            justify-content: space-between;
+            padding: 15px 20px;
+            background: #f8f9fa;
+            margin: 0 20px;
+            border-radius: 8px;
+        }
+
+        .info-box {
+            text-align: center;
+        }
+
+        .info-box .label {
+            font-size: 11px;
+            color: #666;
+            margin-bottom: 5px;
+        }
+
+        .info-box .value {
+            font-size: 14px;
+            font-weight: bold;
+            color: #333;
+        }
+
+        /* جدول الفاتورة */
+        .invoice-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px;
+            width: calc(100% - 40px);
+        }
+
+        .invoice-table th {
+            background: #2e7d32;
+            color: white;
+            padding: 10px;
+            text-align: center;
+            font-size: 13px;
+        }
+
+        .invoice-table td {
+            padding: 10px;
+            text-align: center;
+            border-bottom: 1px solid #e0e0e0;
+            font-size: 12px;
+        }
+
+        .invoice-table tr:hover {
+            background: #f5f5f5;
+        }
+
+        /* ملخص الفاتورة */
+        .summary {
+            width: 300px;
+            margin: 20px;
+            margin-right: auto;
+            border-top: 2px solid #e0e0e0;
+            padding-top: 15px;
+        }
+
+        .summary-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 5px 0;
+            font-size: 13px;
+        }
+
+        .summary-row.total {
+            font-weight: bold;
+            font-size: 16px;
+            color: #2e7d32;
+            border-top: 1px solid #e0e0e0;
+            margin-top: 5px;
+            padding-top: 10px;
+        }
+
+        /* تذييل الفاتورة */
+        .invoice-footer {
+            background: #f8f9fa;
+            padding: 15px 20px;
+            text-align: center;
+            font-size: 10px;
+            color: #666;
+            margin-top: 20px;
+            border-top: 1px solid #e0e0e0;
+        }
+
+        /* حالة الفاتورة */
+        .status-badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 11px;
+            font-weight: bold;
+        }
+
+        .status-paid {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .status-partial {
+            background: #fff3cd;
+            color: #856404;
+        }
+
+        .status-pending {
+            background: #f8d7da;
+            color: #721c24;
+        }
+
+        /* أزرار الطباعة */
+        .print-btn {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background: #2e7d32;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 50px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: bold;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+            transition: all 0.3s;
+            z-index: 1000;
+        }
+
+        .print-btn:hover {
+            background: #1b5e20;
+            transform: translateY(-2px);
+        }
+
+        @media print {
+            .print-btn {
+                display: none;
+            }
+
+            body {
+                padding: 0;
+                background: white;
+            }
+
+            .invoice-container {
+                box-shadow: none;
+                border: none;
+            }
+
+            .invoice-header {
+                -webkit-print-color-adjust: exact;
+                print-color-adjust: exact;
+            }
+
+            .invoice-table th {
+                -webkit-print-color-adjust: exact;
+                print-color-adjust: exact;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .invoice-info {
+                flex-direction: column;
+                gap: 10px;
+            }
+
+            .summary {
+                width: 100%;
+            }
+
+            .invoice-table {
+                font-size: 10px;
+            }
+
+            .invoice-table th, .invoice-table td {
+                padding: 5px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="invoice-container">
+        <!-- رأس الفاتورة -->
+        <div class="invoice-header">
+            <h1>فاتورة شراء</h1>
+            <div class="subtitle">PURCHASE INVOICE</div>
+        </div>
+
+        <!-- معلومات الشركة -->
+        <div class="company-info">
+            <div class="company-name">{{ company_info.name }}</div>
+            <div class="company-details">
+                {{ company_info.name_en }}<br>
+                {{ company_info.address }}<br>
+                {{ company_info.phone }} | {{ company_info.email }}<br>
+                الرقم الضريبي: {{ company_info.tax_number }}
+            </div>
+        </div>
+
+        <!-- معلومات الفاتورة -->
+        <div class="invoice-info">
+            <div class="info-box">
+                <div class="label">رقم الفاتورة</div>
+                <div class="value">{{ invoice.invoice_number }}</div>
+            </div>
+            <div class="info-box">
+                <div class="label">تاريخ الفاتورة</div>
+                <div class="value">{{ invoice.invoice_date.strftime('%Y-%m-%d') }}</div>
+            </div>
+            <div class="info-box">
+                <div class="label">تاريخ الاستحقاق</div>
+                <div class="value">{{ invoice.due_date.strftime('%Y-%m-%d') if invoice.due_date else 'غير محدد' }}</div>
+            </div>
+            <div class="info-box">
+                <div class="label">الحالة</div>
+                <div class="value">
+                    <span class="status-badge
+                        {% if invoice.status == 'paid' %}status-paid
+                        {% elif invoice.status == 'partial' %}status-partial
+                        {% else %}status-pending{% endif %}">
+                        {% if invoice.status == 'paid' %}مدفوعة
+                        {% elif invoice.status == 'partial' %}مدفوعة جزئياً
+                        {% else %}غير مدفوعة{% endif %}
+                    </span>
+                </div>
+            </div>
+        </div>
+
+        <!-- معلومات المورد -->
+        <div style="padding: 0 20px 15px 20px;">
+            <div style="background: #e8f5e9; padding: 10px; border-radius: 8px;">
+                <div style="font-weight: bold; margin-bottom: 5px;">المورد:</div>
+                <div>{{ invoice.supplier.name_ar if invoice.supplier else '-' }} ({{ invoice.supplier.name if invoice.supplier else '-' }})</div>
+                {% if invoice.supplier and invoice.supplier.phone %}
+                <div style="font-size: 11px; color: #666; margin-top: 5px;">هاتف: {{ invoice.supplier.phone }}</div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- جدول الفاتورة -->
+        <table class="invoice-table">
+            <thead>
+                <tr>
+                    <th>#</th>
+                    <th>البيان</th>
+                    <th>الفئة</th>
+                    <th>المبلغ</th>
+                 </thead>
+            <tbody>
+                <tr>
+                    <td>1</td>
+                    <td style="text-align: right;">
+                        {{ invoice.description or 'فاتورة مشتريات' }}
+                        {% if invoice.notes %}
+                        <br><small style="color: #666;">{{ invoice.notes }}</small>
+                        {% endif %}
+                    </td>
+                    <td>{{ invoice.category.name_ar if invoice.category else '-' }}</td>
+                    <td>{{ "{:,.0f}".format(invoice.amount) }} ر.ي</td>
+                 </tr>
+            </tbody>
+        </table>
+
+        <!-- ملخص الفاتورة -->
+        <div class="summary">
+            <div class="summary-row">
+                <span>المبلغ الإجمالي:</span>
+                <span>{{ "{:,.0f}".format(invoice.amount) }} ر.ي</span>
+            </div>
+            <div class="summary-row">
+                <span>المدفوع:</span>
+                <span style="color: #28a745;">{{ "{:,.0f}".format(invoice.paid_amount) }} ر.ي</span>
+            </div>
+            <div class="summary-row">
+                <span>المتبقي:</span>
+                <span style="color: #dc3545;">{{ "{:,.0f}".format(invoice.remaining_amount) }} ر.ي</span>
+            </div>
+            <div class="summary-row total">
+                <span>صافي الفاتورة:</span>
+                <span>{{ "{:,.0f}".format(invoice.amount) }} ر.ي</span>
+            </div>
+        </div>
+
+        <!-- تذييل الفاتورة -->
+        <div class="invoice-footer">
+            <div>شكراً لتعاملكم مع طلعت هائل</div>
+            <div style="margin-top: 5px;">تم إنشاء هذه الفاتورة بواسطة النظام المحاسبي - طلعت هائل للخدمات والاستشارات الزراعية</div>
+            <div style="margin-top: 5px;">تاريخ الطباعة: {{ now.strftime('%Y-%m-%d %H:%M:%S') }}</div>
+        </div>
+    </div>
+
+    <button class="print-btn" onclick="window.print()">
+        <i class="fas fa-print"></i> طباعة الفاتورة
+    </button>
+
+    <script>
+        // طباعة تلقائية عند تحميل الصفحة (اختياري)
+        // window.onload = function() { window.print(); }
+    </script>
+</body>
+</html>

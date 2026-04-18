@@ -1,0 +1,337 @@
+{% extends "base.html" %}
+
+{% block title %}تعديل سجل الحضور - طلعت هائل{% endblock %}
+
+{% block extra_css %}
+<style>
+    .edit-card {
+        border: none;
+        border-radius: 20px;
+        box-shadow: 0 5px 20px rgba(0,0,0,0.1);
+        overflow: hidden;
+    }
+
+    .edit-header {
+        background: linear-gradient(135deg, #17a2b8 0%, #0dcaf0 100%);
+        padding: 1.2rem 1.5rem;
+        color: white;
+    }
+
+    .edit-header h4 {
+        margin: 0;
+        font-weight: 600;
+    }
+
+    .edit-header i {
+        margin-left: 10px;
+    }
+
+    .form-section {
+        background: #f8f9fa;
+        border-radius: 15px;
+        padding: 1rem;
+        margin-bottom: 1rem;
+    }
+
+    .form-section-title {
+        font-weight: 700;
+        color: #17a2b8;
+        margin-bottom: 1rem;
+        padding-bottom: 0.5rem;
+        border-bottom: 2px solid #17a2b8;
+        display: inline-block;
+    }
+
+    .info-badge {
+        background: #e9ecef;
+        padding: 0.3rem 0.8rem;
+        border-radius: 20px;
+        font-size: 0.8rem;
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+    }
+
+    .employee-avatar-lg {
+        width: 60px;
+        height: 60px;
+        border-radius: 15px;
+        background: linear-gradient(135deg, #17a2b8, #0dcaf0);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        font-size: 1.5rem;
+        font-weight: bold;
+    }
+
+    .btn-save {
+        background: linear-gradient(135deg, #28a745, #20c997);
+        border: none;
+        padding: 0.6rem 2rem;
+        font-weight: 600;
+        border-radius: 50px;
+        transition: all 0.3s;
+    }
+
+    .btn-save:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 5px 15px rgba(40,167,69,0.3);
+    }
+
+    .btn-cancel {
+        background: #6c757d;
+        border: none;
+        padding: 0.6rem 2rem;
+        font-weight: 600;
+        border-radius: 50px;
+        transition: all 0.3s;
+    }
+
+    .btn-cancel:hover {
+        background: #5a6268;
+        transform: translateY(-2px);
+    }
+
+    .status-badge-select {
+        display: inline-block;
+        padding: 0.4rem 1rem;
+        border-radius: 25px;
+        font-size: 0.8rem;
+        font-weight: 600;
+    }
+
+    .status-present { background: #d4edda; color: #155724; }
+    .status-absent { background: #f8d7da; color: #721c24; }
+    .status-late { background: #fff3cd; color: #856404; }
+    .status-sick { background: #d1ecf1; color: #0c5460; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-md-8 offset-md-2">
+            <div class="card edit-card">
+                <div class="edit-header">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h4>
+                                <i class="fas fa-edit"></i>
+                                تعديل سجل الحضور
+                            </h4>
+                            <p class="mb-0 opacity-75 mt-1">تعديل بيانات حضور وانصراف الموظف</p>
+                        </div>
+                        <div class="employee-avatar-lg">
+                            <i class="fas fa-user-check"></i>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card-body p-4">
+                    <form method="POST" action="{{ url_for('edit_attendance_record', attendance_id=attendance.id) }}">
+                        <input type="hidden" name="start_date" value="{{ start_date }}">
+                        <input type="hidden" name="end_date" value="{{ end_date }}">
+                        <input type="hidden" name="employee_id" value="{{ employee_id }}">
+
+                        <!-- معلومات الموظف والتاريخ -->
+                        <div class="form-section">
+                            <div class="form-section-title">
+                                <i class="fas fa-info-circle"></i> معلومات أساسية
+                            </div>
+                            <div class="row mt-3">
+                                <div class="col-md-6 mb-3">
+                                    <label class="form-label fw-bold">
+                                        <i class="fas fa-user text-primary"></i> الموظف
+                                    </label>
+                                    <div class="info-badge">
+                                        <i class="fas fa-user-circle"></i>
+                                        {{ attendance.employee.name }}
+                                        <span class="text-muted mx-1">|</span>
+                                        <small>{{ attendance.employee.job_title or 'موظف' }}</small>
+                                    </div>
+                                </div>
+                                <div class="col-md-6 mb-3">
+                                    <label class="form-label fw-bold">
+                                        <i class="fas fa-calendar text-primary"></i> التاريخ
+                                    </label>
+                                    <div class="info-badge">
+                                        <i class="fas fa-calendar-day"></i>
+                                        {{ attendance.date.strftime('%Y-%m-%d') }}
+                                        <span class="text-muted mx-1">|</span>
+                                        <small>{{ attendance.date.strftime('%A') }}</small>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- نوع الحضور والحالة -->
+                        <div class="form-section">
+                            <div class="form-section-title">
+                                <i class="fas fa-clipboard-list"></i> بيانات الحضور
+                            </div>
+                            <div class="row mt-3">
+                                <div class="col-md-6 mb-3">
+                                    <label class="form-label fw-bold">
+                                        <i class="fas fa-tag text-primary"></i> نوع الحضور
+                                    </label>
+                                    <select name="attendance_type" class="form-control form-select-lg">
+                                        <option value="individual" {% if attendance.attendance_type == 'individual' %}selected{% endif %}>
+                                            <i class="fas fa-user"></i> فردي
+                                        </option>
+                                        <option value="group" {% if attendance.attendance_type == 'group' %}selected{% endif %}>
+                                            <i class="fas fa-users"></i> جماعي
+                                        </option>
+                                    </select>
+                                </div>
+                                <div class="col-md-6 mb-3">
+                                    <label class="form-label fw-bold">
+                                        <i class="fas fa-chart-simple text-primary"></i> الحالة
+                                    </label>
+                                    <select name="attendance_status" class="form-control form-select-lg" id="attendance_status" onchange="toggleExtraFields()">
+                                        <option value="present" {% if attendance.attendance_status == 'present' %}selected{% endif %}>
+                                            ✅ حاضر
+                                        </option>
+                                        <option value="absent" {% if attendance.attendance_status == 'absent' %}selected{% endif %}>
+                                            ❌ غائب
+                                        </option>
+                                        <option value="late" {% if attendance.attendance_status == 'late' %}selected{% endif %}>
+                                            ⏰ متأخر
+                                        </option>
+                                        <option value="sick" {% if attendance.attendance_status == 'sick' %}selected{% endif %}>
+                                            🤒 إجازة مرضية
+                                        </option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- حقول إضافية ديناميكية -->
+                        <div id="late_fields" style="display: {% if attendance.attendance_status == 'late' %}block{% else %}none{% endif %};">
+                            <div class="form-section">
+                                <div class="form-section-title">
+                                    <i class="fas fa-clock"></i> بيانات التأخير
+                                </div>
+                                <div class="row mt-3">
+                                    <div class="col-md-12 mb-3">
+                                        <label class="form-label fw-bold">
+                                            <i class="fas fa-hourglass-half text-warning"></i> دقائق التأخير
+                                        </label>
+                                        <input type="number" name="late_minutes" class="form-control form-control-lg"
+                                               value="{{ attendance.late_minutes or 0 }}" min="0" step="5">
+                                        <small class="text-muted">كل 5 دقائق تأخير يتم تسجيلها</small>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div id="sick_fields" style="display: {% if attendance.attendance_status == 'sick' %}block{% else %}none{% endif %};">
+                            <div class="form-section">
+                                <div class="form-section-title">
+                                    <i class="fas fa-thermometer-half"></i> بيانات الإجازة المرضية
+                                </div>
+                                <div class="row mt-3">
+                                    <div class="col-md-12 mb-3">
+                                        <label class="form-label fw-bold">
+                                            <i class="fas fa-calendar-week text-info"></i> عدد أيام الإجازة
+                                        </label>
+                                        <input type="number" name="sick_leave_days" class="form-control form-control-lg"
+                                               value="{{ attendance.sick_leave_days or 1 }}" min="1" max="30">
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- وقت الدخول والخروج -->
+                        <div class="form-section">
+                            <div class="form-section-title">
+                                <i class="fas fa-clock"></i> أوقات الدوام
+                            </div>
+                            <div class="row mt-3">
+                                <div class="col-md-6 mb-3">
+                                    <label class="form-label fw-bold">
+                                        <i class="fas fa-sign-in-alt text-success"></i> وقت الدخول
+                                    </label>
+                                    <input type="time" name="check_in_time" class="form-control form-control-lg"
+                                           value="{{ attendance.check_in_time.strftime('%H:%M') if attendance.check_in_time else '' }}">
+                                </div>
+                                <div class="col-md-6 mb-3">
+                                    <label class="form-label fw-bold">
+                                        <i class="fas fa-sign-out-alt text-danger"></i> وقت الخروج
+                                    </label>
+                                    <input type="time" name="check_out_time" class="form-control form-control-lg"
+                                           value="{{ attendance.check_out_time.strftime('%H:%M') if attendance.check_out_time else '' }}">
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- ملاحظات -->
+                        <div class="form-section">
+                            <div class="form-section-title">
+                                <i class="fas fa-sticky-note"></i> ملاحظات إضافية
+                            </div>
+                            <div class="row mt-3">
+                                <div class="col-md-12 mb-3">
+                                    <textarea name="notes" class="form-control" rows="3"
+                                              placeholder="أدخل أي ملاحظات إضافية هنا...">{{ attendance.notes or '' }}</textarea>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- أزرار الإجراءات -->
+                        <div class="d-flex justify-content-between gap-3 mt-4">
+                            <a href="{{ url_for('attendance_report', start_date=start_date, end_date=end_date, employee_id=employee_id) }}"
+                               class="btn btn-cancel">
+                                <i class="fas fa-times"></i> إلغاء
+                            </a>
+                            <button type="submit" class="btn btn-save">
+                                <i class="fas fa-save"></i> حفظ التعديلات
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    function toggleExtraFields() {
+        var status = document.getElementById('attendance_status').value;
+        var lateFields = document.getElementById('late_fields');
+        var sickFields = document.getElementById('sick_fields');
+
+        // إخفاء الكل أولاً
+        lateFields.style.display = 'none';
+        sickFields.style.display = 'none';
+
+        // إظهار الحقول المناسبة حسب الحالة
+        if (status === 'late') {
+            lateFields.style.display = 'block';
+        } else if (status === 'sick') {
+            sickFields.style.display = 'block';
+        }
+    }
+
+    // إضافة تأثيرات على الحقول
+    $(document).ready(function() {
+        $('input, select, textarea').on('focus', function() {
+            $(this).css('border-color', '#17a2b8');
+        }).on('blur', function() {
+            $(this).css('border-color', '#ced4da');
+        });
+
+        // إضافة تأكيد قبل الحفظ
+        $('form').on('submit', function(e) {
+            var status = $('#attendance_status').val();
+            if (status === 'late') {
+                var minutes = $('input[name="late_minutes"]').val();
+                if (minutes && minutes > 0) {
+                    return confirm('⚠️ هل أنت متأكد من تسجيل تأخير ' + minutes + ' دقيقة؟');
+                }
+            }
+            return true;
+        });
+    });
+</script>
+{% endblock %}

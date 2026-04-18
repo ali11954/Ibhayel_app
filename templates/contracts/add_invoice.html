@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% block title %}إضافة فاتورة - ابن هائل لأعمال الزراعة{% endblock %}
+{% block title %}إضافة فاتورة - طلعت هائل لأعمال الزراعة{% endblock %}
 
 {% block extra_css %}
 <style>
@@ -190,6 +190,59 @@
         transform: translateY(-2px);
     }
 
+    /* تنسيق خيارات نوع التسديد */
+    .payment-type-group {
+        background: #f8f9fa;
+        border-radius: 15px;
+        padding: 1rem;
+        margin-bottom: 1rem;
+    }
+
+    .payment-type-option {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 10px;
+        border-radius: 10px;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        border: 2px solid transparent;
+    }
+
+    .payment-type-option:hover {
+        background: #e9ecef;
+    }
+
+    .payment-type-option.selected {
+        border-color: #ff9800;
+        background: #fff3e0;
+    }
+
+    .payment-type-option input {
+        width: 20px;
+        height: 20px;
+        cursor: pointer;
+    }
+
+    .payment-type-option label {
+        cursor: pointer;
+        margin: 0;
+        font-weight: 600;
+    }
+
+    .payment-type-option small {
+        font-size: 0.7rem;
+        color: #6c757d;
+    }
+
+    .other-work-fields {
+        background: #fff8e1;
+        border-radius: 12px;
+        padding: 1rem;
+        margin-top: 1rem;
+        border: 1px solid #ffe0b2;
+    }
+
     @keyframes fadeInUp {
         from {
             opacity: 0;
@@ -216,7 +269,7 @@
                 <i class="fas fa-file-invoice me-2"></i>
                 إضافة فاتورة جديدة
             </h2>
-            <p class="mb-0 opacity-75">إضافة فاتورة جديدة لعقد قائم</p>
+            <p class="mb-0 opacity-75">إضافة فاتورة جديدة للعملاء والمقاولين</p>
         </div>
         <div class="col-md-4 text-center">
             <div class="invoice-icon-large mx-auto">
@@ -238,33 +291,119 @@
 
     <div class="card-body p-4">
         <form method="POST" id="addInvoiceForm">
-            <div class="row">
-                <!-- العقد -->
-                <div class="col-md-6 form-group-custom">
-                    <label class="form-label-custom">
-                        <i class="fas fa-file-contract"></i>
-                        العقد <span class="required">*</span>
-                    </label>
-                    <div class="input-icon">
-                        <i class="fas fa-file-contract"></i>
-                        <select class="form-select form-select-custom" id="contract_id" name="contract_id" required>
-                            <option value="">-- اختر العقد --</option>
-                            {% for contract in contracts %}
-                            <option value="{{ contract.id }}"
-                                    data-company="{{ contract.company.name if contract.company else '-' }}"
-                                    data-value="{{ contract.contract_value }}"
-                                    data-remaining="{{ contract.remaining_amount }}">
-                                {{ contract.company.name if contract.company else '-' }} -
-                                {{ "{:,.0f}".format(contract.contract_value) }} ر.ي
-                                {% if contract.remaining_amount > 0 %}
-                                (المتبقي: {{ "{:,.0f}".format(contract.remaining_amount) }} ر.ي)
-                                {% endif %}
-                            </option>
-                            {% endfor %}
-                        </select>
+            <!-- نوع التسديد -->
+            <div class="payment-type-group">
+                <label class="form-label-custom">
+                    <i class="fas fa-tag"></i>
+                    نوع التسديد <span class="required">*</span>
+                </label>
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="payment-type-option" id="optionContract">
+                            <input type="radio" name="payment_type" id="payment_contract" value="contract" checked>
+                            <div>
+                                <label for="payment_contract">ضمن العقد</label><br>
+                                <small>فاتورة ضمن عقد قائم مع العميل</small>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="payment-type-option" id="optionOther">
+                            <input type="radio" name="payment_type" id="payment_other" value="other_work">
+                            <div>
+                                <label for="payment_other">مقابل أعمال أخرى</label><br>
+                                <small>فاتورة لأعمال إضافية خارج العقود</small>
+                            </div>
+                        </div>
                     </div>
                 </div>
+            </div>
 
+            <!-- قسم العقد (يظهر عند اختيار ضمن العقد) -->
+            <div id="contractSection">
+                <div class="row">
+                    <div class="col-md-6 form-group-custom">
+                        <label class="form-label-custom">
+                            <i class="fas fa-file-contract"></i>
+                            العقد <span class="required">*</span>
+                        </label>
+                        <div class="input-icon">
+                            <i class="fas fa-file-contract"></i>
+                            <select class="form-select form-select-custom" id="contract_id" name="contract_id">
+                                <option value="">-- اختر العقد --</option>
+                                {% for contract in contracts %}
+                                <option value="{{ contract.id }}"
+                                        data-company="{{ contract.company.name if contract.company else '-' }}"
+                                        data-value="{{ contract.contract_value }}"
+                                        data-remaining="{{ contract.remaining_amount }}">
+                                    {{ contract.company.name if contract.company else '-' }} -
+                                    {{ "{:,.0f}".format(contract.contract_value) }} ر.ي
+                                    {% if contract.remaining_amount > 0 %}
+                                    (المتبقي: {{ "{:,.0f}".format(contract.remaining_amount) }} ر.ي)
+                                    {% endif %}
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- معلومات العقد (تظهر عند اختيار العقد) -->
+                    <div class="col-12 form-group-custom" id="contractInfo" style="display: none;">
+                        <label class="form-label-custom">
+                            <i class="fas fa-info-circle"></i>
+                            معلومات العقد
+                        </label>
+                        <div class="contract-info">
+                            <div class="contract-info-item">
+                                <span class="info-label">الشركة:</span>
+                                <span class="info-value" id="contractCompany">-</span>
+                            </div>
+                            <div class="contract-info-item">
+                                <span class="info-label">قيمة العقد:</span>
+                                <span class="info-value" id="contractValue">-</span>
+                            </div>
+                            <div class="contract-info-item">
+                                <span class="info-label">المبلغ المتبقي:</span>
+                                <span class="info-value" id="contractRemaining">-</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- قسم الأعمال الأخرى (يظهر عند اختيار مقابل أعمال أخرى) -->
+            <div id="otherWorkSection" style="display: none;">
+                <div class="other-work-fields">
+                    <div class="row">
+                        <div class="col-md-6 form-group-custom">
+                            <label class="form-label-custom">
+                                <i class="fas fa-building"></i>
+                                العميل / الجهة <span class="required">*</span>
+                            </label>
+                            <div class="input-icon">
+                                <i class="fas fa-building"></i>
+                                <input type="text" class="form-control form-control-custom"
+                                       id="client_name" name="client_name"
+                                       placeholder="اسم العميل أو الجهة">
+                            </div>
+                        </div>
+                        <div class="col-md-6 form-group-custom">
+                            <label class="form-label-custom">
+                                <i class="fas fa-tasks"></i>
+                                العمل المنفذ <span class="required">*</span>
+                            </label>
+                            <div class="input-icon">
+                                <i class="fas fa-tasks"></i>
+                                <input type="text" class="form-control form-control-custom"
+                                       id="work_description" name="work_description"
+                                       placeholder="وصف العمل المنفذ">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="row">
                 <!-- رقم الفاتورة -->
                 <div class="col-md-6 form-group-custom">
                     <label class="form-label-custom">
@@ -330,28 +469,6 @@
                     </small>
                 </div>
 
-                <!-- معلومات العقد (تظهر عند اختيار العقد) -->
-                <div class="col-12 form-group-custom" id="contractInfo" style="display: none;">
-                    <label class="form-label-custom">
-                        <i class="fas fa-info-circle"></i>
-                        معلومات العقد
-                    </label>
-                    <div class="contract-info">
-                        <div class="contract-info-item">
-                            <span class="info-label">الشركة:</span>
-                            <span class="info-value" id="contractCompany">-</span>
-                        </div>
-                        <div class="contract-info-item">
-                            <span class="info-label">قيمة العقد:</span>
-                            <span class="info-value" id="contractValue">-</span>
-                        </div>
-                        <div class="contract-info-item">
-                            <span class="info-label">المبلغ المتبقي:</span>
-                            <span class="info-value" id="contractRemaining">-</span>
-                        </div>
-                    </div>
-                </div>
-
                 <!-- ملاحظات -->
                 <div class="col-12 form-group-custom">
                     <label class="form-label-custom">
@@ -401,20 +518,54 @@
 
 <script>
     $(document).ready(function() {
+        // تبديل الأقسام حسب نوع التسديد
+        function togglePaymentSections() {
+            var paymentType = $('input[name="payment_type"]:checked').val();
+
+            if (paymentType === 'contract') {
+                $('#contractSection').show();
+                $('#otherWorkSection').hide();
+                $('#contract_id').prop('required', true);
+                $('#client_name').prop('required', false);
+                $('#work_description').prop('required', false);
+            } else {
+                $('#contractSection').hide();
+                $('#otherWorkSection').show();
+                $('#contract_id').prop('required', false);
+                $('#client_name').prop('required', true);
+                $('#work_description').prop('required', true);
+            }
+        }
+
+        // إضافة تأثير التحديد على خيارات نوع التسديد
+        function updatePaymentTypeSelection() {
+            var selectedValue = $('input[name="payment_type"]:checked').val();
+            $('#optionContract').toggleClass('selected', selectedValue === 'contract');
+            $('#optionOther').toggleClass('selected', selectedValue === 'other_work');
+        }
+
+        $('input[name="payment_type"]').on('change', function() {
+            togglePaymentSections();
+            updatePaymentTypeSelection();
+        });
+
         // تنسيق المبلغ أثناء الكتابة
         $('#amount').on('input', function() {
             var value = $(this).val();
             var formatted = new Intl.NumberFormat('ar-SA').format(value);
             $('#formattedAmount').text(formatted);
 
-            // التحقق من أن المبلغ لا يتجاوز المتبقي في العقد
-            var remaining = $('#contract_id option:selected').data('remaining');
-            if (remaining && parseFloat(value) > remaining) {
-                $('#amountPreview').addClass('bg-danger bg-opacity-10');
-                $('#amountPreview').find('small').html('<i class="fas fa-exclamation-triangle text-danger"></i> المبلغ يتجاوز المتبقي في العقد!');
-            } else {
-                $('#amountPreview').removeClass('bg-danger bg-opacity-10');
-                $('#amountPreview').find('small').html('<i class="fas fa-info-circle"></i> المبلغ المدخل: <strong id="formattedAmount">' + formatted + '</strong> ر.ي');
+            // التحقق من أن المبلغ لا يتجاوز المتبقي في العقد (فقط إذا كان ضمن العقد)
+            var paymentType = $('input[name="payment_type"]:checked').val();
+            if (paymentType === 'contract') {
+                var remaining = $('#contract_id option:selected').data('remaining');
+                if (remaining && parseFloat(value) > remaining) {
+                    $('#amountPreview').addClass('bg-danger bg-opacity-10');
+                    $('#amountPreview').find('small').html('<i class="fas fa-exclamation-triangle text-danger"></i> المبلغ يتجاوز المتبقي في العقد!');
+                } else {
+                    $('#amountPreview').removeClass('bg-danger bg-opacity-10');
+                    $('#amountPreview').find('small').html('<i class="fas fa-info-circle"></i> المبلغ المدخل: <strong id="formattedAmount">' + formatted + '</strong> ر.ي');
+                }
             }
         });
 
@@ -430,8 +581,6 @@
                 $('#contractCompany').text(company || '-');
                 $('#contractValue').text(new Intl.NumberFormat('ar-SA').format(value) + ' ر.ي');
                 $('#contractRemaining').html('<strong class="text-warning">' + new Intl.NumberFormat('ar-SA').format(remaining) + ' ر.ي</strong>');
-
-                // تعيين الحد الأقصى للمبلغ
                 $('#amount').attr('max', remaining);
             } else {
                 $('#contractInfo').hide();
@@ -455,18 +604,10 @@
 
         // التحقق من صحة النموذج
         $('#addInvoiceForm').on('submit', function(e) {
-            var contractId = $('#contract_id').val();
+            var paymentType = $('input[name="payment_type"]:checked').val();
             var invoiceNumber = $('#invoice_number').val().trim();
             var amount = $('#amount').val();
             var invoiceDate = $('#invoice_date').val();
-            var remaining = $('#contract_id option:selected').data('remaining');
-
-            if (!contractId) {
-                e.preventDefault();
-                alert('الرجاء اختيار العقد');
-                $('#contract_id').focus();
-                return false;
-            }
 
             if (!invoiceNumber) {
                 e.preventDefault();
@@ -482,18 +623,47 @@
                 return false;
             }
 
-            if (remaining && parseFloat(amount) > remaining) {
-                e.preventDefault();
-                alert('المبلغ المدخل يتجاوز المتبقي في العقد');
-                $('#amount').focus();
-                return false;
-            }
-
             if (!invoiceDate) {
                 e.preventDefault();
                 alert('الرجاء إدخال تاريخ الفاتورة');
                 $('#invoice_date').focus();
                 return false;
+            }
+
+            if (paymentType === 'contract') {
+                var contractId = $('#contract_id').val();
+                var remaining = $('#contract_id option:selected').data('remaining');
+
+                if (!contractId) {
+                    e.preventDefault();
+                    alert('الرجاء اختيار العقد');
+                    $('#contract_id').focus();
+                    return false;
+                }
+
+                if (remaining && parseFloat(amount) > remaining) {
+                    e.preventDefault();
+                    alert('المبلغ المدخل يتجاوز المتبقي في العقد');
+                    $('#amount').focus();
+                    return false;
+                }
+            } else {
+                var clientName = $('#client_name').val().trim();
+                var workDesc = $('#work_description').val().trim();
+
+                if (!clientName) {
+                    e.preventDefault();
+                    alert('الرجاء إدخال اسم العميل أو الجهة');
+                    $('#client_name').focus();
+                    return false;
+                }
+
+                if (!workDesc) {
+                    e.preventDefault();
+                    alert('الرجاء إدخال وصف العمل المنفذ');
+                    $('#work_description').focus();
+                    return false;
+                }
             }
 
             return true;
@@ -505,6 +675,10 @@
         }).on('blur', function() {
             $(this).parent().find('i').css('color', '#adb5bd');
         });
+
+        // تهيئة القيم الافتراضية
+        togglePaymentSections();
+        updatePaymentTypeSelection();
     });
 </script>
 {% endblock %}

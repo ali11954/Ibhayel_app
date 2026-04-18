@@ -1,0 +1,155 @@
+{% extends "base.html" %}
+
+{% block title %}تسوية الصندوق{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-md-8 mx-auto">
+            <div class="card">
+                <div class="card-header bg-primary text-white">
+                    <h4><i class="fas fa-money-bill-wave"></i> تسوية رصيد الصندوق</h4>
+                </div>
+                <div class="card-body">
+                    <!-- الرصيد الحالي -->
+                    <div class="alert alert-info text-center">
+                        <strong>الرصيد الحالي للصندوق:</strong>
+                        <h3 class="{% if cash_balance < 0 %}text-danger{% else %}text-success{% endif %}">
+                            {{ "{:,.2f}".format(cash_balance) }} ريال
+                        </h3>
+                        {% if cash_balance < 0 %}
+                        <div class="alert alert-warning mt-2">
+                            <i class="fas fa-exclamation-triangle"></i>
+                            رصيد الصندوق سالب! يرجى إيداع مبلغ لتغطية العجز.
+                        </div>
+                        {% endif %}
+                    </div>
+
+                    <!-- نموذج الإيداع/السحب -->
+                    <form method="POST" action="{{ url_for('settle_cash') }}">
+                        <div class="mb-3">
+                            <label class="form-label">نوع العملية *</label>
+                            <select name="transaction_type" class="form-select" required id="transaction_type">
+                                <option value="deposit">إيداع (زيادة الرصيد)</option>
+                                <option value="withdraw">سحب (نقص الرصيد)</option>
+                            </select>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">المبلغ *</label>
+                            <input type="number" name="amount" class="form-control" step="0.01" required id="amount">
+                            <div class="form-text" id="amount_help"></div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">الوصف *</label>
+                            <input type="text" name="description" class="form-control" required
+                                   placeholder="سبب الإيداع/السحب">
+                        </div>
+
+                        <div class="alert alert-info">
+                            <i class="fas fa-info-circle"></i>
+                            <strong>ملاحظة:</strong>
+                            <ul class="mt-2 mb-0">
+                                <li><strong>الإيداع:</strong> يزيد رصيد الصندوق (مدين) ويقابله زيادة في رأس المال أو الأرباح المحتجزة</li>
+                                <li><strong>السحب:</strong> يقلل رصيد الصندوق (دائن) ويقابله مصروفات</li>
+                            </ul>
+                        </div>
+
+                        <div class="d-flex justify-content-between">
+                            <a href="{{ url_for('journal_entries_list') }}" class="btn btn-secondary">
+                                <i class="fas fa-times"></i> إلغاء
+                            </a>
+                            <button type="submit" class="btn btn-success" id="submitBtn">
+                                <i class="fas fa-check"></i> تنفيذ العملية
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <!-- آخر عمليات الصندوق -->
+            <div class="card mt-4">
+                <div class="card-header bg-secondary text-white">
+                    <h5><i class="fas fa-history"></i> آخر عمليات الصندوق</h5>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-bordered mb-0">
+                            <thead class="table-dark">
+                                <tr>
+                                    <th>التاريخ</th>
+                                    <th>رقم القيد</th>
+                                    <th>الوصف</th>
+                                    <th>المبلغ</th>
+                                    <th>النوع</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for entry in cash_entries %}
+                                <tr>
+                                    <td>{{ entry.date.strftime('%Y-%m-%d') }}</td>
+                                    <td><strong>{{ entry.entry_number }}</strong></td>
+                                    <td>{{ entry.description|truncate(50) }}</td>
+                                    <td class="text-end">
+                                        {% set total = entry.get_total_debit() %}
+                                        {% if total > 0 %}
+                                        <span class="text-success">+{{ "{:,.2f}".format(total) }}</span>
+                                        {% else %}
+                                        <span class="text-danger">{{ "{:,.2f}".format(total) }}</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if entry.reference_type == 'cash_deposit' %}
+                                        <span class="badge bg-success">إيداع</span>
+                                        {% elif entry.reference_type == 'cash_withdraw' %}
+                                        <span class="badge bg-danger">سحب</span>
+                                        {% elif entry.reference_type == 'adjustment' %}
+                                        <span class="badge bg-warning">تعديل</span>
+                                        {% else %}
+                                        <span class="badge bg-secondary">{{ entry.reference_type or '-' }}</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% else %}
+                                <tr>
+                                    <td colspan="5" class="text-center">لا توجد عمليات على الصندوق</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    const currentBalance = {{ cash_balance }};
+
+    function updateAmountHelp() {
+        const type = document.getElementById('transaction_type').value;
+        const amountInput = document.getElementById('amount');
+        const helpText = document.getElementById('amount_help');
+        const submitBtn = document.getElementById('submitBtn');
+
+        if (type === 'withdraw') {
+            helpText.innerHTML = '<span class="text-warning">⚠️ الحد الأقصى للسحب هو ' + currentBalance.toFixed(2) + ' ريال</span>';
+            if (parseFloat(amountInput.value) > currentBalance) {
+                submitBtn.disabled = true;
+                helpText.innerHTML = '<span class="text-danger">❌ المبلغ المطلوب سحبه أكبر من الرصيد المتوفر!</span>';
+            } else {
+                submitBtn.disabled = false;
+            }
+        } else {
+            helpText.innerHTML = '<span class="text-success">✅ يمكنك إيداع أي مبلغ</span>';
+            submitBtn.disabled = false;
+        }
+    }
+
+    document.getElementById('transaction_type').addEventListener('change', updateAmountHelp);
+    document.getElementById('amount').addEventListener('input', updateAmountHelp);
+    updateAmountHelp();
+</script>
+{% endblock %}

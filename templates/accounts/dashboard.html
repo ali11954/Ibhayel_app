@@ -1,0 +1,219 @@
+{% extends "base.html" %}
+
+{% block title %}نظام الحسابات - طلعت هائل للخدمات والاستشارات الزراعية{% endblock %}
+
+{% block extra_css %}
+<style>
+    .accounts-header {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        border-radius: 20px;
+        padding: 1.5rem;
+        margin-bottom: 1.5rem;
+        color: white;
+        position: relative;
+        overflow: hidden;
+    }
+
+    .accounts-header::before {
+        content: '';
+        position: absolute;
+        top: -50%;
+        right: -50%;
+        width: 200%;
+        height: 200%;
+        background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, transparent 70%);
+        animation: rotate 20s linear infinite;
+    }
+
+    @keyframes rotate {
+        from { transform: rotate(0deg); }
+        to { transform: rotate(360deg); }
+    }
+
+    .account-card {
+        background: white;
+        border-radius: 15px;
+        padding: 1.5rem;
+        text-align: center;
+        transition: all 0.3s ease;
+        cursor: pointer;
+        border: 1px solid #e9ecef;
+        height: 100%;
+    }
+
+    .account-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+        border-color: #667eea;
+    }
+
+    .account-icon {
+        width: 70px;
+        height: 70px;
+        border-radius: 20px;
+        background: linear-gradient(135deg, #667eea, #764ba2);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin: 0 auto 1rem;
+    }
+
+    .account-icon i {
+        font-size: 2rem;
+        color: white;
+    }
+
+    .account-title {
+        font-size: 1.1rem;
+        font-weight: 700;
+        margin-bottom: 0.5rem;
+        color: #2c3e50;
+    }
+
+    .account-desc {
+        font-size: 0.8rem;
+        color: #6c757d;
+        margin-bottom: 1rem;
+    }
+
+    .stat-badge {
+        display: inline-block;
+        padding: 0.2rem 0.8rem;
+        border-radius: 20px;
+        font-size: 0.7rem;
+        background: #e9ecef;
+        color: #495057;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="accounts-header">
+    <div class="row align-items-center">
+        <div class="col-md-8">
+            <h2 class="mb-2">
+                <i class="fas fa-book me-2"></i>
+                نظام الحسابات (دائن ومدين)
+            </h2>
+            <p class="mb-0 opacity-75">نظام القيد المزدوج - إدارة دليل الحسابات والقيود اليومية والتقارير المالية</p>
+        </div>
+        <div class="col-md-4 text-center">
+            <i class="fas fa-chart-pie fa-3x opacity-50"></i>
+        </div>
+    </div>
+</div>
+
+<!-- بطاقات النظام -->
+<div class="row mb-4">
+    <div class="col-md-3 mb-3">
+        <div class="account-card" onclick="window.location.href='{{ url_for('chart_of_accounts') }}'">
+            <div class="account-icon">
+                <i class="fas fa-list-ul"></i>
+            </div>
+            <h5 class="account-title">دليل الحسابات</h5>
+            <p class="account-desc">قائمة جميع الحسابات المحاسبية<br>مع الأرصدة الحالية</p>
+            <span class="stat-badge"><i class="fas fa-arrow-left"></i> استعراض</span>
+        </div>
+    </div>
+    <div class="col-md-3 mb-3">
+        <div class="account-card" onclick="window.location.href='{{ url_for('journal_entries_list') }}'">
+            <div class="account-icon">
+                <i class="fas fa-clipboard-list"></i>
+            </div>
+            <h5 class="account-title">القيود اليومية</h5>
+            <p class="account-desc">سجل جميع القيود المحاسبية<br>مدين ودائن</p>
+            <span class="stat-badge"><i class="fas fa-arrow-left"></i> استعراض</span>
+        </div>
+    </div>
+    <div class="col-md-3 mb-3">
+        <div class="account-card" onclick="window.location.href='{{ url_for('trial_balance') }}'">
+            <div class="account-icon">
+                <i class="fas fa-balance-scale"></i>
+            </div>
+            <h5 class="account-title">ميزان المراجعة</h5>
+            <p class="account-desc">التحقق من توازن الحسابات<br>مدين = دائن</p>
+            <span class="stat-badge"><i class="fas fa-arrow-left"></i> استعراض</span>
+        </div>
+    </div>
+    <div class="col-md-3 mb-3">
+        <div class="account-card" onclick="window.location.href='{{ url_for('income_statement') }}'">
+            <div class="account-icon">
+                <i class="fas fa-chart-line"></i>
+            </div>
+            <h5 class="account-title">قائمة الدخل</h5>
+            <p class="account-desc">الإيرادات والمصروفات<br>صافي الربح/الخسارة</p>
+            <span class="stat-badge"><i class="fas fa-arrow-left"></i> استعراض</span>
+        </div>
+    </div>
+</div>
+
+<div class="row mb-4">
+    <div class="col-md-4 offset-md-4 mb-3">
+        <div class="account-card" onclick="window.location.href='{{ url_for('balance_sheet') }}'">
+            <div class="account-icon">
+                <i class="fas fa-chart-pie"></i>
+            </div>
+            <h5 class="account-title">الميزانية العمومية</h5>
+            <p class="account-desc">الأصول = الخصوم + حقوق الملكية<br>المركز المالي للشركة</p>
+            <span class="stat-badge"><i class="fas fa-arrow-left"></i> استعراض</span>
+        </div>
+    </div>
+</div>
+
+<!-- إحصائيات سريعة -->
+<div class="card">
+    <div class="card-header bg-white">
+        <h5 class="mb-0"><i class="fas fa-chart-simple"></i> إحصائيات النظام المحاسبي</h5>
+    </div>
+    <div class="card-body">
+        <div class="row">
+            <div class="col-md-3">
+                <div class="info-box">
+                    <span class="info-box-icon bg-primary"><i class="fas fa-list"></i></span>
+                    <div class="info-box-content">
+                        <span class="info-box-text">إجمالي الحسابات</span>
+                        <span class="info-box-number">{{ accounts_count|default(0) }}</span>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="info-box">
+                    <span class="info-box-icon bg-success"><i class="fas fa-clipboard"></i></span>
+                    <div class="info-box-content">
+                        <span class="info-box-text">القيود اليومية</span>
+                        <span class="info-box-number">{{ journal_entries_count|default(0) }}</span>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="info-box">
+                    <span class="info-box-icon bg-info"><i class="fas fa-dollar-sign"></i></span>
+                    <div class="info-box-content">
+                        <span class="info-box-text">إجمالي الأصول</span>
+                        <span class="info-box-number">{{ total_assets|default(0)|round(2) }} ر.ي</span>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="info-box">
+                    <span class="info-box-icon bg-warning"><i class="fas fa-chart-line"></i></span>
+                    <div class="info-box-content">
+                        <span class="info-box-text">صافي الأرباح</span>
+                        <span class="info-box-number">{{ net_income|default(0)|round(2) }} ر.ي</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // إضافة تأثيرات عند النقر
+    document.querySelectorAll('.account-card').forEach(card => {
+        card.addEventListener('click', function() {
+            const url = this.getAttribute('onclick').match(/'(.*?)'/)[1];
+            window.location.href = url;
+        });
+    });
+</script>
+{% endblock %}

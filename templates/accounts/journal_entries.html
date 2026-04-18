@@ -1,0 +1,486 @@
+{% extends "base.html" %}
+
+{% block title %}القيود اليومية - نظام الحسابات{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2><i class="fas fa-book"></i> نظام الحسابات</h2>
+        <div>
+            <button type="button" class="btn btn-success" data-bs-toggle="modal" data-bs-target="#addEntryModal">
+                <i class="fas fa-plus"></i> قيد جديد
+            </button>
+        </div>
+    </div>
+
+    <!-- تبويبات التنقل -->
+    <ul class="nav nav-tabs mb-4" id="accountsTab" role="tablist">
+        <li class="nav-item">
+            <button class="nav-link active" data-bs-toggle="tab" data-bs-target="#journal">
+                <i class="fas fa-book"></i> القيود اليومية
+            </button>
+        </li>
+        <li class="nav-item">
+            <button class="nav-link" data-bs-toggle="tab" data-bs-target="#transfer">
+                <i class="fas fa-exchange-alt"></i> تسوية / نقل
+            </button>
+        </li>
+        <li class="nav-item">
+    <a class="nav-link" href="{{ url_for('settle_cash') }}">
+        <i class="fas fa-money-bill-wave"></i> تسوية الصندوق
+    </a>
+</li>
+        <li class="nav-item">
+            <button class="nav-link" data-bs-toggle="tab" data-bs-target="#zero">
+                <i class="fas fa-eraser"></i> تصفير حساب
+            </button>
+        </li>
+        <li class="nav-item">
+            <button class="nav-link" data-bs-toggle="tab" data-bs-target="#history">
+                <i class="fas fa-history"></i> سجل التحويلات
+            </button>
+        </li>
+    </ul>
+
+    <div class="tab-content">
+
+        <!-- تبويب 1: القيود اليومية -->
+        <div class="tab-pane fade show active" id="journal">
+            <div class="card mb-4">
+                <div class="card-body">
+                    <form method="GET" class="row">
+                        <div class="col-md-4">
+                            <label>من تاريخ</label>
+                            <input type="date" name="start_date" class="form-control" value="{{ request.args.get('start_date', '') }}">
+                        </div>
+                        <div class="col-md-4">
+                            <label>إلى تاريخ</label>
+                            <input type="date" name="end_date" class="form-control" value="{{ request.args.get('end_date', '') }}">
+                        </div>
+                        <div class="col-md-4">
+                            <label>&nbsp;</label>
+                            <div>
+                                <button type="submit" class="btn btn-primary">بحث</button>
+                                <a href="{{ url_for('journal_entries_list') }}" class="btn btn-secondary">إعادة تعيين</a>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header bg-primary text-white">
+                    <h5>قائمة القيود اليومية ({{ entries|length }} قيد)</h5>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-bordered table-hover">
+                            <thead class="table-dark">
+                                <tr>
+                                    <th>#</th>
+                                    <th>رقم القيد</th>
+                                    <th>التاريخ</th>
+                                    <th>الوصف</th>
+                                    <th>مدين</th>
+                                    <th>دائن</th>
+                                    <th>المرجع</th>
+                                    <th>الإجراءات</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for entry in entries %}
+                                <tr {% if entry.reference_type == 'reverse' %}class="table-warning"{% endif %}>
+                                    <td class="text-center">{{ loop.index }}</td>
+                                    <td><strong>{{ entry.entry_number }}</strong>{% if entry.reference_type == 'reverse' %} <span class="badge bg-warning">مقلوب</span>{% endif %}</td>
+                                    <td class="text-center">{{ entry.date.strftime('%Y-%m-%d') }}</td>
+                                    <td>{{ entry.description|truncate(60) }}</td>
+                                    <td class="text-end text-success">{{ "{:,.2f}".format(entry.get_total_debit()) }}</td>
+                                    <td class="text-end text-danger">{{ "{:,.2f}".format(entry.get_total_credit()) }}</td>
+                                    <td class="text-center"><span class="badge bg-secondary">{{ entry.reference_type or '-' }}</span></td>
+                                    <td class="text-center">
+                                        <button class="btn btn-sm btn-info" onclick="showDetails({{ entry.id }})" title="عرض">
+                                            <i class="fas fa-eye"></i>
+                                        </button>
+                                        {% if entry.reference_type != 'reverse' and not entry.has_reverse %}
+                                        <button class="btn btn-sm btn-warning" onclick="reverseEntry({{ entry.id }})" title="عكس">
+                                            <i class="fas fa-undo-alt"></i>
+                                        </button>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                            <tfoot class="table-light">
+                                <tr>
+                                    <th colspan="4" class="text-end">الإجمالي:</th>
+                                    <th class="text-end">{{ "{:,.2f}".format(total_debit) }}</th>
+                                    <th class="text-end">{{ "{:,.2f}".format(total_credit) }}</th>
+                                    <th colspan="2"></th>
+                                </tr>
+                            </tfoot>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- تبويب 2: تسوية / نقل بين الحسابات -->
+        <div class="tab-pane fade" id="transfer">
+            <div class="card">
+                <div class="card-header bg-secondary text-white">
+                    <h5>نقل مبلغ بين حسابين</h5>
+                </div>
+                <div class="card-body">
+                    <form method="POST" action="{{ url_for('transfer_between_accounts') }}">
+                        <div class="row">
+                            <div class="col-md-5 mb-3">
+                                <label>من حساب</label>
+                                <select name="from_account_id" class="form-select" required>
+                                    <option value="">اختر الحساب المصدر</option>
+                                    {% for acc in accounts %}
+                                    <option value="{{ acc.id }}">{{ acc.code }} - {{ acc.name_ar }} (الرصيد: {{ "{:,.2f}".format(acc.get_balance()) }})</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="col-md-5 mb-3">
+                                <label>إلى حساب</label>
+                                <select name="to_account_id" class="form-select" required>
+                                    <option value="">اختر الحساب الوجهة</option>
+                                    {% for acc in accounts %}
+                                    <option value="{{ acc.id }}">{{ acc.code }} - {{ acc.name_ar }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="col-md-2 mb-3">
+                                <label>المبلغ</label>
+                                <input type="number" name="amount" class="form-control" placeholder="المبلغ" step="0.01" required>
+                            </div>
+                            <div class="col-12 mb-3">
+                                <label>الوصف</label>
+                                <input type="text" name="description" class="form-control" placeholder="سبب التحويل" required>
+                            </div>
+                            <div class="col-12">
+                                <button type="submit" class="btn btn-primary">تنفيذ التحويل</button>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- تبويب 3: تصفير حساب -->
+        <div class="tab-pane fade" id="zero">
+            <div class="card">
+                <div class="card-header bg-warning">
+                    <h5>تصفير حساب (نقل الرصيد بالكامل)</h5>
+                </div>
+                <div class="card-body">
+                    <form method="POST" action="{{ url_for('zero_out_account') }}">
+                        <div class="row">
+                            <div class="col-md-5 mb-3">
+                                <label>الحساب المراد تصفيره</label>
+                                <select name="account_id" class="form-select" required>
+                                    <option value="">اختر الحساب</option>
+                                    {% for acc in accounts %}
+                                    <option value="{{ acc.id }}">{{ acc.code }} - {{ acc.name_ar }} (الرصيد: {{ "{:,.2f}".format(acc.get_balance()) }})</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="col-md-5 mb-3">
+                                <label>نقل الرصيد إلى</label>
+                                <select name="target_account_id" class="form-select" required>
+                                    <option value="">اختر الحساب الوجهة</option>
+                                    {% for acc in accounts %}
+                                    <option value="{{ acc.id }}">{{ acc.code }} - {{ acc.name_ar }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="col-md-2 mb-3">
+                                <label>&nbsp;</label>
+                                <button type="submit" class="btn btn-warning w-100">تصفير الحساب</button>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- تبويب 4: سجل التحويلات -->
+        <div class="tab-pane fade" id="history">
+            <div class="card">
+                <div class="card-header bg-info text-white">
+                    <h5>سجل التحويلات والتسويات</h5>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-bordered">
+                            <thead class="table-dark">
+                                <tr><th>#</th><th>رقم القيد</th><th>التاريخ</th><th>الوصف</th><th>النوع</th></tr>
+                            </thead>
+                            <tbody>
+                                {% set transfers = entries|selectattr("reference_type", "in", ["transfer", "zero_out"])|list %}
+                                {% for transfer in transfers %}
+                                <tr>
+                                    <td class="text-center">{{ loop.index }}</td>
+                                    <td><strong>{{ transfer.entry_number }}</strong></td>
+                                    <td>{{ transfer.date.strftime('%Y-%m-%d') }}</td>
+                                    <td>{{ transfer.description|truncate(60) }}</td>
+                                    <td class="text-center">
+                                        {% if transfer.reference_type == 'transfer' %}
+                                        <span class="badge bg-primary">تحويل</span>
+                                        {% else %}
+                                        <span class="badge bg-warning">تصفير</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% else %}
+                                <tr><td colspan="5" class="text-center">لا توجد تحويلات بعد</td></tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal إضافة قيد جديد -->
+<div class="modal fade" id="addEntryModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header bg-success text-white">
+                <h5>إضافة قيد جديد</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="POST" action="{{ url_for('add_journal_entry') }}">
+                <div class="modal-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <label>التاريخ</label>
+                            <input type="date" name="date" class="form-control" required value="{{ now.date() }}">
+                        </div>
+                        <div class="col-md-6">
+                            <label>نوع المرجع</label>
+                            <select name="reference_type" class="form-select">
+                                <option value="">-- بدون --</option>
+                                <option value="contract">عقد</option>
+                                <option value="invoice">فاتورة</option>
+                                <option value="salary">راتب</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="mt-3">
+                        <label>الوصف</label>
+                        <input type="text" name="description" class="form-control" required>
+                    </div>
+                    <hr>
+                    <h6>تفاصيل القيد</h6>
+                    <div id="entries-container">
+                        <div class="row mb-2">
+                            <div class="col-md-5">
+                                <select name="account_id[]" class="form-select" required>
+                                    <option value="">اختر الحساب</option>
+                                    {% for acc in accounts %}
+                                    <option value="{{ acc.id }}">{{ acc.code }} - {{ acc.name_ar }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="col-md-3">
+                                <input type="number" name="debit[]" class="form-control" placeholder="مدين" step="0.01" value="0">
+                            </div>
+                            <div class="col-md-3">
+                                <input type="number" name="credit[]" class="form-control" placeholder="دائن" step="0.01" value="0">
+                            </div>
+                            <div class="col-md-1">
+                                <button type="button" class="btn btn-danger btn-sm remove-row">×</button>
+                            </div>
+                        </div>
+                    </div>
+                    <button type="button" class="btn btn-sm btn-secondary mt-2" id="add-row">+ إضافة سطر</button>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">إلغاء</button>
+                    <button type="submit" class="btn btn-success">حفظ</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+// عرض التفاصيل - نسخة محسنة
+function showDetails(id) {
+    fetch(`/api/journal-entry/${id}`)
+        .then(response => response.json())
+        .then(data => {
+            // حساب إجمالي المدين والدائن
+            let totalDebit = 0;
+            let totalCredit = 0;
+            for (let d of data.details) {
+                totalDebit += parseFloat(d.debit.replace(/,/g, ''));
+                totalCredit += parseFloat(d.credit.replace(/,/g, ''));
+            }
+
+            let html = `
+            <div class="modal fade" id="detailModal" tabindex="-1">
+                <div class="modal-dialog modal-lg">
+                    <div class="modal-content">
+                        <div class="modal-header bg-info text-white">
+                            <h5 class="modal-title">
+                                <i class="fas fa-info-circle"></i> تفاصيل القيد ${data.entry_number}
+                            </h5>
+                            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                        </div>
+                        <div class="modal-body">
+                            <!-- معلومات القيد -->
+                            <div class="row mb-3">
+                                <div class="col-md-6">
+                                    <div class="card bg-light">
+                                        <div class="card-body py-2">
+                                            <strong><i class="fas fa-hashtag"></i> رقم القيد:</strong> ${data.entry_number}
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="card bg-light">
+                                        <div class="card-body py-2">
+                                            <strong><i class="fas fa-calendar"></i> التاريخ:</strong> ${data.date}
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="card mb-3">
+                                <div class="card-header bg-secondary text-white">
+                                    <strong><i class="fas fa-align-left"></i> الوصف</strong>
+                                </div>
+                                <div class="card-body">
+                                    ${data.description}
+                                </div>
+                            </div>
+
+                            <!-- تفاصيل الحسابات -->
+                            <div class="card">
+                                <div class="card-header bg-dark text-white">
+                                    <strong><i class="fas fa-list"></i> تفاصيل الحسابات</strong>
+                                </div>
+                                <div class="card-body p-0">
+                                    <div class="table-responsive">
+                                        <table class="table table-bordered mb-0">
+                                            <thead class="table-light">
+                                                <tr>
+                                                    <th>#</th>
+                                                    <th>رقم الحساب</th>
+                                                    <th>اسم الحساب</th>
+                                                    <th>مدين</th>
+                                                    <th>دائن</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>`;
+
+            for (let i = 0; i < data.details.length; i++) {
+                let d = data.details[i];
+                let debitValue = parseFloat(d.debit.replace(/,/g, ''));
+                let creditValue = parseFloat(d.credit.replace(/,/g, ''));
+
+                html += `
+                    <tr>
+                        <td class="text-center">${i + 1}</td>
+                        <td class="text-center">${d.account_code || '-'}</td>
+                        <td>${d.account_name}</td>
+                        <td class="text-end text-success">${debitValue > 0 ? d.debit : '-'}</td>
+                        <td class="text-end text-danger">${creditValue > 0 ? d.credit : '-'}</td>
+                    </tr>
+                `;
+            }
+
+            html += `
+                                            </tbody>
+                                            <tfoot class="table-light">
+                                                <tr class="fw-bold">
+                                                    <th colspan="3" class="text-end">الإجمالي:</th>
+                                                    <th class="text-end text-success">${totalDebit.toLocaleString()} ريال</th>
+                                                    <th class="text-end text-danger">${totalCredit.toLocaleString()} ريال</th>
+                                                </tr>
+                                            </tfoot>
+                                        </table>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- حالة التوازن -->
+                            <div class="mt-3">
+                                ${totalDebit === totalCredit ?
+                                    '<div class="alert alert-success"><i class="fas fa-check-circle"></i> القيد متوازن</div>' :
+                                    '<div class="alert alert-danger"><i class="fas fa-exclamation-triangle"></i> القيد غير متوازن! الفرق: ' + Math.abs(totalDebit - totalCredit).toLocaleString() + ' ريال</div>'
+                                }
+                            </div>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                                <i class="fas fa-times"></i> إغلاق
+                            </button>
+                            <button type="button" class="btn btn-info" onclick="window.print()">
+                                <i class="fas fa-print"></i> طباعة
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>`;
+
+            let oldModal = document.getElementById('detailModal');
+            if (oldModal) oldModal.remove();
+            document.body.insertAdjacentHTML('beforeend', html);
+            let modal = new bootstrap.Modal(document.getElementById('detailModal'));
+            modal.show();
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('حدث خطأ في تحميل تفاصيل القيد');
+        });
+}
+
+// عكس القيد
+function reverseEntry(id) {
+    if (confirm('⚠️ تحذير! عكس القيد سينشئ قيداً معاكساً. هل أنت متأكد؟')) {
+        fetch(`/accounts/reverse_entry/${id}`, { method: 'POST' })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    location.reload();
+                } else {
+                    alert('خطأ: ' + data.error);
+                }
+            });
+    }
+}
+
+// إضافة سطر جديد
+document.getElementById('add-row')?.addEventListener('click', function() {
+    const container = document.getElementById('entries-container');
+    const newRow = document.createElement('div');
+    newRow.className = 'row mb-2';
+    newRow.innerHTML = `
+        <div class="col-md-5">
+            <select name="account_id[]" class="form-select" required>
+                <option value="">اختر الحساب</option>
+                {% for acc in accounts %}
+                <option value="{{ acc.id }}">{{ acc.code }} - {{ acc.name_ar }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="col-md-3"><input type="number" name="debit[]" class="form-control" placeholder="مدين" step="0.01" value="0"></div>
+        <div class="col-md-3"><input type="number" name="credit[]" class="form-control" placeholder="دائن" step="0.01" value="0"></div>
+        <div class="col-md-1"><button type="button" class="btn btn-danger btn-sm remove-row">×</button></div>
+    `;
+    newRow.querySelector('.remove-row').onclick = function() { newRow.remove(); };
+    container.appendChild(newRow);
+});
+
+// حذف الصفوف الموجودة
+document.querySelectorAll('.remove-row').forEach(btn => {
+    btn.onclick = function() { btn.closest('.row').remove(); };
+});
+</script>
+{% endblock %}

@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% block title %}تقرير الحضور - ابن هائل لأعمال الزراعة{% endblock %}
+{% block title %}تقرير الحضور - طلعت هائل للخدمات والاستشارات الزراعية{% endblock %}
 
 {% block extra_css %}
 <style>
@@ -105,6 +105,10 @@
 
     .badge-individual { background: #17a2b8; color: white; }
     .badge-group { background: #28a745; color: white; }
+    .badge-present { background: #28a745; color: white; }
+    .badge-absent { background: #dc3545; color: white; }
+    .badge-late { background: #ffc107; color: #856404; }
+    .badge-sick { background: #17a2b8; color: white; }
 
     .empty-state {
         text-align: center;
@@ -117,8 +121,61 @@
         margin-bottom: 1rem;
     }
 
+    .action-buttons {
+        display: flex;
+        gap: 5px;
+        justify-content: center;
+    }
+
+    .action-buttons .btn-action {
+        width: 32px;
+        height: 32px;
+        border-radius: 8px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        transition: all 0.2s ease;
+        cursor: pointer;
+        border: none;
+    }
+
+    .action-buttons .btn-edit {
+        background: #ffc107;
+        color: #856404;
+    }
+
+    .action-buttons .btn-edit:hover {
+        background: #e0a800;
+        transform: scale(1.1);
+    }
+
+    .action-buttons .btn-delete {
+        background: #dc3545;
+        color: white;
+    }
+
+    .action-buttons .btn-delete:hover {
+        background: #c82333;
+        transform: scale(1.1);
+    }
+
+    /* مودال التعديل */
+    .modal-content {
+        border-radius: 20px;
+    }
+
+    .modal-header {
+        background: linear-gradient(135deg, #17a2b8, #0dcaf0);
+        color: white;
+        border-radius: 20px 20px 0 0;
+    }
+
+    .modal-header .btn-close {
+        filter: invert(1);
+    }
+
     @media print {
-        .sidebar, .navbar, .footer, .btn, form, .no-print, .filter-section {
+        .sidebar, .navbar, .footer, .btn, form, .no-print, .filter-section, .action-buttons {
             display: none !important;
         }
         .col-md-10 {
@@ -163,7 +220,7 @@
 
 <!-- شريط الفلترة -->
 <div class="filter-section">
-    <form method="GET" class="row g-3">
+    <form method="GET" class="row g-3" id="filterForm">
         <div class="col-md-3">
             <label class="form-label fw-bold">
                 <i class="fas fa-calendar-alt text-info"></i> من تاريخ
@@ -231,7 +288,7 @@
 
 <!-- جدول التقرير -->
 <div class="card">
-    <div class="card-header bg-white">
+    <div class="card-header bg-white d-flex justify-content-between align-items-center">
         <h5 class="mb-0">
             <i class="fas fa-table text-info me-2"></i>
             نتائج التقرير
@@ -239,6 +296,11 @@
             <small class="text-muted">({{ request.args.get('start_date') }} - {{ request.args.get('end_date') }})</small>
             {% endif %}
         </h5>
+        <div>
+            <button onclick="window.print()" class="btn btn-secondary btn-sm">
+                <i class="fas fa-print"></i> طباعة
+            </button>
+        </div>
     </div>
     <div class="card-body p-0">
         <div class="table-responsive">
@@ -246,18 +308,20 @@
                 <thead>
                     <tr>
                         <th style="width: 5%">#</th>
-                        <th style="width: 18%">الموظف</th>
-                        <th style="width: 12%">التاريخ</th>
-                        <th style="width: 10%">اليوم</th>
-                        <th style="width: 10%">نوع الحضور</th>
-                        <th style="width: 10%">وقت الدخول</th>
-                        <th style="width: 10%">وقت الخروج</th>
-                        <th style="width: 25%">ملاحظات</th>
+                        <th style="width: 15%">الموظف</th>
+                        <th style="width: 10%">التاريخ</th>
+                        <th style="width: 8%">اليوم</th>
+                        <th style="width: 8%">نوع الحضور</th>
+                        <th style="width: 10%">الحالة</th>
+                        <th style="width: 8%">وقت الدخول</th>
+                        <th style="width: 8%">وقت الخروج</th>
+                        <th style="width: 13%">ملاحظات</th>
+                        <th style="width: 10%">الإجراءات</th>
                     </thead>
                 <tbody>
                     {% for att in attendances %}
                     <tr>
-                        <td class="fw-bold">{{ loop.index }}<td
+                        <td class="fw-bold">{{ loop.index }}</td>
                         <td class="text-center">
                             <div class="d-flex align-items-center gap-2 justify-content-center">
                                 <i class="fas fa-user-circle text-primary"></i>
@@ -281,6 +345,24 @@
                             </span>
                         </td>
                         <td>
+                            <span class="attendance-badge badge-{{ att.attendance_status }}">
+                                <i class="fas
+                                    {% if att.attendance_status == 'present' %}fa-check-circle
+                                    {% elif att.attendance_status == 'absent' %}fa-times-circle
+                                    {% elif att.attendance_status == 'late' %}fa-clock
+                                    {% elif att.attendance_status == 'sick' %}fa-thermometer-half
+                                    {% endif %}">
+                                </i>
+                                {{ {'present':'حاضر', 'absent':'غائب', 'late':'متأخر', 'sick':'إجازة مرضية'}.get(att.attendance_status, att.attendance_status) }}
+                                {% if att.attendance_status == 'late' and att.late_minutes %}
+                                <br><small>({{ att.late_minutes }} دقيقة)</small>
+                                {% endif %}
+                                {% if att.attendance_status == 'sick' and att.sick_leave_days %}
+                                <br><small>({{ att.sick_leave_days }} يوم)</small>
+                                {% endif %}
+                            </span>
+                        </td>
+                        <td>
                             {% if att.check_in_time %}
                             <i class="fas fa-sign-in-alt text-success me-1"></i>
                             {{ att.check_in_time.strftime('%H:%M') }}
@@ -298,18 +380,32 @@
                         </td>
                         <td>
                             {% if att.notes %}
-                            <div class="text-truncate" style="max-width: 200px;" title="{{ att.notes }}">
+                            <div class="text-truncate" style="max-width: 150px;" title="{{ att.notes }}">
                                 <i class="fas fa-quote-right text-muted me-1"></i>
-                                {{ att.notes }}
+                                {{ att.notes[:50] }}{% if att.notes|length > 50 %}...{% endif %}
                             </div>
                             {% else %}
                             <span class="text-muted"><i class="fas fa-minus-circle"></i> لا توجد ملاحظات</span>
                             {% endif %}
                         </td>
+                        <td>
+                            <div class="action-buttons">
+                                <button type="button" class="btn-action btn-edit"
+                                        onclick="editAttendance({{ att.id }})"
+                                        title="تعديل">
+                                    <i class="fas fa-edit"></i>
+                                </button>
+                                <button type="button" class="btn-action btn-delete"
+                                        onclick="deleteAttendance({{ att.id }})"
+                                        title="حذف">
+                                    <i class="fas fa-trash-alt"></i>
+                                </button>
+                            </div>
+                        </td>
                     </tr>
                     {% else %}
                     <tr>
-                        <td colspan="8">
+                        <td colspan="10">
                             <div class="empty-state">
                                 <i class="fas fa-calendar-times"></i>
                                 <h5>لا توجد بيانات حضور</h5>
@@ -349,6 +445,26 @@
 </div>
 {% endif %}
 
+<!-- مودال تعديل الحضور -->
+<div class="modal fade" id="editAttendanceModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="fas fa-edit"></i> تعديل سجل الحضور
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" id="editModalBody">
+                <div class="text-center py-4">
+                    <i class="fas fa-spinner fa-spin fa-2x"></i>
+                    <p class="mt-2">جاري التحميل...</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
 <script>
     // تعيين التواريخ الافتراضية إذا لم تكن محددة
     $(document).ready(function() {
@@ -362,5 +478,81 @@
             $('#end_date').val(defaultEnd.toISOString().split('T')[0]);
         }
     });
+
+   // دالة تعديل الحضور
+function editAttendance(attendanceId) {
+    console.log('Edit button clicked for ID:', attendanceId);
+
+    // الحصول على معلمات الفلترة الحالية
+    var start_date = document.getElementById('start_date').value;
+    var end_date = document.getElementById('end_date').value;
+    var employee_id = document.getElementById('employee_id').value;
+
+    // بناء الرابط
+    var url = '/attendance/edit/' + attendanceId +
+              '?start_date=' + encodeURIComponent(start_date) +
+              '&end_date=' + encodeURIComponent(end_date) +
+              '&employee_id=' + encodeURIComponent(employee_id);
+
+    console.log('Fetching URL:', url);
+
+    // استخدام fetch بدلاً من $.ajax (قد يكون jQuery لا يعمل)
+    fetch(url)
+        .then(response => {
+            console.log('Response status:', response.status);
+            if (!response.ok) {
+                throw new Error('HTTP error ' + response.status);
+            }
+            return response.text();
+        })
+        .then(html => {
+            console.log('HTML received, showing modal');
+            document.getElementById('editModalBody').innerHTML = html;
+
+            // إظهار المودال باستخدام Bootstrap 5
+            var modalElement = document.getElementById('editAttendanceModal');
+            var modal = new bootstrap.Modal(modalElement);
+            modal.show();
+        })
+        .catch(error => {
+            console.error('Fetch error:', error);
+            document.getElementById('editModalBody').innerHTML = `
+                <div class="alert alert-danger text-center">
+                    <i class="fas fa-exclamation-triangle fa-2x"></i>
+                    <p>حدث خطأ في تحميل بيانات التعديل</p>
+                    <p class="text-muted small">${error.message}</p>
+                    <hr>
+                    <p class="text-muted small">يمكنك التعديل مباشرة من خلال:</p>
+                    <a href="${url}" target="_blank" class="btn btn-primary btn-sm">
+                        <i class="fas fa-external-link-alt"></i> فتح صفحة التعديل
+                    </a>
+                    <button class="btn btn-secondary btn-sm mt-2" data-bs-dismiss="modal">إغلاق</button>
+                </div>
+            `;
+            var modal = new bootstrap.Modal(document.getElementById('editAttendanceModal'));
+            modal.show();
+        });
+}
+
+    // دالة حذف الحضور
+    function deleteAttendance(attendanceId) {
+        if (confirm('⚠️ هل أنت متأكد من حذف هذا السجل؟\nلا يمكن التراجع عن هذا الإجراء.')) {
+            var start_date = $('#start_date').val();
+            var end_date = $('#end_date').val();
+            var employee_id = $('#employee_id').val();
+
+            var form = $('<form>', {
+                method: 'POST',
+                action: '/attendance/delete/' + attendanceId
+            });
+
+            form.append($('<input>', {name: 'start_date', value: start_date, type: 'hidden'}));
+            form.append($('<input>', {name: 'end_date', value: end_date, type: 'hidden'}));
+            form.append($('<input>', {name: 'employee_id', value: employee_id, type: 'hidden'}));
+
+            $('body').append(form);
+            form.submit();
+        }
+    }
 </script>
 {% endblock %}

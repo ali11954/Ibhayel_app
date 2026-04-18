@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+
+{% block title %}سجل التحويلات{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2><i class="fas fa-exchange-alt"></i> سجل التحويلات بين الحسابات</h2>
+        <a href="{{ url_for('journal_entries_list') }}" class="btn btn-secondary">
+            <i class="fas fa-arrow-left"></i> العودة للقيود
+        </a>
+    </div>
+
+    <div class="card">
+        <div class="card-header bg-primary text-white">
+            <h5 class="mb-0">قائمة التحويلات</h5>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-bordered table-hover mb-0">
+                    <thead class="table-dark">
+                        <tr>
+                            <th>#</th>
+                            <th>رقم القيد</th>
+                            <th>التاريخ</th>
+                            <th>الوصف</th>
+                            <th>النوع</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for transfer in transfers %}
+                        <tr>
+                            <td>{{ loop.index }}</td>
+                            <td><strong>{{ transfer.entry_number }}</strong></td>
+                            <td>{{ transfer.date.strftime('%Y-%m-%d') }}</td>
+                            <td>{{ transfer.description }}</td>
+                            <td>
+                                {% if transfer.reference_type == 'transfer' %}
+                                <span class="badge bg-primary">تحويل</span>
+                                {% else %}
+                                <span class="badge bg-warning">تصفير</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% else %}
+                        <tr>
+                            <td colspan="5" class="text-center">لا توجد تحويلات</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

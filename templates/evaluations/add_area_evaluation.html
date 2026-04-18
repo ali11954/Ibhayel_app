@@ -1,0 +1,253 @@
+{% extends "base.html" %}
+
+{% block title %}تقييم جديد - المناطق والمواقع{% endblock %}
+
+{% block extra_css %}
+<style>
+    .form-section {
+        background: #f8f9fa;
+        border-radius: 15px;
+        padding: 1.5rem;
+        margin-bottom: 1.5rem;
+    }
+
+    .form-section-title {
+        font-size: 1.1rem;
+        font-weight: 700;
+        color: #9b59b6;
+        margin-bottom: 1rem;
+        padding-bottom: 0.5rem;
+        border-bottom: 2px solid #9b59b6;
+        display: inline-block;
+    }
+
+    .criteria-card {
+        background: white;
+        border-radius: 12px;
+        padding: 1rem;
+        margin-bottom: 1rem;
+        border: 1px solid #e9ecef;
+        transition: all 0.3s;
+    }
+
+    .criteria-card:hover {
+        box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+        transform: translateY(-2px);
+    }
+
+    .criteria-name {
+        font-weight: 700;
+        color: #2c3e50;
+    }
+
+    .criteria-desc {
+        font-size: 0.8rem;
+        color: #6c757d;
+    }
+
+    .score-input {
+        width: 80px;
+        text-align: center;
+        font-size: 1.2rem;
+        font-weight: bold;
+    }
+
+    .score-range {
+        font-size: 0.7rem;
+        color: #6c757d;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-md-10 offset-md-1">
+            <div class="card">
+                <div class="card-header bg-white">
+                    <h3 class="card-title">
+                        <i class="fas fa-plus-circle text-primary"></i>
+                        تقييم جديد - المناطق والمواقع
+                    </h3>
+                    <div class="card-tools">
+                        <a href="{{ url_for('area_evaluations_list') }}" class="btn btn-default">
+                            <i class="fas fa-arrow-right"></i> رجوع
+                        </a>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <form method="POST">
+                        <!-- نوع التقييم -->
+                        <div class="form-section">
+                            <div class="form-section-title">
+                                <i class="fas fa-info-circle"></i> معلومات أساسية
+                            </div>
+                            <div class="row">
+                                <div class="col-md-6 mb-3">
+                                    <label class="form-label fw-bold">نوع التقييم <span class="text-danger">*</span></label>
+                                    <select name="evaluation_type" id="evaluation_type" class="form-control" required onchange="toggleTypeFields()">
+                                        <option value="">-- اختر --</option>
+                                        <option value="region">منطقة</option>
+                                        <option value="location">موقع</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-6 mb-3">
+                                    <label class="form-label fw-bold">تاريخ التقييم <span class="text-danger">*</span></label>
+                                    <input type="date" name="evaluation_date" class="form-control" value="{{ now.strftime('%Y-%m-%d') }}" required>
+                                </div>
+                            </div>
+
+                            <div class="row">
+                                <div class="col-md-6 mb-3" id="region_field" style="display: none;">
+                                    <label class="form-label fw-bold">اختر المنطقة <span class="text-danger">*</span></label>
+                                    <select name="region_id" class="form-control">
+                                        <option value="">-- اختر المنطقة --</option>
+                                        {% for region in regions %}
+                                        <option value="{{ region.id }}">{{ region.name }} ({{ region.company.name if region.company else '-' }})</option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                                <div class="col-md-6 mb-3" id="location_field" style="display: none;">
+                                    <label class="form-label fw-bold">اختر الموقع <span class="text-danger">*</span></label>
+                                    <select name="location_id" class="form-control">
+                                        <option value="">-- اختر الموقع --</option>
+                                        {% for location in locations %}
+                                        <option value="{{ location.id }}">{{ location.name }} ({{ location.region.name if location.region else '-' }})</option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                                <div class="col-md-6 mb-3">
+                                    <label class="form-label fw-bold">الحالة</label>
+                                    <select name="status" class="form-control">
+                                        <option value="pending">قيد المراجعة</option>
+                                        <option value="approved">معتمد</option>
+                                        <option value="rejected">مرفوض</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- معايير تقييم المناطق -->
+                        <div id="region_criteria_section" style="display: none;">
+                            <div class="form-section">
+                                <div class="form-section-title">
+                                    <i class="fas fa-clipboard-list"></i> معايير تقييم المنطقة
+                                </div>
+                                {% for criteria in region_criteria %}
+                                <div class="criteria-card">
+                                    <div class="row align-items-center">
+                                        <div class="col-md-7">
+                                            <div class="criteria-name">{{ criteria.name }}</div>
+                                            <div class="criteria-desc">{{ criteria.description or 'لا يوجد وصف' }}</div>
+                                        </div>
+                                        <div class="col-md-3">
+                                            <input type="number" name="criteria_{{ criteria.id }}"
+                                                   class="form-control score-input"
+                                                   min="0" max="{{ criteria.max_score }}"
+                                                   value="{{ criteria.max_score // 2 }}"
+                                                   step="1" required>
+                                        </div>
+                                        <div class="col-md-2">
+                                            <span class="score-range">من 0 إلى {{ criteria.max_score }}</span>
+                                        </div>
+                                    </div>
+                                </div>
+                                {% else %}
+                                <div class="alert alert-warning">لا توجد معايير مضافة لتقييم المناطق</div>
+                                {% endfor %}
+                            </div>
+                        </div>
+
+                        <!-- معايير تقييم المواقع -->
+                        <div id="location_criteria_section" style="display: none;">
+                            <div class="form-section">
+                                <div class="form-section-title">
+                                    <i class="fas fa-clipboard-list"></i> معايير تقييم الموقع
+                                </div>
+                                {% for criteria in location_criteria %}
+                                <div class="criteria-card">
+                                    <div class="row align-items-center">
+                                        <div class="col-md-7">
+                                            <div class="criteria-name">{{ criteria.name }}</div>
+                                            <div class="criteria-desc">{{ criteria.description or 'لا يوجد وصف' }}</div>
+                                        </div>
+                                        <div class="col-md-3">
+                                            <input type="number" name="criteria_{{ criteria.id }}"
+                                                   class="form-control score-input"
+                                                   min="0" max="{{ criteria.max_score }}"
+                                                   value="{{ criteria.max_score // 2 }}"
+                                                   step="1" required>
+                                        </div>
+                                        <div class="col-md-2">
+                                            <span class="score-range">من 0 إلى {{ criteria.max_score }}</span>
+                                        </div>
+                                    </div>
+                                </div>
+                                {% else %}
+                                <div class="alert alert-warning">لا توجد معايير مضافة لتقييم المواقع</div>
+                                {% endfor %}
+                            </div>
+                        </div>
+
+                        <!-- ملاحظات -->
+                        <div class="form-section">
+                            <div class="form-section-title">
+                                <i class="fas fa-comment"></i> ملاحظات إضافية
+                            </div>
+                            <textarea name="comments" class="form-control" rows="4" placeholder="أدخل أي ملاحظات إضافية هنا..."></textarea>
+                        </div>
+
+                        <!-- أزرار -->
+                        <div class="text-center">
+                            <button type="submit" class="btn btn-primary btn-lg px-5">
+                                <i class="fas fa-save"></i> حفظ التقييم
+                            </button>
+                            <a href="{{ url_for('area_evaluations_list') }}" class="btn btn-secondary btn-lg px-5">
+                                <i class="fas fa-times"></i> إلغاء
+                            </a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    function toggleTypeFields() {
+        var type = document.getElementById('evaluation_type').value;
+        var regionField = document.getElementById('region_field');
+        var locationField = document.getElementById('location_field');
+        var regionCriteria = document.getElementById('region_criteria_section');
+        var locationCriteria = document.getElementById('location_criteria_section');
+
+        // إخفاء الكل
+        regionField.style.display = 'none';
+        locationField.style.display = 'none';
+        regionCriteria.style.display = 'none';
+        locationCriteria.style.display = 'none';
+
+        if (type === 'region') {
+            regionField.style.display = 'block';
+            regionCriteria.style.display = 'block';
+            document.querySelector('select[name="region_id"]').required = true;
+            document.querySelector('select[name="location_id"]').required = false;
+        } else if (type === 'location') {
+            locationField.style.display = 'block';
+            locationCriteria.style.display = 'block';
+            document.querySelector('select[name="region_id"]').required = false;
+            document.querySelector('select[name="location_id"]').required = true;
+        }
+    }
+
+    $(document).ready(function() {
+        // إضافة تأثيرات على حقول الدرجات
+        $('.score-input').on('change', function() {
+            var max = parseInt($(this).attr('max'));
+            var val = parseInt($(this).val());
+            if (val > max) $(this).val(max);
+            if (val < 0) $(this).val(0);
+        });
+    });
+</script>
+{% endblock %}

@@ -126,6 +126,8 @@
         justify-content: center;
         border-radius: 10px;
         transition: all 0.3s ease;
+        border: none;
+        cursor: pointer;
     }
 
     .btn-icon:hover {
@@ -135,16 +137,19 @@
     .btn-transfer {
         background: linear-gradient(135deg, var(--primary-color), var(--primary-dark));
         color: white;
-        border: none;
-        border-radius: 20px;
-        padding: 0.3rem 0.8rem;
-        font-size: 0.75rem;
-        transition: all 0.3s ease;
     }
 
     .btn-transfer:hover {
-        transform: translateY(-2px);
-        box-shadow: var(--shadow-sm);
+        background: linear-gradient(135deg, var(--primary-dark), var(--primary-color));
+    }
+
+    .btn-delete {
+        background: #dc3545;
+        color: white;
+    }
+
+    .btn-delete:hover {
+        background: #c82333;
     }
 
     .empty-state {
@@ -205,6 +210,10 @@
         width: 20px;
         height: 20px;
         cursor: pointer;
+    }
+
+    .text-muted i {
+        font-size: 1rem;
     }
 </style>
 {% endblock %}
@@ -405,17 +414,28 @@
                         <td>
                             <div class="action-buttons">
                                 {% if not trans.is_settled %}
-                                <button class="btn btn-icon btn-success" onclick="transferToSalary({{ trans.id }})" title="ترحيل إلى الراتب">
-                                    <i class="fas fa-exchange-alt"></i>
-                                </button>
-                                <a href="{{ url_for('delete_transaction', trans_id=trans.id) }}"
-                                   class="btn btn-icon btn-outline-danger"
-                                   onclick="return confirmDelete('هل أنت متأكد من حذف هذه المعاملة؟')"
-                                   title="حذف المعاملة">
-                                    <i class="fas fa-trash-alt"></i>
-                                </a>
+                                    <!-- زر الترحيل -->
+                                    <button class="btn btn-icon btn-transfer" onclick="transferToSalary({{ trans.id }})" title="ترحيل إلى الراتب">
+                                        <i class="fas fa-exchange-alt"></i>
+                                    </button>
+
+                                    <!-- زر الحذف (يظهر فقط إذا لم يكن للمعاملة قيد محاسبي) -->
+                                    {% if not trans.journal_entry_id %}
+                                    <a href="{{ url_for('delete_transaction', trans_id=trans.id) }}"
+                                       class="btn btn-icon btn-delete"
+                                       onclick="return confirm('هل أنت متأكد من حذف هذه المعاملة؟')"
+                                       title="حذف المعاملة">
+                                        <i class="fas fa-trash-alt"></i>
+                                    </a>
+                                    {% else %}
+                                    <span class="text-muted" title="تم إنشاء قيد محاسبي لهذه المعاملة">
+                                        <i class="fas fa-file-alt"></i>
+                                    </span>
+                                    {% endif %}
                                 {% else %}
-                                <span class="text-muted"><i class="fas fa-check-circle"></i> مرحل</span>
+                                    <span class="text-muted" title="تم ترحيل المعاملة إلى الراتب">
+                                        <i class="fas fa-check-circle text-success"></i> مرحل
+                                    </span>
                                 {% endif %}
                             </div>
                         </td>

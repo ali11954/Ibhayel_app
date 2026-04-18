@@ -1,0 +1,312 @@
+{% extends "base.html" %}
+
+{% block title %}الميزانية العمومية - طلعت هائل{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="card">
+        <div class="card-header">
+            <h3 class="card-title">
+                <i class="fas fa-chart-pie"></i> الميزانية العمومية
+            </h3>
+            <div class="card-tools">
+                <form class="form-inline">
+                    <label class="mr-2">حتى تاريخ:</label>
+                    <input type="date" name="as_of_date" class="form-control form-control-sm" value="{{ as_of_date.strftime('%Y-%m-%d') }}" onchange="this.form.submit()">
+                </form>
+            </div>
+        </div>
+        <div class="card-body">
+            <!-- Debug info (يمكن إزالته بعد التأكد من العمل) -->
+            <div class="alert alert-secondary small">
+                <strong>Debug:</strong> is_balanced={{ is_balanced }}, is_closed={{ is_closed }}, difference={{ "{:,.2f}".format(difference) }}
+            </div>
+
+            <!-- تنبيه عند عدم التوازن مع زر إقفال -->
+            {% if not is_balanced %}
+            <div class="alert alert-warning d-flex justify-content-between align-items-center">
+                <div>
+                    <i class="fas fa-exclamation-triangle"></i>
+                    <strong>تنبيه!</strong> الميزانية غير متوازنة بفارق {{ "{:,.2f}".format(difference) }} ريال.
+                    قد تحتاج إلى إقفال حسابات المصروفات.
+                </div>
+                <button type="button" class="btn btn-primary" onclick="closeExpenses()">
+                    <i class="fas fa-lock"></i> إقفال المصروفات
+                </button>
+            </div>
+            {% endif %}
+
+            <!-- تنبيه عند إقفال الفترة مع زر فتح الفترة -->
+            {% if is_balanced and is_closed %}
+            <div class="alert alert-info d-flex justify-content-between align-items-center">
+                <div>
+                    <i class="fas fa-lock"></i>
+                    <strong>الفترة مقفلة</strong> - تم ترحيل جميع المصروفات إلى الأرباح المحتجزة.
+                </div>
+                <button type="button" class="btn btn-warning" onclick="reopenPeriod()">
+                    <i class="fas fa-unlock-alt"></i> فتح الفترة
+                </button>
+            </div>
+            {% endif %}
+
+            <!-- تنبيه عند التوازن والفترة مفتوحة مع أزرار إضافية -->
+            {% if is_balanced and not is_closed %}
+            <div class="alert alert-success d-flex justify-content-between align-items-center flex-wrap gap-2">
+                <div>
+                    <i class="fas fa-check-circle"></i>
+                    <strong>الميزانية متوازنة</strong> - الفترة مفتوحة.
+                </div>
+                <div class="d-flex gap-2">
+                    <button type="button" class="btn btn-info" onclick="showExpenseDetails()">
+                        <i class="fas fa-chart-pie"></i> تفاصيل المصروفات
+                    </button>
+                    <button type="button" class="btn btn-warning" onclick="redistributeExpenses()">
+                        <i class="fas fa-random"></i> إعادة توزيع المصروفات
+                    </button>
+                    <button type="button" class="btn btn-primary" onclick="closeExpenses()">
+                        <i class="fas fa-lock"></i> إقفال المصروفات
+                    </button>
+                </div>
+            </div>
+            {% endif %}
+
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="card">
+                        <div class="card-header bg-info text-white">
+                            <h5 class="mb-0"><i class="fas fa-building"></i> الأصول</h5>
+                        </div>
+                        <div class="card-body p-0">
+                            <table class="table table-bordered mb-0">
+                                {% for item in asset_data %}
+                                <tr>
+                                    <td>{{ item.account.name_ar }}<br><small class="text-muted">{{ item.account.code }}</small></td>
+                                    <td class="text-end {% if item.balance < 0 %}text-danger{% else %}text-success{% endif %}">
+                                        {{ "{:,.2f}".format(item.balance) }} ر.ي
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                                <tr class="table-active">
+                                    <th>إجمالي الأصول</th>
+                                    <th class="text-end">{{ "{:,.2f}".format(total_assets) }} ر.ي</th>
+                                </tr>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="card">
+                        <div class="card-header bg-warning text-dark">
+                            <h5 class="mb-0"><i class="fas fa-credit-card"></i> الخصوم</h5>
+                        </div>
+                        <div class="card-body p-0">
+                            <table class="table table-bordered mb-0">
+                                {% for item in liability_data %}
+                                <tr>
+                                    <td>{{ item.account.name_ar }}<br><small class="text-muted">{{ item.account.code }}</small></td>
+                                    <td class="text-end {% if item.balance < 0 %}text-danger{% else %}text-success{% endif %}">
+                                        {{ "{:,.2f}".format(item.balance) }} ر.ي
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                                <tr class="table-active">
+                                    <th>إجمالي الخصوم</th>
+                                    <th class="text-end">{{ "{:,.2f}".format(total_liabilities) }} ر.ي</th>
+                                </tr>
+                            </table>
+                        </div>
+                    </div>
+
+                    <div class="card mt-3">
+                        <div class="card-header bg-primary text-white">
+                            <h5 class="mb-0"><i class="fas fa-chart-line"></i> حقوق الملكية</h5>
+                        </div>
+                        <div class="card-body p-0">
+                            <table class="table table-bordered mb-0">
+                                {% for item in equity_data %}
+                                <tr>
+                                    <td>{{ item.account.name_ar }}<br><small class="text-muted">{{ item.account.code }}</small></td>
+                                    <td class="text-end {% if item.balance < 0 %}text-danger{% else %}text-success{% endif %}">
+                                        {{ "{:,.2f}".format(item.balance) }} ر.ي
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                                <tr class="table-active">
+                                    <th>إجمالي حقوق الملكية</th>
+                                    <th class="text-end">{{ "{:,.2f}".format(total_equity) }} ر.ي</th>
+                                </tr>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card mt-3">
+                <div class="card-header {% if is_balanced %}bg-success{% else %}bg-danger{% endif %} text-white">
+                    <h5 class="mb-0">المعادلة المحاسبية: الأصول = الخصوم + حقوق الملكية</h5>
+                </div>
+                <div class="card-body text-center">
+                    <h4>
+                        {{ "{:,.2f}".format(total_assets) }} =
+                        {{ "{:,.2f}".format(total_liabilities) }} +
+                        {{ "{:,.2f}".format(total_equity) }}
+                    </h4>
+                    {% if is_balanced %}
+                    <p class="text-success"><i class="fas fa-check-circle"></i> ✅ الميزانية متوازنة</p>
+                    {% else %}
+                    <p class="text-danger">
+                        <i class="fas fa-exclamation-triangle"></i> ❌ الميزانية غير متوازنة
+                        - الفرق: {{ "{:,.2f}".format(difference) }} ر.ي
+                    </p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// دالة إقفال المصروفات
+function closeExpenses() {
+    if(confirm('⚠️ هل أنت متأكد من إقفال حسابات المصروفات؟\nسيتم ترحيل جميع المصروفات إلى الأرباح المحتجزة.\nهذا الإجراء يمكن التراجع عنه لاحقاً.')) {
+        const btn = event.target;
+        const originalText = btn.innerHTML;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> جاري الإقفال...';
+        btn.disabled = true;
+
+        fetch('/accounts/close-expenses', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if(data.success) {
+                alert('✅ ' + data.message);
+                window.location.reload();
+            } else {
+                alert('❌ خطأ: ' + data.error);
+                btn.innerHTML = originalText;
+                btn.disabled = false;
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('❌ حدث خطأ أثناء إقفال المصروفات');
+            btn.innerHTML = originalText;
+            btn.disabled = false;
+        });
+    }
+}
+
+// دالة فتح الفترة
+function reopenPeriod() {
+    if(confirm('⚠️ هل أنت متأكد من إعادة فتح الفترة؟\n\nسيتم:\n1. عكس قيد إقفال المصروفات\n2. إعادة المصروفات إلى حساباتها الأصلية\n3. ظهور المصروفات مرة أخرى في قائمة الدخل\n\nهذا الإجراء يمكن التراجع عنه بإعادة الإقفال.')) {
+        const btn = event.target;
+        const originalText = btn.innerHTML;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> جاري فتح الفترة...';
+        btn.disabled = true;
+
+        fetch('/accounts/reopen-period', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if(data.success) {
+                alert('✅ ' + data.message + '\n📋 قيد الفتح: ' + data.entry_number);
+                window.location.reload();
+            } else {
+                alert('❌ خطأ: ' + data.error);
+                btn.innerHTML = originalText;
+                btn.disabled = false;
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('❌ حدث خطأ أثناء فتح الفترة');
+            btn.innerHTML = originalText;
+            btn.disabled = false;
+        });
+    }
+}
+
+// دالة عرض تفاصيل المصروفات
+function showExpenseDetails() {
+    const btn = event.target;
+    const originalText = btn.innerHTML;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> جاري...';
+    btn.disabled = true;
+
+    fetch('/accounts/expense-details')
+        .then(response => response.json())
+        .then(data => {
+            if(data.success) {
+                let message = '📊 تفاصيل المصروفات:\n\n';
+                if(data.expenses.length === 0) {
+                    message += 'لا توجد مصروفات حالياً.\n';
+                } else {
+                    for(let exp of data.expenses) {
+                        message += `${exp.code} - ${exp.name}: ${Number(exp.balance).toLocaleString()} ريال\n`;
+                    }
+                    message += `\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n`;
+                    message += `📌 الإجمالي: ${Number(data.total).toLocaleString()} ريال\n`;
+                    message += `📌 عدد المصروفات: ${data.count}`;
+                }
+                alert(message);
+            } else {
+                alert('❌ خطأ: ' + (data.error || 'فشل في جلب البيانات'));
+            }
+            btn.innerHTML = originalText;
+            btn.disabled = false;
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('❌ حدث خطأ أثناء جلب تفاصيل المصروفات');
+            btn.innerHTML = originalText;
+            btn.disabled = false;
+        });
+}
+
+// دالة إعادة توزيع المصروفات
+function redistributeExpenses() {
+    if(confirm('⚠️ هل أنت متأكد من إعادة توزيع المصروفات العامة؟\nسيتم نقل المبالغ من المصروفات العامة إلى حساباتها الصحيحة.\n(كهرباء، إيجار، قرطاسية، معدات)')) {
+        const btn = event.target;
+        const originalText = btn.innerHTML;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> جاري إعادة التوزيع...';
+        btn.disabled = true;
+
+        fetch('/accounts/redistribute-expenses', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if(data.success) {
+                let message = '✅ ' + data.message;
+                if(data.entry_number) message += '\n📋 قيد: ' + data.entry_number;
+                if(data.distributed) message += '\n💰 تم توزيع: ' + Number(data.distributed).toLocaleString() + ' ريال';
+                if(data.remaining) message += '\n📌 المتبقي: ' + Number(data.remaining).toLocaleString() + ' ريال';
+                alert(message);
+                window.location.reload();
+            } else {
+                alert('❌ خطأ: ' + data.error);
+                btn.innerHTML = originalText;
+                btn.disabled = false;
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('❌ حدث خطأ أثناء إعادة توزيع المصروفات');
+            btn.innerHTML = originalText;
+            btn.disabled = false;
+        });
+    }
+}
+</script>
+{% endblock %}

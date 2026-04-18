@@ -1,0 +1,89 @@
+<form method="POST" action="/attendance/edit/{{ attendance.id }}">
+    <input type="hidden" name="start_date" value="{{ start_date }}">
+    <input type="hidden" name="end_date" value="{{ end_date }}">
+    <input type="hidden" name="employee_id" value="{{ employee_id }}">
+
+    <div class="row">
+        <div class="col-md-6 mb-3">
+            <label class="form-label fw-bold">الموظف</label>
+            <input type="text" class="form-control" value="{{ attendance.employee.name }}" disabled>
+        </div>
+        <div class="col-md-6 mb-3">
+            <label class="form-label fw-bold">التاريخ</label>
+            <input type="text" class="form-control" value="{{ attendance.date.strftime('%Y-%m-%d') }}" disabled>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-md-6 mb-3">
+            <label class="form-label fw-bold">نوع الحضور</label>
+            <select name="attendance_type" class="form-control">
+                <option value="individual" {% if attendance.attendance_type == 'individual' %}selected{% endif %}>فردي</option>
+                <option value="group" {% if attendance.attendance_type == 'group' %}selected{% endif %}>جماعي</option>
+            </select>
+        </div>
+        <div class="col-md-6 mb-3">
+            <label class="form-label fw-bold">الحالة</label>
+            <select name="attendance_status" class="form-control" id="attendance_status" onchange="toggleExtraFields()">
+                <option value="present" {% if attendance.attendance_status == 'present' %}selected{% endif %}>حاضر</option>
+                <option value="absent" {% if attendance.attendance_status == 'absent' %}selected{% endif %}>غائب</option>
+                <option value="late" {% if attendance.attendance_status == 'late' %}selected{% endif %}>متأخر</option>
+                <option value="sick" {% if attendance.attendance_status == 'sick' %}selected{% endif %}>إجازة مرضية</option>
+            </select>
+        </div>
+    </div>
+
+    <div id="late_fields" style="display: {% if attendance.attendance_status == 'late' %}block{% else %}none{% endif %};">
+        <div class="mb-3">
+            <label class="form-label fw-bold">دقائق التأخير</label>
+            <input type="number" name="late_minutes" class="form-control" value="{{ attendance.late_minutes or 0 }}" min="0">
+        </div>
+    </div>
+
+    <div id="sick_fields" style="display: {% if attendance.attendance_status == 'sick' %}block{% else %}none{% endif %};">
+        <div class="mb-3">
+            <label class="form-label fw-bold">عدد أيام الإجازة المرضية</label>
+            <input type="number" name="sick_leave_days" class="form-control" value="{{ attendance.sick_leave_days or 1 }}" min="1">
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-md-6 mb-3">
+            <label class="form-label fw-bold">وقت الدخول</label>
+            <input type="time" name="check_in_time" class="form-control" value="{{ attendance.check_in_time.strftime('%H:%M') if attendance.check_in_time else '' }}">
+        </div>
+        <div class="col-md-6 mb-3">
+            <label class="form-label fw-bold">وقت الخروج</label>
+            <input type="time" name="check_out_time" class="form-control" value="{{ attendance.check_out_time.strftime('%H:%M') if attendance.check_out_time else '' }}">
+        </div>
+    </div>
+
+    <div class="mb-3">
+        <label class="form-label fw-bold">ملاحظات</label>
+        <textarea name="notes" class="form-control" rows="2">{{ attendance.notes or '' }}</textarea>
+    </div>
+
+    <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">إلغاء</button>
+        <button type="submit" class="btn btn-primary">حفظ التعديلات</button>
+    </div>
+</form>
+
+<script>
+    function toggleExtraFields() {
+        var status = document.getElementById('attendance_status').value;
+        var lateFields = document.getElementById('late_fields');
+        var sickFields = document.getElementById('sick_fields');
+
+        if (status === 'late') {
+            lateFields.style.display = 'block';
+            sickFields.style.display = 'none';
+        } else if (status === 'sick') {
+            lateFields.style.display = 'none';
+            sickFields.style.display = 'block';
+        } else {
+            lateFields.style.display = 'none';
+            sickFields.style.display = 'none';
+        }
+    }
+</script>

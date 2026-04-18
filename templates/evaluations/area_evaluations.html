@@ -1,0 +1,199 @@
+{% extends "base.html" %}
+
+{% block title %}تقييم المناطق والمواقع - طلعت هائل{% endblock %}
+
+{% block extra_css %}
+<style>
+    .page-header {
+        background: linear-gradient(135deg, #9b59b6, #7b1fa2);
+        border-radius: 20px;
+        padding: 1.5rem;
+        margin-bottom: 1.5rem;
+        color: white;
+    }
+
+    .stats-card {
+        background: white;
+        border-radius: 15px;
+        padding: 1rem;
+        text-align: center;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        transition: transform 0.3s;
+    }
+
+    .stats-card:hover {
+        transform: translateY(-5px);
+    }
+
+    .stats-number {
+        font-size: 1.8rem;
+        font-weight: 800;
+        color: #9b59b6;
+    }
+
+    .evaluation-badge-region {
+        background: #9b59b6;
+        color: white;
+        padding: 0.3rem 0.8rem;
+        border-radius: 20px;
+        font-size: 0.7rem;
+    }
+
+    .evaluation-badge-location {
+        background: #3498db;
+        color: white;
+        padding: 0.3rem 0.8rem;
+        border-radius: 20px;
+        font-size: 0.7rem;
+    }
+
+    .status-badge-pending {
+        background: #f39c12;
+        color: white;
+    }
+
+    .status-badge-approved {
+        background: #27ae60;
+        color: white;
+    }
+
+    .status-badge-rejected {
+        background: #e74c3c;
+        color: white;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+        <div>
+            <h2>
+                <i class="fas fa-map-marker-alt"></i>
+                تقييم المناطق والمواقع
+            </h2>
+            <p class="mb-0 opacity-75 mt-1">تقييم جودة المناطق والمواقع الزراعية</p>
+        </div>
+        <div class="d-flex gap-2">
+            <a href="{{ url_for('add_area_evaluation') }}" class="btn btn-light">
+                <i class="fas fa-plus-circle me-2"></i> تقييم جديد
+            </a>
+            <a href="{{ url_for('manage_area_criteria') }}" class="btn btn-outline-light">
+                <i class="fas fa-cog me-2"></i> إدارة المعايير
+            </a>
+        </div>
+    </div>
+</div>
+
+<!-- إحصائيات -->
+<div class="row mb-4">
+    <div class="col-md-3">
+        <div class="stats-card">
+            <div class="stats-number">{{ stats.total }}</div>
+            <div class="text-muted">إجمالي التقييمات</div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="stats-card">
+            <div class="stats-number">{{ stats.regions }}</div>
+            <div class="text-muted">تقييمات المناطق</div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="stats-card">
+            <div class="stats-number">{{ stats.locations }}</div>
+            <div class="text-muted">تقييمات المواقع</div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="stats-card">
+            <div class="stats-number">{{ "%.1f"|format(stats.avg_score) }}</div>
+            <div class="text-muted">متوسط التقييم</div>
+        </div>
+    </div>
+</div>
+
+<!-- جدول التقييمات -->
+<div class="card">
+    <div class="card-header bg-white">
+        <h5 class="mb-0"><i class="fas fa-list"></i> قائمة التقييمات</h5>
+    </div>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-bordered table-hover mb-0">
+                <thead class="table-primary">
+                    <tr>
+                        <th>#</th>
+                        <th>النوع</th>
+                        <th>الاسم</th>
+                        <th>التاريخ</th>
+                        <th>الدرجة</th>
+                        <th>التقييم</th>
+                        <th>الحالة</th>
+                        <th>المقيم</th>
+                        <th>الإجراءات</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for eval in evaluations %}
+                    <tr>
+                        <td>{{ loop.index }}</td>
+                        <td>
+                            <span class="evaluation-badge-{% if eval.evaluation_type == 'region' %}region{% else %}location{% endif %}">
+                                <i class="fas {% if eval.evaluation_type == 'region' %}fa-globe{% else %}fa-map-pin{% endif %}"></i>
+                                {{ 'منطقة' if eval.evaluation_type == 'region' else 'موقع' }}
+                            </span>
+                        </td>
+                        <td><strong>{{ eval.get_name() }}</strong></td>
+                        <td>{{ eval.evaluation_date.strftime('%Y-%m-%d') }}</td>
+                        <td>
+                            <span class="badge bg-primary fs-6">{{ eval.overall_score }}</span>
+                        </td>
+                        <td>
+                            {% set rating, color = eval.get_rating() %}
+                            <span class="badge bg-{{ color }}">{{ rating }}</span>
+                        </td>
+                        <td>
+                            <span class="badge status-badge-{{ eval.status }}">
+                                {{ {'pending':'قيد المراجعة', 'approved':'معتمد', 'rejected':'مرفوض'}.get(eval.status, eval.status) }}
+                            </span>
+                        </td>
+                        <td>{{ eval.evaluator.full_name.split()[0] if eval.evaluator else '-' }}</td>
+                        <td>
+                            <div class="btn-group btn-group-sm">
+                                <a href="{{ url_for('view_area_evaluation', evaluation_id=eval.id) }}" class="btn btn-info" title="عرض">
+                                    <i class="fas fa-eye"></i>
+                                </a>
+                                <a href="{{ url_for('edit_area_evaluation', evaluation_id=eval.id) }}" class="btn btn-warning" title="تعديل">
+                                    <i class="fas fa-edit"></i>
+                                </a>
+                                <button type="button" class="btn btn-danger" onclick="deleteEvaluation({{ eval.id }})" title="حذف">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                            </div>
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="9" class="text-center text-muted">
+                            <i class="fas fa-info-circle"></i> لا توجد تقييمات
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<script>
+function deleteEvaluation(evaluationId) {
+    if (confirm('⚠️ هل أنت متأكد من حذف هذا التقييم؟')) {
+        fetch(`/evaluations/areas/delete/${evaluationId}`, {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'}
+        }).then(() => window.location.reload());
+    }
+}
+</script>
+{% endblock %}

@@ -1,0 +1,89 @@
+{% extends "base.html" %}
+
+{% block title %}تعديل تقييم - {{ evaluation.get_name() }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-md-10 offset-md-1">
+            <div class="card">
+                <div class="card-header bg-white">
+                    <h3 class="card-title">
+                        <i class="fas fa-edit text-primary"></i>
+                        تعديل التقييم
+                    </h3>
+                    <div class="card-tools">
+                        <a href="{{ url_for('area_evaluations_list') }}" class="btn btn-default">
+                            <i class="fas fa-arrow-right"></i> رجوع
+                        </a>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <form method="POST">
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label fw-bold">النوع</label>
+                                <input type="text" class="form-control" value="{{ evaluation.get_type_display() }}" disabled>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label fw-bold">الاسم</label>
+                                <input type="text" class="form-control" value="{{ evaluation.get_name() }}" disabled>
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label fw-bold">تاريخ التقييم</label>
+                                <input type="date" name="evaluation_date" class="form-control" value="{{ evaluation.evaluation_date.strftime('%Y-%m-%d') }}" disabled>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label fw-bold">الحالة</label>
+                                <select name="status" class="form-control">
+                                    <option value="pending" {% if evaluation.status == 'pending' %}selected{% endif %}>قيد المراجعة</option>
+                                    <option value="approved" {% if evaluation.status == 'approved' %}selected{% endif %}>معتمد</option>
+                                    <option value="rejected" {% if evaluation.status == 'rejected' %}selected{% endif %}>مرفوض</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <h5><i class="fas fa-clipboard-list"></i> المعايير</h5>
+                        {% set criteria_scores = evaluation.get_criteria_scores() %}
+                        {% for criteria in criteria_scores %}
+                        <div class="criteria-card mb-3 p-3 border rounded">
+                            <div class="row align-items-center">
+                                <div class="col-md-7">
+                                    <strong>{{ criteria.name }}</strong>
+                                    <div class="text-muted small">{{ criteria.description or '' }}</div>
+                                </div>
+                                <div class="col-md-3">
+                                    <input type="number" name="criteria_{{ criteria.criteria_id }}"
+                                           class="form-control" min="0" max="{{ criteria.max_score }}"
+                                           value="{{ criteria.score }}" required>
+                                </div>
+                                <div class="col-md-2">
+                                    <span class="text-muted">/ {{ criteria.max_score }}</span>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">ملاحظات</label>
+                            <textarea name="comments" class="form-control" rows="4">{{ evaluation.comments or '' }}</textarea>
+                        </div>
+
+                        <div class="text-center">
+                            <button type="submit" class="btn btn-primary btn-lg px-5">
+                                <i class="fas fa-save"></i> حفظ التعديلات
+                            </button>
+                            <a href="{{ url_for('area_evaluations_list') }}" class="btn btn-secondary btn-lg px-5">
+                                <i class="fas fa-times"></i> إلغاء
+                            </a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

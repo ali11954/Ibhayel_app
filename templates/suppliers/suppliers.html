@@ -1,0 +1,364 @@
+{% extends "base.html" %}
+
+{% block title %}الموردين - طلعت هائل للخدمات والاستشارات الزراعية{% endblock %}
+
+{% block extra_css %}
+<style>
+    .suppliers-header {
+        background: linear-gradient(135deg, #2e7d32 0%, #1b5e20 100%);
+        border-radius: 20px;
+        padding: 1.5rem;
+        margin-bottom: 1.5rem;
+        color: white;
+        position: relative;
+        overflow: hidden;
+    }
+
+    .suppliers-header::before {
+        content: '';
+        position: absolute;
+        top: -50%;
+        right: -50%;
+        width: 200%;
+        height: 200%;
+        background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, transparent 70%);
+        animation: rotate 20s linear infinite;
+    }
+
+    @keyframes rotate {
+        from { transform: rotate(0deg); }
+        to { transform: rotate(360deg); }
+    }
+
+    .supplier-card {
+        background: white;
+        border-radius: 15px;
+        padding: 1.5rem;
+        text-align: center;
+        transition: all 0.3s ease;
+        cursor: pointer;
+        border: 1px solid #e9ecef;
+        height: 100%;
+    }
+
+    .supplier-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+        border-color: #2e7d32;
+    }
+
+    .supplier-icon {
+        width: 70px;
+        height: 70px;
+        border-radius: 20px;
+        background: linear-gradient(135deg, #2e7d32, #1b5e20);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin: 0 auto 1rem;
+    }
+
+    .supplier-icon i {
+        font-size: 2rem;
+        color: white;
+    }
+
+    .supplier-title {
+        font-size: 1.1rem;
+        font-weight: 700;
+        margin-bottom: 0.5rem;
+        color: #2c3e50;
+    }
+
+    .supplier-desc {
+        font-size: 0.8rem;
+        color: #6c757d;
+        margin-bottom: 1rem;
+    }
+
+    .stat-badge {
+        display: inline-block;
+        padding: 0.2rem 0.8rem;
+        border-radius: 20px;
+        font-size: 0.7rem;
+        background: #e9ecef;
+        color: #495057;
+    }
+
+    /* تنسيق الجدول */
+    .table-suppliers {
+        margin-bottom: 0;
+    }
+
+    .table-suppliers thead th {
+        background: linear-gradient(135deg, #2e7d32, #1b5e20);
+        color: white;
+        font-weight: 600;
+        padding: 1rem;
+        border: none;
+        font-size: 0.85rem;
+        text-align: center;
+        vertical-align: middle;
+    }
+
+    .table-suppliers tbody tr {
+        transition: all 0.3s ease;
+        border-bottom: 1px solid #f0f0f0;
+    }
+
+    .table-suppliers tbody tr:hover {
+        background: rgba(46, 125, 50, 0.05);
+        transform: translateX(5px);
+    }
+
+    .table-suppliers tbody td {
+        padding: 1rem;
+        vertical-align: middle;
+        text-align: center;
+    }
+
+    .btn-action {
+        width: 32px;
+        height: 32px;
+        padding: 0;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 8px;
+        transition: all 0.3s ease;
+    }
+
+    .btn-action:hover {
+        transform: translateY(-2px);
+    }
+
+    .badge-type {
+        padding: 0.3rem 0.8rem;
+        border-radius: 20px;
+        font-size: 0.7rem;
+    }
+
+    .badge-utility { background: #ffc107; color: #856404; }
+    .badge-rent { background: #17a2b8; color: white; }
+    .badge-office { background: #28a745; color: white; }
+    .badge-equipment { background: #6c757d; color: white; }
+    .badge-general { background: #007bff; color: white; }
+
+    /* رأس الصفحة */
+    .page-header {
+        background: linear-gradient(135deg, #2e7d32 0%, #1b5e20 100%);
+        border-radius: 20px;
+        padding: 1.5rem;
+        margin-bottom: 1.5rem;
+        color: white;
+        position: relative;
+        overflow: hidden;
+    }
+
+    .page-header::before {
+        content: '';
+        position: absolute;
+        top: -50%;
+        right: -50%;
+        width: 200%;
+        height: 200%;
+        background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, transparent 70%);
+        animation: rotate 20s linear infinite;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- رأس الصفحة -->
+    <div class="suppliers-header">
+        <div class="row align-items-center">
+            <div class="col-md-8">
+                <h2 class="mb-2">
+                    <i class="fas fa-truck me-2"></i>
+                    إدارة الموردين
+                </h2>
+                <p class="mb-0 opacity-75">إدارة موردي الخدمات والمستلزمات وفواتير المشتريات</p>
+            </div>
+            <div class="col-md-4 text-center">
+                <i class="fas fa-chart-line fa-3x opacity-50"></i>
+            </div>
+        </div>
+    </div>
+
+    <!-- بطاقات الأقسام (مثل نظام الحسابات) -->
+    <div class="row mb-4">
+        <div class="col-md-3 mb-3">
+            <div class="supplier-card" onclick="window.location.href='{{ url_for('suppliers_list') }}'">
+                <div class="supplier-icon">
+                    <i class="fas fa-truck"></i>
+                </div>
+                <h5 class="supplier-title">الموردين</h5>
+                <p class="supplier-desc">إدارة بيانات الموردين<br>وجهات الاتصال</p>
+                <span class="stat-badge"><i class="fas fa-arrow-left"></i> استعراض</span>
+            </div>
+        </div>
+        <div class="col-md-3 mb-3">
+            <div class="supplier-card" onclick="window.location.href='{{ url_for('supplier_invoices_list') }}'">
+                <div class="supplier-icon">
+                    <i class="fas fa-file-invoice"></i>
+                </div>
+                <h5 class="supplier-title">فواتير الموردين</h5>
+                <p class="supplier-desc">كهرباء، ماء، إيجار<br>مستلزمات، مشتريات</p>
+                <span class="stat-badge"><i class="fas fa-arrow-left"></i> استعراض</span>
+            </div>
+        </div>
+        <div class="col-md-3 mb-3">
+            <div class="supplier-card" onclick="window.location.href='{{ url_for('supplier_invoices_report') }}'">
+                <div class="supplier-icon">
+                    <i class="fas fa-chart-line"></i>
+                </div>
+                <h5 class="supplier-title">تقرير الفواتير</h5>
+                <p class="supplier-desc">تحليل المصروفات<br>حسب الفئة والمورد</p>
+                <span class="stat-badge"><i class="fas fa-arrow-left"></i> استعراض</span>
+            </div>
+        </div>
+        <div class="col-md-3 mb-3">
+            <div class="supplier-card" onclick="window.location.href='{{ url_for('expense_categories_list') }}'">
+                <div class="supplier-icon">
+                    <i class="fas fa-tags"></i>
+                </div>
+                <h5 class="supplier-title">فئات المصروفات</h5>
+                <p class="supplier-desc">تصنيف المصروفات<br>للتقارير المالية</p>
+                <span class="stat-badge"><i class="fas fa-arrow-left"></i> استعراض</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- إحصائيات سريعة -->
+    <div class="card mb-4">
+        <div class="card-header bg-white">
+            <h5 class="mb-0"><i class="fas fa-chart-simple"></i> إحصائيات الموردين</h5>
+        </div>
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-3">
+                    <div class="info-box">
+                        <span class="info-box-icon bg-primary"><i class="fas fa-truck"></i></span>
+                        <div class="info-box-content">
+                            <span class="info-box-text">إجمالي الموردين</span>
+                            <span class="info-box-number">{{ suppliers|length }}</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="info-box">
+                        <span class="info-box-icon bg-success"><i class="fas fa-file-invoice"></i></span>
+                        <div class="info-box-content">
+                            <span class="info-box-text">إجمالي الفواتير</span>
+                            <span class="info-box-number">{{ invoices_count|default(0) }}</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="info-box">
+                        <span class="info-box-icon bg-warning"><i class="fas fa-money-bill"></i></span>
+                        <div class="info-box-content">
+                            <span class="info-box-text">إجمالي المشتريات</span>
+                            <span class="info-box-number">{{ total_purchases|default(0)|round(0) }} ر.ي</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="info-box">
+                        <span class="info-box-icon bg-danger"><i class="fas fa-clock"></i></span>
+                        <div class="info-box-content">
+                            <span class="info-box-text">فواتير غير مدفوعة</span>
+                            <span class="info-box-number">{{ unpaid_invoices|default(0) }}</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- زر إضافة مورد -->
+    <div class="d-flex justify-content-end mb-3">
+        <a href="{{ url_for('add_supplier') }}" class="btn btn-primary">
+            <i class="fas fa-plus-circle"></i> إضافة مورد
+        </a>
+    </div>
+
+    <!-- جدول الموردين -->
+    <div class="card">
+        <div class="card-header bg-white">
+            <h5 class="mb-0"><i class="fas fa-list"></i> قائمة الموردين</h5>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-suppliers">
+                    <thead>
+                        <tr>
+                            <th style="width: 5%">#</th>
+                            <th style="width: 20%">الاسم (إنجليزي)</th>
+                            <th style="width: 20%">الاسم (عربي)</th>
+                            <th style="width: 15%">جهة الاتصال</th>
+                            <th style="width: 12%">الهاتف</th>
+                            <th style="width: 12%">النوع</th>
+                            <th style="width: 10%">الإجراءات</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for supplier in suppliers %}
+                        <tr>
+                            <td class="fw-bold text-center">{{ loop.index }}</td>
+                            <td class="text-center">{{ supplier.name }}</td>
+                            <td class="text-center">{{ supplier.name_ar }}</td>
+                            <td class="text-center">{{ supplier.contact_person or '-' }}</td>
+                            <td class="text-center">{{ supplier.phone or '-' }}</td>
+                            <td class="text-center">
+                                <span class="badge-type badge-{{ supplier.supplier_type }}">
+                                    {{ supplier.get_type_display() }}
+                                </span>
+                            </td>
+                            <td class="text-center">
+                                <div class="btn-group btn-group-sm">
+                                    <a href="{{ url_for('edit_supplier', supplier_id=supplier.id) }}" class="btn btn-warning btn-action" title="تعديل">
+                                        <i class="fas fa-edit"></i>
+                                    </a>
+                                    <button class="btn btn-danger btn-action" onclick="deleteSupplier({{ supplier.id }})" title="حذف">
+                                        <i class="fas fa-trash"></i>
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function deleteSupplier(id) {
+    if(confirm('⚠️ هل أنت متأكد من حذف هذا المورد؟\nسيتم حذف جميع بيانات المورد المرتبطة.')) {
+        fetch(`/suppliers/delete/${id}`, {method: 'POST'})
+            .then(response => {
+                if(response.ok) {
+                    window.location.reload();
+                } else {
+                    alert('حدث خطأ أثناء الحذف');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('حدث خطأ أثناء الحذف');
+            });
+    }
+}
+
+// إضافة تأثيرات عند النقر على البطاقات
+document.querySelectorAll('.supplier-card').forEach(card => {
+    card.addEventListener('click', function() {
+        const url = this.getAttribute('onclick').match(/'(.*?)'/)[1];
+        window.location.href = url;
+    });
+});
+</script>
+{% endblock %}

@@ -1,0 +1,414 @@
+{% extends "base.html" %}
+
+{% block title %}فواتير الموردين - طلعت هائل{% endblock %}
+
+{% block extra_css %}
+<style>
+    .invoices-header {
+        background: linear-gradient(135deg, #dc3545 0%, #c82333 100%);
+        border-radius: 20px;
+        padding: 1.5rem;
+        margin-bottom: 1.5rem;
+        color: white;
+        position: relative;
+        overflow: hidden;
+    }
+
+    .invoices-header::before {
+        content: '';
+        position: absolute;
+        top: -50%;
+        right: -50%;
+        width: 200%;
+        height: 200%;
+        background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, transparent 70%);
+        animation: rotate 20s linear infinite;
+    }
+
+    @keyframes rotate {
+        from { transform: rotate(0deg); }
+        to { transform: rotate(360deg); }
+    }
+
+    /* بطاقات الأقسام */
+    .modules-section {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        border-radius: 20px;
+        padding: 1.5rem;
+        margin-bottom: 1.5rem;
+        color: white;
+        position: relative;
+        overflow: hidden;
+    }
+
+    .modules-section::before {
+        content: '';
+        position: absolute;
+        top: -50%;
+        right: -50%;
+        width: 200%;
+        height: 200%;
+        background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, transparent 70%);
+        animation: rotate 20s linear infinite;
+    }
+
+    .module-card {
+        background: rgba(255,255,255,0.15);
+        backdrop-filter: blur(10px);
+        border-radius: 15px;
+        padding: 1rem;
+        text-align: center;
+        transition: all 0.3s ease;
+        cursor: pointer;
+        height: 100%;
+        border: 1px solid rgba(255,255,255,0.2);
+    }
+
+    .module-card:hover {
+        background: rgba(255,255,255,0.25);
+        transform: translateY(-5px);
+    }
+
+    .module-card i {
+        font-size: 2rem;
+        margin-bottom: 0.5rem;
+    }
+
+    .module-card h6 {
+        margin: 0.5rem 0 0.25rem;
+        font-weight: 600;
+    }
+
+    .module-card small {
+        font-size: 0.7rem;
+        opacity: 0.8;
+    }
+
+    .module-card.active {
+        background: rgba(255,255,255,0.3);
+        border: 1px solid rgba(255,255,255,0.5);
+        box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+    }
+
+    /* تنسيق الجدول */
+    .table-invoices {
+        margin-bottom: 0;
+    }
+
+    .table-invoices thead th {
+        background: linear-gradient(135deg, #dc3545, #c82333);
+        color: white;
+        font-weight: 600;
+        padding: 1rem;
+        border: none;
+        font-size: 0.85rem;
+        text-align: center;
+        vertical-align: middle;
+    }
+
+    .table-invoices tbody tr {
+        transition: all 0.3s ease;
+        border-bottom: 1px solid #f0f0f0;
+    }
+
+    .table-invoices tbody tr:hover {
+        background: rgba(220, 53, 69, 0.05);
+        transform: translateX(5px);
+    }
+
+    .table-invoices tbody td {
+        padding: 1rem;
+        vertical-align: middle;
+        text-align: center;
+    }
+
+    .btn-action {
+        width: 32px;
+        height: 32px;
+        padding: 0;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 8px;
+        transition: all 0.3s ease;
+    }
+
+    .btn-action:hover {
+        transform: translateY(-2px);
+    }
+
+    .btn-group-action {
+        display: flex;
+        gap: 5px;
+        justify-content: center;
+    }
+
+    /* تنسيق زر الطباعة */
+    .btn-print {
+        background: #17a2b8;
+        color: white;
+    }
+
+    .btn-print:hover {
+        background: #138496;
+        color: white;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- رأس الصفحة -->
+    <div class="invoices-header">
+        <div class="row align-items-center">
+            <div class="col-md-8">
+                <h2 class="mb-2">
+                    <i class="fas fa-file-invoice me-2"></i>
+                    فواتير الموردين
+                </h2>
+                <p class="mb-0 opacity-75">فواتير الكهرباء والماء والإيجار والمستلزمات والمشتريات</p>
+            </div>
+            <div class="col-md-4 text-center">
+                <i class="fas fa-chart-line fa-3x opacity-50"></i>
+            </div>
+        </div>
+    </div>
+
+    <!-- بطاقات الأقسام الفرعية (مثل واجهة الحسابات) -->
+    <div class="modules-section">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <h5 class="mb-0">
+                <i class="fas fa-cubes"></i> أقسام المشتريات والمصروفات
+            </h5>
+            <small class="opacity-75">إدارة شاملة</small>
+        </div>
+        <div class="row">
+            <div class="col-md-3 mb-3">
+                <div class="module-card" onclick="window.location.href='{{ url_for('suppliers_list') }}'">
+                    <i class="fas fa-truck"></i>
+                    <h6>الموردين</h6>
+                    <small>إدارة بيانات الموردين</small>
+                </div>
+            </div>
+            <div class="col-md-3 mb-3">
+                <div class="module-card active" onclick="window.location.href='{{ url_for('supplier_invoices_list') }}'">
+                    <i class="fas fa-file-invoice"></i>
+                    <h6>فواتير الموردين</h6>
+                    <small>كهرباء، ماء، إيجار، مشتريات</small>
+                </div>
+            </div>
+            <div class="col-md-3 mb-3">
+                <div class="module-card" onclick="window.location.href='{{ url_for('supplier_invoices_report') }}'">
+                    <i class="fas fa-chart-line"></i>
+                    <h6>تقرير الفواتير</h6>
+                    <small>تحليل المصروفات</small>
+                </div>
+            </div>
+            <div class="col-md-3 mb-3">
+                <div class="module-card" onclick="window.location.href='{{ url_for('expense_categories_list') }}'">
+                    <i class="fas fa-tags"></i>
+                    <h6>فئات المصروفات</h6>
+                    <small>تصنيف المصروفات</small>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- إحصائيات -->
+    <div class="row mb-4">
+        <div class="col-md-3 mb-3">
+            <div class="info-box bg-white">
+                <span class="info-box-icon bg-danger"><i class="fas fa-file-invoice"></i></span>
+                <div class="info-box-content">
+                    <span class="info-box-text">إجمالي الفواتير</span>
+                    <span class="info-box-number">{{ stats.total }}</span>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3 mb-3">
+            <div class="info-box bg-white">
+                <span class="info-box-icon bg-warning"><i class="fas fa-money-bill"></i></span>
+                <div class="info-box-content">
+                    <span class="info-box-text">إجمالي المبالغ</span>
+                    <span class="info-box-number">{{ "{:,.0f}".format(stats.total_amount) }} ر.ي</span>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3 mb-3">
+            <div class="info-box bg-white">
+                <span class="info-box-icon bg-success"><i class="fas fa-check-circle"></i></span>
+                <div class="info-box-content">
+                    <span class="info-box-text">المدفوع</span>
+                    <span class="info-box-number">{{ "{:,.0f}".format(stats.paid_amount) }} ر.ي</span>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3 mb-3">
+            <div class="info-box bg-white">
+                <span class="info-box-icon bg-danger"><i class="fas fa-clock"></i></span>
+                <div class="info-box-content">
+                    <span class="info-box-text">المتبقي</span>
+                    <span class="info-box-number">{{ "{:,.0f}".format(stats.pending_amount) }} ر.ي</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- زر إضافة فاتورة -->
+    <div class="d-flex justify-content-end mb-3">
+        <a href="{{ url_for('add_supplier_invoice') }}" class="btn btn-danger">
+            <i class="fas fa-plus-circle"></i> إضافة فاتورة
+        </a>
+    </div>
+
+    <!-- جدول الفواتير -->
+    <div class="card">
+        <div class="card-header bg-white">
+            <h5 class="mb-0"><i class="fas fa-list"></i> قائمة الفواتير</h5>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-invoices">
+                    <thead>
+                        <tr>
+                            <th style="width: 5%">#</th>
+                            <th style="width: 10%">رقم الفاتورة</th>
+                            <th style="width: 15%">المورد</th>
+                            <th style="width: 12%">الفئة</th>
+                            <th style="width: 10%">المبلغ</th>
+                            <th style="width: 10%">المدفوع</th>
+                            <th style="width: 10%">المتبقي</th>
+                            <th style="width: 10%">تاريخ الفاتورة</th>
+                            <th style="width: 10%">تاريخ الاستحقاق</th>
+                            <th style="width: 8%">الحالة</th>
+                            <th style="width: 10%">الإجراءات</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for inv in invoices %}
+                        <tr>
+                            <td class="fw-bold text-center">{{ loop.index }}</td>
+                            <td class="text-center"><strong>{{ inv.invoice_number }}</strong></td>
+                            <td class="text-center">{{ inv.supplier.name_ar if inv.supplier else '-' }}</td>
+                            <td class="text-center">{{ inv.category.name_ar if inv.category else '-' }}</td>
+                            <td class="text-end text-danger fw-bold">{{ "{:,.0f}".format(inv.amount) }} ر.ي</td>
+                            <td class="text-end text-success">{{ "{:,.0f}".format(inv.paid_amount) }} ر.ي</td>
+                            <td class="text-end text-warning fw-bold">{{ "{:,.0f}".format(inv.remaining_amount) }} ر.ي</td>
+                            <td class="text-center">{{ inv.invoice_date.strftime('%Y-%m-%d') }}</td>
+                            <td class="text-center">{{ inv.due_date.strftime('%Y-%m-%d') if inv.due_date else '-' }}</td>
+                            <td class="text-center">
+                                {% if inv.status == 'paid' %}
+                                <span class="badge bg-success">مدفوعة</span>
+                                {% elif inv.status == 'partial' %}
+                                <span class="badge bg-warning">مدفوعة جزئياً</span>
+                                {% else %}
+                                <span class="badge bg-danger">غير مدفوعة</span>
+                                {% endif %}
+                            </td>
+                            <td class="text-center">
+                                <div class="btn-group-action">
+                                    <!-- زر الطباعة -->
+                                    <a href="{{ url_for('print_supplier_invoice', invoice_id=inv.id) }}"
+                                       class="btn btn-print btn-action"
+                                       title="طباعة الفاتورة"
+                                       target="_blank">
+                                        <i class="fas fa-print"></i>
+                                    </a>
+                                    <!-- زر التعديل -->
+                                    <a href="{{ url_for('edit_supplier_invoice', invoice_id=inv.id) }}"
+                                       class="btn btn-warning btn-action"
+                                       title="تعديل">
+                                        <i class="fas fa-edit"></i>
+                                    </a>
+                                    <!-- زر الحذف -->
+                                    <button class="btn btn-danger btn-action"
+                                            onclick="deleteInvoice({{ inv.id }})"
+                                            title="حذف">
+                                        <i class="fas fa-trash"></i>
+                                    </button>
+                                    <!-- زر التسديد (يظهر فقط للفواتير غير المدفوعة) -->
+                                    {% if inv.status != 'paid' %}
+                                    <button class="btn btn-success btn-action"
+                                            onclick="payInvoice({{ inv.id }}, {{ inv.remaining_amount }})"
+                                            title="تسديد">
+                                        <i class="fas fa-money-bill-wave"></i>
+                                    </button>
+                                    {% endif %}
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                    <tfoot class="table-dark">
+                        <tr>
+                            <th colspan="4" class="text-center">الإجمالي</th>
+                            <th class="text-end">{{ "{:,.0f}".format(invoices|sum(attribute='amount')) }} ر.ي</th>
+                            <th class="text-end">{{ "{:,.0f}".format(invoices|sum(attribute='paid_amount')) }} ر.ي</th>
+                            <th class="text-end">{{ "{:,.0f}".format(invoices|sum(attribute='remaining_amount')) }} ر.ي</th>
+                            <th colspan="4"></th>
+                        </tr>
+                    </tfoot>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function payInvoice(invoiceId, remainingAmount) {
+    let amount = prompt(`المبلغ المتبقي: ${remainingAmount.toLocaleString()} ريال\nأدخل المبلغ المراد تسديده:`);
+    if (amount && parseFloat(amount) > 0) {
+        let method = prompt('طريقة الدفع:\n1- نقدي\n2- تحويل بنكي\n3- شيك');
+        let methodMap = {'1': 'cash', '2': 'bank_transfer', '3': 'check'};
+        let paymentMethod = methodMap[method] || 'cash';
+
+        let form = document.createElement('form');
+        form.method = 'POST';
+        form.action = `/supplier-invoices/pay/${invoiceId}`;
+
+        let amountInput = document.createElement('input');
+        amountInput.name = 'payment_amount';
+        amountInput.value = amount;
+        form.appendChild(amountInput);
+
+        let methodInput = document.createElement('input');
+        methodInput.name = 'payment_method';
+        methodInput.value = paymentMethod;
+        form.appendChild(methodInput);
+
+        document.body.appendChild(form);
+        form.submit();
+    }
+}
+
+function deleteInvoice(invoiceId) {
+    if(confirm('⚠️ هل أنت متأكد من حذف هذه الفاتورة؟\nسيتم حذف جميع بيانات الفاتورة المرتبطة.')) {
+        fetch(`/supplier-invoices/delete/${invoiceId}`, {method: 'POST'})
+            .then(response => {
+                if(response.ok) {
+                    window.location.reload();
+                } else {
+                    alert('حدث خطأ أثناء الحذف');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('حدث خطأ أثناء الحذف');
+            });
+    }
+}
+
+// إضافة تأثيرات عند النقر على البطاقات
+document.querySelectorAll('.module-card').forEach(card => {
+    card.addEventListener('click', function(e) {
+        const url = this.getAttribute('onclick');
+        if(url) {
+            const urlMatch = url.match(/'(.*?)'/);
+            if(urlMatch) {
+                window.location.href = urlMatch[1];
+            }
+        }
+    });
+});
+</script>
+{% endblock %}

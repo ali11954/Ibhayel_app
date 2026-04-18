@@ -1,0 +1,286 @@
+{% extends "base.html" %}
+
+{% block title %}تعديل فاتورة - ابن هائل{% endblock %}
+
+{% block extra_css %}
+<style>
+    .edit-invoice-header {
+        background: linear-gradient(135deg, #ff9800 0%, #f57c00 100%);
+        border-radius: 20px;
+        padding: 1.5rem;
+        margin-bottom: 1.5rem;
+        color: white;
+    }
+
+    .form-card {
+        border: none;
+        border-radius: 20px;
+        box-shadow: 0 5px 20px rgba(0,0,0,0.1);
+        overflow: hidden;
+    }
+
+    .form-card-header {
+        background: linear-gradient(135deg, #ffffff, #f8f9fa);
+        border-bottom: 3px solid #ff9800;
+        padding: 1.2rem 1.5rem;
+    }
+
+    .form-group-custom {
+        margin-bottom: 1.5rem;
+    }
+
+    .form-label-custom {
+        font-weight: 600;
+        color: #2c3e50;
+        margin-bottom: 0.5rem;
+        display: block;
+    }
+
+    .form-control-custom {
+        border-radius: 12px;
+        border: 2px solid #e9ecef;
+        padding: 0.7rem 1rem;
+        transition: all 0.3s ease;
+    }
+
+    .form-control-custom:focus {
+        border-color: #ff9800;
+        box-shadow: 0 0 0 0.2rem rgba(255, 152, 0, 0.25);
+    }
+
+    .contract-info {
+        background: #f8f9fa;
+        border-radius: 12px;
+        padding: 1rem;
+        margin-bottom: 1rem;
+    }
+
+    .btn-custom {
+        padding: 0.7rem 1.5rem;
+        border-radius: 12px;
+        font-weight: 600;
+        transition: all 0.3s ease;
+    }
+
+    .btn-custom:hover {
+        transform: translateY(-2px);
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- رأس الصفحة -->
+    <div class="edit-invoice-header">
+        <div class="row align-items-center">
+            <div class="col-md-8">
+                <h2 class="mb-2">
+                    <i class="fas fa-edit me-2"></i>
+                    تعديل الفاتورة
+                </h2>
+                <p class="mb-0 opacity-75">تعديل بيانات الفاتورة رقم {{ invoice.invoice_number }}</p>
+            </div>
+            <div class="col-md-4 text-center">
+                <i class="fas fa-file-invoice fa-3x opacity-50"></i>
+            </div>
+        </div>
+    </div>
+
+    <!-- نموذج التعديل -->
+    <div class="row">
+        <div class="col-md-8 offset-md-2">
+            <div class="form-card">
+                <div class="form-card-header">
+                    <h4 class="mb-0">
+                        <i class="fas fa-edit text-warning"></i>
+                        بيانات الفاتورة
+                    </h4>
+                </div>
+                <div class="card-body p-4">
+                    <form method="POST" id="editInvoiceForm">
+                        <div class="row">
+                            <div class="col-md-6 form-group-custom">
+                                <label class="form-label-custom">
+                                    <i class="fas fa-file-contract"></i>
+                                    العقد <span class="text-danger">*</span>
+                                </label>
+                                <select class="form-control form-control-custom"
+                                        id="contract_id" name="contract_id" required>
+                                    <option value="">-- اختر العقد --</option>
+                                    {% for contract in contracts %}
+                                    <option value="{{ contract.id }}"
+                                            data-value="{{ contract.contract_value }}"
+                                            data-received="{{ contract.amount_received }}"
+                                            {% if invoice.contract_id == contract.id %}selected{% endif %}>
+                                        {{ contract.company.name if contract.company else '-' }} -
+                                        {{ "{:,.0f}".format(contract.contract_value) }} ر.ي
+                                        (المدفوع: {{ "{:,.0f}".format(contract.amount_received) }} ر.ي)
+                                    </option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+
+                            <div class="col-md-6 form-group-custom">
+                                <label class="form-label-custom">
+                                    <i class="fas fa-hashtag"></i>
+                                    رقم الفاتورة <span class="text-danger">*</span>
+                                </label>
+                                <input type="text" class="form-control form-control-custom"
+                                       id="invoice_number" name="invoice_number"
+                                       value="{{ invoice.invoice_number }}" required>
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6 form-group-custom">
+                                <label class="form-label-custom">
+                                    <i class="fas fa-money-bill"></i>
+                                    المبلغ <span class="text-danger">*</span>
+                                </label>
+                                <input type="number" class="form-control form-control-custom"
+                                       id="amount" name="amount" step="0.01"
+                                       value="{{ invoice.amount }}" required>
+                            </div>
+
+                            <div class="col-md-6 form-group-custom">
+                                <label class="form-label-custom">
+                                    <i class="fas fa-calendar-alt"></i>
+                                    تاريخ الفاتورة <span class="text-danger">*</span>
+                                </label>
+                                <input type="date" class="form-control form-control-custom"
+                                       id="invoice_date" name="invoice_date"
+                                       value="{{ invoice.invoice_date.strftime('%Y-%m-%d') }}" required>
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6 form-group-custom">
+                                <label class="form-label-custom">
+                                    <i class="fas fa-calendar-times"></i>
+                                    تاريخ الاستحقاق
+                                </label>
+                                <input type="date" class="form-control form-control-custom"
+                                       id="due_date" name="due_date"
+                                       value="{{ invoice.due_date.strftime('%Y-%m-%d') if invoice.due_date else '' }}">
+                            </div>
+
+                            <div class="col-md-6 form-group-custom">
+                                <label class="form-label-custom">
+                                    <i class="fas fa-info-circle"></i>
+                                    الحالة
+                                </label>
+                                <input type="text" class="form-control form-control-custom"
+                                       value="{% if invoice.is_paid %}مدفوعة{% else %}غير مدفوعة{% endif %}" disabled>
+                            </div>
+                        </div>
+
+                        <div class="form-group-custom">
+                            <label class="form-label-custom">
+                                <i class="fas fa-sticky-note"></i>
+                                ملاحظات
+                            </label>
+                            <textarea class="form-control form-control-custom"
+                                      id="notes" name="notes" rows="3">{{ invoice.notes or '' }}</textarea>
+                        </div>
+
+                        <!-- معلومات العقد -->
+                        <div class="contract-info" id="contractInfo">
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <small class="text-muted">قيمة العقد:</small>
+                                    <div><strong id="contractValue">-</strong></div>
+                                </div>
+                                <div class="col-md-6">
+                                    <small class="text-muted">المدفوع من العقد:</small>
+                                    <div><strong id="contractReceived">-</strong></div>
+                                </div>
+                            </div>
+                            <div class="row mt-2">
+                                <div class="col-md-12">
+                                    <small class="text-muted">المتبقي في العقد بعد التعديل:</small>
+                                    <div><strong id="contractRemaining" class="text-warning">-</strong></div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="alert alert-warning">
+                            <i class="fas fa-exclamation-triangle"></i>
+                            <strong>تنبيه:</strong> تعديل المبلغ أو تغيير العقد سيؤثر على المبالغ المستلمة للعقد.
+                        </div>
+
+                        <div class="d-flex justify-content-between gap-3 mt-4">
+                            <a href="{{ url_for('invoices_list') }}" class="btn btn-secondary btn-custom">
+                                <i class="fas fa-times"></i> إلغاء
+                            </a>
+                            <button type="submit" class="btn btn-warning btn-custom">
+                                <i class="fas fa-save"></i> حفظ التعديلات
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    $(document).ready(function() {
+        // تحديث معلومات العقد
+        function updateContractInfo() {
+            var selected = $('#contract_id option:selected');
+            var contractValue = selected.data('value');
+            var contractReceived = selected.data('received');
+            var currentAmount = parseFloat($('#amount').val()) || 0;
+            var oldAmount = {{ invoice.amount }};
+            var oldContractId = {{ invoice.contract_id }};
+            var currentContractId = $('#contract_id').val();
+
+            var newReceived = contractReceived;
+
+            // إذا كان نفس العقد، احسب الفرق
+            if (currentContractId == oldContractId) {
+                newReceived = contractReceived - oldAmount + currentAmount;
+            } else {
+                // إذا كان عقد مختلف
+                newReceived = contractReceived + currentAmount;
+            }
+
+            var remaining = contractValue - newReceived;
+
+            $('#contractValue').text(parseFloat(contractValue).toLocaleString() + ' ر.ي');
+            $('#contractReceived').text(parseFloat(newReceived).toLocaleString() + ' ر.ي');
+            $('#contractRemaining').text(parseFloat(remaining).toLocaleString() + ' ر.ي');
+
+            if (remaining < 0) {
+                $('#contractRemaining').addClass('text-danger').removeClass('text-warning');
+                $('#contractRemaining').prepend('<i class="fas fa-exclamation-triangle"></i> ');
+            } else {
+                $('#contractRemaining').addClass('text-warning').removeClass('text-danger');
+            }
+        }
+
+        $('#contract_id, #amount').on('change keyup', updateContractInfo);
+        updateContractInfo();
+
+        // تعيين الحد الأدنى لتاريخ الفاتورة
+        var today = new Date().toISOString().split('T')[0];
+        document.getElementById('invoice_date').max = today;
+
+        // التحقق من صحة النموذج
+        $('#editInvoiceForm').on('submit', function(e) {
+            var amount = $('#amount').val();
+            var contractValue = $('#contract_id option:selected').data('value');
+            var newReceived = parseFloat($('#contractReceived').text()) || 0;
+            var remaining = contractValue - newReceived;
+
+            if (remaining < 0) {
+                e.preventDefault();
+                alert('⚠️ المبلغ المدخل يتجاوز قيمة العقد المتبقية!');
+                return false;
+            }
+
+            return true;
+        });
+    });
+</script>
+{% endblock %}

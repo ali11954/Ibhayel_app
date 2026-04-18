@@ -1,0 +1,107 @@
+{% extends "base.html" %}
+
+{% block title %}تعديل فاتورة مورد - طلعت هائل{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-md-8 offset-md-2">
+            <div class="card">
+                <div class="card-header bg-warning text-dark">
+                    <h3 class="card-title">
+                        <i class="fas fa-edit"></i> تعديل فاتورة مورد
+                    </h3>
+                    <div class="card-tools">
+                        <a href="{{ url_for('supplier_invoices_list') }}" class="btn btn-light btn-sm">
+                            <i class="fas fa-arrow-right"></i> رجوع
+                        </a>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <form method="POST">
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label fw-bold">رقم الفاتورة <span class="text-danger">*</span></label>
+                                <input type="text" name="invoice_number" class="form-control" value="{{ invoice.invoice_number }}" required>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label fw-bold">المورد <span class="text-danger">*</span></label>
+                                <select name="supplier_id" class="form-control" required>
+                                    <option value="">-- اختر المورد --</option>
+                                    {% for supplier in suppliers %}
+                                    <option value="{{ supplier.id }}" {% if invoice.supplier_id == supplier.id %}selected{% endif %}>
+                                        {{ supplier.name_ar }} ({{ supplier.name }})
+                                    </option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label fw-bold">فئة المصروف <span class="text-danger">*</span></label>
+                                <select name="category_id" class="form-control" required>
+                                    <option value="">-- اختر الفئة --</option>
+                                    {% for category in categories %}
+                                    <option value="{{ category.id }}" {% if invoice.category_id == category.id %}selected{% endif %}>
+                                        {{ category.name_ar }}
+                                    </option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label fw-bold">المبلغ <span class="text-danger">*</span></label>
+                                <input type="number" name="amount" class="form-control" value="{{ invoice.amount }}" required step="0.01" min="0">
+                                <small class="text-muted">المبلغ المدفوع حالياً: {{ "{:,.0f}".format(invoice.paid_amount) }} ريال</small>
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label fw-bold">تاريخ الفاتورة <span class="text-danger">*</span></label>
+                                <input type="date" name="invoice_date" class="form-control" value="{{ invoice.invoice_date.strftime('%Y-%m-%d') }}" required>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label fw-bold">تاريخ الاستحقاق</label>
+                                <input type="date" name="due_date" class="form-control" value="{{ invoice.due_date.strftime('%Y-%m-%d') if invoice.due_date else '' }}">
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">الوصف</label>
+                            <textarea name="description" class="form-control" rows="2">{{ invoice.description or '' }}</textarea>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">ملاحظات</label>
+                            <textarea name="notes" class="form-control" rows="2">{{ invoice.notes or '' }}</textarea>
+                        </div>
+
+                        <div class="alert alert-info">
+                            <i class="fas fa-info-circle"></i>
+                            <strong>حالة الفاتورة الحالية:</strong>
+                            {% if invoice.status == 'paid' %}
+                            <span class="badge bg-success">مدفوعة بالكامل</span>
+                            {% elif invoice.status == 'partial' %}
+                            <span class="badge bg-warning">مدفوعة جزئياً</span>
+                            {% else %}
+                            <span class="badge bg-danger">غير مدفوعة</span>
+                            {% endif %}
+                            - المتبقي: <strong>{{ "{:,.0f}".format(invoice.remaining_amount) }} ريال</strong>
+                        </div>
+
+                        <div class="text-center">
+                            <button type="submit" class="btn btn-warning btn-lg px-5">
+                                <i class="fas fa-save"></i> حفظ التعديلات
+                            </button>
+                            <a href="{{ url_for('supplier_invoices_list') }}" class="btn btn-secondary btn-lg px-5">
+                                <i class="fas fa-times"></i> إلغاء
+                            </a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -54,14 +54,6 @@
         margin-bottom: 0;
     }
 
-    .search-section {
-        background: white;
-        border-radius: 15px;
-        padding: 1rem;
-        margin-bottom: 1.5rem;
-        box-shadow: var(--shadow-sm);
-    }
-
     .filter-section {
         background: white;
         border-radius: 15px;
@@ -74,6 +66,30 @@
         margin-bottom: 1rem;
         padding-bottom: 0.5rem;
         border-bottom: 2px solid var(--primary-soft);
+    }
+
+    .period-selector {
+        background: white;
+        border-radius: 15px;
+        padding: 1rem;
+        margin-bottom: 1.5rem;
+        box-shadow: var(--shadow-sm);
+    }
+
+    .period-badge {
+        background: var(--primary-soft);
+        border-radius: 20px;
+        padding: 0.3rem 1rem;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        display: inline-block;
+        margin: 0.2rem;
+    }
+
+    .period-badge:hover,
+    .period-badge.active {
+        background: var(--primary-color);
+        color: white;
     }
 
     .quick-periods {
@@ -183,52 +199,11 @@
         margin-bottom: 1rem;
     }
 
-    .month-selector {
-        background: white;
-        border-radius: 15px;
-        padding: 1rem;
-        margin-bottom: 1.5rem;
-        box-shadow: var(--shadow-sm);
-    }
-
-    .months-list {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 0.5rem;
-        margin-top: 1rem;
-    }
-
-    .month-badge {
-        background: var(--primary-soft);
-        border-radius: 20px;
-        padding: 0.3rem 1rem;
-        cursor: pointer;
-        transition: all 0.3s ease;
-    }
-
-    .month-badge:hover,
-    .month-badge.active {
-        background: var(--primary-color);
-        color: white;
-    }
-
     .payment-summary {
         background: var(--primary-soft);
         border-radius: 12px;
         padding: 1rem;
         margin-bottom: 1rem;
-    }
-
-    .current-month-badge {
-        background: #28a745;
-        color: white;
-        border-radius: 20px;
-        padding: 0.2rem 0.8rem;
-        font-size: 0.7rem;
-    }
-
-    .date-range {
-        direction: ltr;
     }
 
     .filter-badge {
@@ -240,16 +215,6 @@
         margin-right: 0.5rem;
     }
 
-    .active-filter {
-        background: var(--primary-color);
-        color: white;
-        border-radius: 20px;
-        padding: 0.2rem 0.8rem;
-        font-size: 0.8rem;
-        margin-left: 0.5rem;
-    }
-
-    /* تنسيقات جديدة لتوزيع الشركات */
     .company-card {
         background: white;
         border-radius: 15px;
@@ -259,56 +224,90 @@
         box-shadow: var(--shadow-sm);
         transition: all 0.3s ease;
     }
+
     .company-card:hover {
         box-shadow: var(--shadow-lg);
     }
+
     .company-card-header {
         background: linear-gradient(135deg, var(--primary-color), var(--primary-dark));
         color: white;
         padding: 1rem;
         cursor: pointer;
     }
+
     .company-card-header h5 {
         margin: 0;
         font-size: 1.1rem;
     }
+
     .company-summary {
         background: #f8f9fa;
         padding: 0.8rem;
         border-bottom: 1px solid #e9ecef;
     }
-    .company-summary .row {
-        margin: 0;
-    }
+
     .summary-item {
         text-align: center;
         border-left: 1px solid #dee2e6;
     }
+
     .summary-item:last-child {
         border-left: none;
     }
+
     .summary-number {
         font-size: 1.3rem;
         font-weight: 800;
         color: var(--primary-color);
     }
-    .company-table-container {
-        padding: 0;
-    }
-    .company-table {
-        margin-bottom: 0;
-    }
-    .company-table thead th {
-        background: #e9ecef;
-        color: #495057;
-        font-size: 0.75rem;
-        padding: 0.5rem;
-    }
+
     .toggle-icon {
         transition: transform 0.3s ease;
     }
+
     .toggle-icon.collapsed {
         transform: rotate(-180deg);
+    }
+
+    .search-section {
+        background: white;
+        border-radius: 15px;
+        padding: 1rem;
+        margin-bottom: 1.5rem;
+        box-shadow: var(--shadow-sm);
+    }
+
+    /* تنسيقات الصرف الجماعي */
+    .bulk-actions-bar {
+        background: #e3f2fd;
+        border-radius: 12px;
+        padding: 0.8rem 1rem;
+        margin-bottom: 1rem;
+        display: none;
+        align-items: center;
+        justify-content: space-between;
+        flex-wrap: wrap;
+        gap: 10px;
+    }
+
+    .bulk-actions-bar.show {
+        display: flex;
+    }
+
+    .salary-checkbox {
+        width: 20px;
+        height: 20px;
+        cursor: pointer;
+    }
+
+    .salary-row.disabled {
+        opacity: 0.6;
+        background-color: #f8f9fa;
+    }
+
+    .zero-salary {
+        background-color: #fff3cd !important;
     }
 </style>
 {% endblock %}
@@ -329,85 +328,60 @@
     </div>
 </div>
 
-<!-- فلتر التاريخ -->
-<div class="filter-section">
-    <div class="filter-header">
-        <h6 class="mb-0">
-            <i class="fas fa-calendar-alt text-primary"></i> فلترة حسب التاريخ
-            {% if start_date or end_date %}
-            <span class="filter-badge">مفلتر</span>
-            {% endif %}
-        </h6>
-    </div>
-
-    <div class="row">
-        <div class="col-md-4 mb-3">
-            <label class="form-label fw-bold">من تاريخ</label>
-            <input type="month" id="startDate" class="form-control date-range"
-                   value="{{ start_date if start_date else '' }}">
-        </div>
-        <div class="col-md-4 mb-3">
-            <label class="form-label fw-bold">إلى تاريخ</label>
-            <input type="month" id="endDate" class="form-control date-range"
-                   value="{{ end_date if end_date else '' }}">
-        </div>
-        <div class="col-md-4 mb-3">
-            <label class="form-label fw-bold">فترات سريعة</label>
-            <div class="quick-periods">
-                <button type="button" class="quick-period-btn" data-period="current_month">الشهر الحالي</button>
-                <button type="button" class="quick-period-btn" data-period="last_month">الشهر الماضي</button>
-                <button type="button" class="quick-period-btn" data-period="last_3_months">آخر 3 أشهر</button>
-                <button type="button" class="quick-period-btn" data-period="last_6_months">آخر 6 أشهر</button>
-                <button type="button" class="quick-period-btn" data-period="this_year">هذه السنة</button>
-                <button type="button" class="quick-period-btn" data-period="last_year">السنة الماضية</button>
-            </div>
-        </div>
-    </div>
-
-    <div class="filter-actions">
-        <button type="button" id="applyFilterBtn" class="btn btn-primary">
-            <i class="fas fa-filter me-2"></i> تطبيق الفلتر
-        </button>
-        <button type="button" id="clearFilterBtn" class="btn btn-secondary">
-            <i class="fas fa-undo-alt me-2"></i> إلغاء الفلتر
-        </button>
-    </div>
-
-    {% if start_date or end_date %}
-    <div class="mt-3 text-muted small">
-        <i class="fas fa-info-circle"></i>
-        يتم عرض الرواتب من
-        {% if start_date %}<strong>{{ start_date }}</strong>{% else %}البداية{% endif %}
-        إلى
-        {% if end_date %}<strong>{{ end_date }}</strong>{% else %}النهاية{% endif %}
-    </div>
-    {% endif %}
-</div>
-
-<!-- اختيار الشهر -->
-<div class="month-selector">
+<!-- فلترة الفترات -->
+<div class="period-selector">
     <div class="row align-items-center">
-        <div class="col-md-4 mb-3 mb-md-0">
-            <label class="fw-bold mb-2"><i class="fas fa-calendar-alt"></i> اختيار الشهر:</label>
-            <select id="monthSelect" class="form-select">
-                <option value="">جميع الأشهر</option>
-                {% for month in available_months %}
-                <option value="{{ month }}" {% if selected_month == month %}selected{% endif %}>
-                    {{ month }}
-                </option>
-                {% endfor %}
-            </select>
-        </div>
-        <div class="col-md-8">
-            <label class="fw-bold mb-2"><i class="fas fa-filter"></i> أشهر سريعة:</label>
-            <div class="months-list">
-                {% for month in available_months[:6] %}
-                <span class="month-badge {% if selected_month == month %}active{% endif %}" data-month="{{ month }}">
-                    {{ month }}
+        <div class="col-md-12">
+            <label class="fw-bold mb-2"><i class="fas fa-calendar-alt"></i> اختيار الفترة:</label>
+            <div class="periods-list">
+                <span class="period-badge {% if not selected_period %}active{% endif %}" data-period-key="">
+                    جميع الفترات
+                </span>
+                {% for period in available_periods %}
+                <span class="period-badge {% if selected_period == period.key %}active{% endif %}"
+                      data-period-key="{{ period.key }}" data-period-display="{{ period.display }}">
+                    {{ period.display }}
                 </span>
                 {% endfor %}
             </div>
         </div>
+    </div>
+</div>
+
+<!-- فلترة إضافية -->
+<div class="filter-section">
+    <div class="row">
+        <div class="col-md-4 mb-3">
+            <label class="form-label fw-bold"><i class="fas fa-user"></i> فلترة حسب الموظف</label>
+            <select id="employeeFilter" class="form-select">
+                <option value="">جميع الموظفين</option>
+                {% for emp in employees %}
+                <option value="{{ emp.id }}" {% if selected_employee == emp.id %}selected{% endif %}>
+                    {{ emp.name }} ({{ emp.job_title or 'عامل' }})
+                </option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="col-md-4 mb-3">
+            <label class="form-label fw-bold"><i class="fas fa-filter"></i> فلترة حسب الحالة</label>
+            <select id="statusFilter" class="form-select">
+                <option value="all" {% if selected_status == 'all' %}selected{% endif %}>جميع الرواتب</option>
+                <option value="paid" {% if selected_status == 'paid' %}selected{% endif %}>مدفوعة</option>
+                <option value="unpaid" {% if selected_status == 'unpaid' %}selected{% endif %}>غير مدفوعة</option>
+            </select>
+        </div>
+        <div class="col-md-4 mb-3">
+            <label class="form-label fw-bold"><i class="fas fa-search"></i> بحث</label>
+            <input type="text" id="searchInput" class="form-control" placeholder="بحث باسم الموظف...">
+        </div>
+    </div>
+    <div class="filter-actions">
+        <button type="button" id="applyFiltersBtn" class="btn btn-primary">
+            <i class="fas fa-filter me-2"></i> تطبيق الفلتر
+        </button>
+        <button type="button" id="clearFiltersBtn" class="btn btn-secondary">
+            <i class="fas fa-undo-alt me-2"></i> إلغاء الفلتر
+        </button>
     </div>
 </div>
 
@@ -416,50 +390,50 @@
     <div class="row">
         <div class="col-md-3 col-6">
             <div class="stat-item">
-                <p class="stat-number mb-0" id="totalCount">{{ salaries|length }}</p>
+                <p class="stat-number mb-0" id="totalCount">{{ stats.total }}</p>
                 <p class="stat-label">عدد الرواتب</p>
             </div>
         </div>
         <div class="col-md-3 col-6">
             <div class="stat-item">
-                <p class="stat-number mb-0 text-success" id="paidCount">{{ salaries|selectattr('is_paid')|list|length }}</p>
+                <p class="stat-number mb-0 text-success" id="paidCount">{{ stats.paid }}</p>
                 <p class="stat-label">مدفوعة</p>
             </div>
         </div>
         <div class="col-md-3 col-6">
             <div class="stat-item">
-                <p class="stat-number mb-0 text-warning" id="unpaidCount">{{ salaries|rejectattr('is_paid')|list|length }}</p>
+                <p class="stat-number mb-0 text-warning" id="unpaidCount">{{ stats.unpaid }}</p>
                 <p class="stat-label">غير مدفوعة</p>
             </div>
         </div>
         <div class="col-md-3 col-6">
             <div class="stat-item">
-                <p class="stat-number mb-0" id="totalAmount">{{ salaries|sum(attribute='total_salary')|round|int }} ر.ي</p>
+                <p class="stat-number mb-0" id="totalAmount">{{ "{:,.0f}".format(stats.total_amount) }} ر.ي</p>
                 <p class="stat-label">إجمالي المبالغ</p>
             </div>
         </div>
     </div>
+    {% if stats.zero_or_negative > 0 %}
+    <div class="alert alert-warning mt-2 mb-0">
+        <i class="fas fa-exclamation-triangle"></i>
+        ملاحظة: يوجد {{ stats.zero_or_negative }} راتب بقيمة صفر أو أقل لا يمكن صرفها
+    </div>
+    {% endif %}
 </div>
 
-<!-- شريط البحث والفلترة -->
-<div class="search-section">
-    <div class="row align-items-center">
-        <div class="col-md-6 mb-3 mb-md-0">
-            <div class="input-group">
-                <span class="input-group-text bg-white border-end-0">
-                    <i class="fas fa-search text-muted"></i>
-                </span>
-                <input type="text" id="searchInput" class="form-control border-start-0"
-                       placeholder="بحث باسم الموظف...">
-            </div>
-        </div>
-        <div class="col-md-6">
-            <select id="statusFilter" class="form-select">
-                <option value="all">جميع الرواتب</option>
-                <option value="paid">مدفوعة</option>
-                <option value="unpaid">غير مدفوعة</option>
-            </select>
-        </div>
+<!-- شريط الصرف الجماعي -->
+<div id="bulkActionsBar" class="bulk-actions-bar">
+    <div>
+        <i class="fas fa-check-circle text-success"></i>
+        تم تحديد <strong id="selectedCount">0</strong> راتب
+    </div>
+    <div>
+        <button id="bulkPayBtn" class="btn btn-success btn-sm">
+            <i class="fas fa-money-bill-wave"></i> صرف المحدد
+        </button>
+        <button id="clearSelectionBtn" class="btn btn-secondary btn-sm">
+            <i class="fas fa-times"></i> إلغاء التحديد
+        </button>
     </div>
 </div>
 
@@ -472,13 +446,13 @@
 {% endfor %}
 
 {% for company_id, company_data in companies_dict.items() %}
-<div class="company-card mb-4">
+<div class="company-card mb-4" data-company-id="{{ company_id }}">
     <div class="company-card-header" onclick="toggleCompanyTable({{ company_id }})">
         <div class="d-flex justify-content-between align-items-center">
             <h5><i class="fas fa-building"></i> {{ company_data.name }}</h5>
             <div class="d-flex gap-3">
                 <span class="badge bg-light text-dark">{{ company_data.salaries|length }} موظف</span>
-                <span class="badge bg-success">{{ "{:,.0f}".format(company_data.salaries|sum(attribute='total_salary')) }} ر.ي</span>
+                <span class="badge bg-success company-total-amount">{{ "{:,.0f}".format(company_data.salaries|sum(attribute='total_salary')) }} ر.ي</span>
                 <i class="fas fa-chevron-down toggle-icon" id="toggleIcon{{ company_id }}"></i>
             </div>
         </div>
@@ -504,9 +478,12 @@
             <table class="table table-salaries company-table">
                 <thead>
                     <tr>
+                        <th style="width: 3%">
+                            <input type="checkbox" id="selectAllCompany{{ company_id }}" class="select-all-company form-check-input">
+                        </th>
                         <th style="width: 5%">#</th>
-                        <th style="width: 20%">الموظف</th>
-                        <th style="width: 10%">الشهر</th>
+                        <th style="width: 18%">الموظف</th>
+                        <th style="width: 12%">الفترة</th>
                         <th style="width: 8%">أيام الحضور</th>
                         <th style="width: 10%">راتب الحضور</th>
                         <th style="width: 8%">بدل السكن</th>
@@ -515,13 +492,24 @@
                         <th style="width: 8%">خصم/جزاء</th>
                         <th style="width: 10%">الإجمالي</th>
                         <th style="width: 8%">الحالة</th>
-                        <th style="width: 9%">الإجراءات</th>
+                        <th style="width: 10%">الإجراءات</th>
                     </tr>
                 </thead>
-                <tbody>
+                <tbody class="salaries-tbody">
                     {% for salary in company_data.salaries %}
+                    {% set is_zero_or_negative = salary.total_salary <= 0 %}
                     <tr data-status="{% if salary.is_paid %}paid{% else %}unpaid{% endif %}"
-                        data-date="{{ salary.month_year }}">
+                        data-period="{{ salary.month_year }}"
+                        data-employee="{{ salary.employee.name if salary.employee else ''|lower }}"
+                        data-salary-id="{{ salary.id }}"
+                        class="salary-row {% if is_zero_or_negative %}zero-salary{% endif %}"
+                        {% if salary.is_paid or is_zero_or_negative %}data-cannot-pay="true"{% endif %}>
+                        <td>
+                            <input type="checkbox" class="salary-checkbox form-check-input"
+                                   value="{{ salary.id }}"
+                                   data-amount="{{ salary.total_salary }}"
+                                   {% if salary.is_paid or is_zero_or_negative %}disabled{% endif %}>
+                        </td>
                         <td class="fw-bold text-center">{{ loop.index }}</td>
                         <td class="text-center">
                             <div class="d-flex align-items-center gap-2 justify-content-center">
@@ -531,7 +519,7 @@
                             <small class="text-muted">{{ salary.employee.job_title if salary.employee else '-' }}</small>
                         </td>
                         <td class="text-center">
-                            <span class="badge bg-primary">{{ salary.month_year }}</span>
+                            <span class="badge bg-primary">{{ salary.notes if salary.notes else salary.month_year }}</span>
                         </td>
                         <td>
                             <span class="badge bg-info">{{ salary.attendance_days }} يوم</span>
@@ -551,13 +539,17 @@
                         <td class="negative-amount">
                             - {{ "{:,.0f}".format(salary.deduction_amount + salary.penalty_amount) }} ر.ي
                         </td>
-                        <td class="fw-bold salary-amount">
+                        <td class="fw-bold salary-amount salary-total {% if is_zero_or_negative %}text-danger{% endif %}">
                             {{ "{:,.0f}".format(salary.total_salary) }} ر.ي
                         </td>
                         <td>
                             {% if salary.is_paid %}
                             <span class="badge bg-success">
                                 <i class="fas fa-check-circle"></i> مدفوع
+                            </span>
+                            {% elif is_zero_or_negative %}
+                            <span class="badge bg-secondary">
+                                <i class="fas fa-ban"></i> غير قابل للصرف
                             </span>
                             {% else %}
                             <span class="badge bg-warning">
@@ -567,7 +559,7 @@
                         </td>
                         <td>
                             <div class="action-buttons">
-                                {% if not salary.is_paid %}
+                                {% if not salary.is_paid and not is_zero_or_negative %}
                                 <button type="button" class="btn btn-icon btn-success"
                                         data-bs-toggle="modal" data-bs-target="#payModal{{ salary.id }}"
                                         title="صرف الراتب">
@@ -580,11 +572,11 @@
                                     <i class="fas fa-eye"></i>
                                 </button>
                             </div>
-                        </td>
-                     </tr>
+                         </td>
+                    </tr>
                     {% endfor %}
                 </tbody>
-             </table>
+            </table>
         </div>
     </div>
 </div>
@@ -601,7 +593,7 @@
 
 <!-- Modals for payment -->
 {% for salary in salaries %}
-{% if not salary.is_paid %}
+{% if not salary.is_paid and salary.total_salary > 0 %}
 <div class="modal fade payment-modal" id="payModal{{ salary.id }}" tabindex="-1">
     <div class="modal-dialog">
         <div class="modal-content">
@@ -620,8 +612,8 @@
                                 <div><strong>{{ salary.employee.name }}</strong></div>
                             </div>
                             <div class="col-md-6">
-                                <small class="text-muted">الشهر:</small>
-                                <div><strong>{{ salary.month_year }}</strong></div>
+                                <small class="text-muted">الفترة:</small>
+                                <div><strong>{{ salary.notes if salary.notes else salary.month_year }}</strong></div>
                             </div>
                         </div>
                         <div class="row mt-2">
@@ -662,6 +654,8 @@
 {% endfor %}
 
 <script>
+    let selectedSalaries = [];
+
     function viewSalaryDetails(salaryId) {
         alert('سيتم إضافة وظيفة عرض تفاصيل الراتب قريباً');
     }
@@ -678,122 +672,126 @@
         }
     }
 
-    function updateStats() {
-        const visibleRows = $('#salariesTable tbody tr:visible').filter(function() {
-            return !$(this).find('td[colspan]').length;
-        });
-        $('#totalCount').text(visibleRows.length);
-        $('#paidCount').text(visibleRows.filter(function() {
-            return $(this).data('status') === 'paid';
-        }).length);
-        $('#unpaidCount').text(visibleRows.filter(function() {
-            return $(this).data('status') === 'unpaid';
-        }).length);
-        let totalAmount = 0;
-        visibleRows.each(function() {
-            const amountText = $(this).find('td:nth-child(10)').text();
-            const match = amountText.match(/[\d,]+/);
-            if (match) {
-                totalAmount += parseInt(match[0].replace(/,/g, ''));
-            }
-        });
-        $('#totalAmount').text(totalAmount.toLocaleString() + ' ر.ي');
+    // تحديث شريط الصرف الجماعي
+    function updateBulkActionsBar() {
+        const checkedBoxes = document.querySelectorAll('.salary-checkbox:checked');
+        const totalAmount = Array.from(checkedBoxes).reduce((sum, cb) => {
+            return sum + (parseFloat(cb.dataset.amount) || 0);
+        }, 0);
+
+        $('#selectedCount').text(checkedBoxes.length);
+        if (checkedBoxes.length > 0) {
+            $('#bulkActionsBar').addClass('show');
+        } else {
+            $('#bulkActionsBar').removeClass('show');
+        }
     }
 
-    function applySearchFilter() {
-        const searchValue = $('#searchInput').val().toLowerCase();
-        $('#salariesTable tbody tr').each(function() {
-            if ($(this).find('td[colspan]').length) return;
-            const text = $(this).text().toLowerCase();
-            if (searchValue === '' || text.indexOf(searchValue) > -1) {
-                $(this).show();
-            } else {
-                $(this).hide();
-            }
+    // صرف الرواتب المحددة
+    $('#bulkPayBtn').on('click', function() {
+        const selectedIds = [];
+        $('.salary-checkbox:checked').each(function() {
+            selectedIds.push($(this).val());
         });
-        updateStats();
-    }
 
-    function applyStatusFilter() {
-        const statusValue = $('#statusFilter').val();
-        $('#salariesTable tbody tr').each(function() {
-            if ($(this).find('td[colspan]').length) return;
+        if (selectedIds.length === 0) {
+            alert('الرجاء تحديد راتب واحد على الأقل');
+            return;
+        }
+
+        const paymentMethod = prompt('طريقة الدفع:\n1- نقدي\n2- تحويل بنكي\n3- شيك');
+        const methodMap = {'1': 'cash', '2': 'bank_transfer', '3': 'check'};
+        const paymentMethodValue = methodMap[paymentMethod] || 'bank_transfer';
+
+        if (confirm(`هل أنت متأكد من صرف ${selectedIds.length} راتب؟`)) {
+            $.ajax({
+                url: '{{ url_for("bulk_pay_salaries") }}',
+                method: 'POST',
+                contentType: 'application/json',
+                data: JSON.stringify({
+                    salary_ids: selectedIds,
+                    payment_method: paymentMethodValue
+                }),
+                success: function(response) {
+                    if (response.success) {
+                        alert(response.message);
+                        window.location.reload();
+                    } else {
+                        alert('خطأ: ' + response.error);
+                    }
+                },
+                error: function() {
+                    alert('حدث خطأ في الاتصال');
+                }
+            });
+        }
+    });
+
+    $('#clearSelectionBtn').on('click', function() {
+        $('.salary-checkbox').prop('checked', false);
+        updateBulkActionsBar();
+    });
+
+    // تحديد الكل لكل شركة
+    $('.select-all-company').on('change', function() {
+        const companyId = $(this).closest('.company-card').data('company-id');
+        const isChecked = $(this).prop('checked');
+        $(`#companyTable${companyId} .salary-checkbox:not(:disabled)`).prop('checked', isChecked);
+        updateBulkActionsBar();
+    });
+
+    // عند تغيير أي checkbox
+    $(document).on('change', '.salary-checkbox', function() {
+        updateBulkActionsBar();
+    });
+
+    // تطبيق الفلاتر
+    function applyFilters() {
+        const employeeId = $('#employeeFilter').val();
+        const status = $('#statusFilter').val();
+        const searchText = $('#searchInput').val().toLowerCase();
+
+        $('.salaries-tbody tr').each(function() {
+            let show = true;
             const rowStatus = $(this).data('status');
-            if (statusValue === 'all' || rowStatus === statusValue) {
-                $(this).show();
-            } else {
-                $(this).hide();
+            const employeeName = $(this).data('employee');
+            const isPaid = rowStatus === 'paid';
+
+            if (employeeId && $(this).data('employee-id') != employeeId) {
+                // يمكن إضافة data-employee-id في كل صف
             }
+            if (status !== 'all') {
+                if (status === 'paid' && !isPaid) show = false;
+                if (status === 'unpaid' && isPaid) show = false;
+            }
+            if (searchText && !employeeName.includes(searchText)) show = false;
+
+            $(this).toggle(show);
         });
-        updateStats();
     }
+
+    $('#applyFiltersBtn').on('click', function() {
+        const employeeId = $('#employeeFilter').val();
+        const status = $('#statusFilter').val();
+        let url = "{{ url_for('salaries_list') }}";
+        let params = [];
+        if (employeeId) params.push(`employee_id=${employeeId}`);
+        if (status && status !== 'all') params.push(`status=${status}`);
+        window.location.href = params.length > 0 ? url + '?' + params.join('&') : url;
+    });
+
+    $('#clearFiltersBtn').on('click', function() {
+        window.location.href = "{{ url_for('salaries_list') }}";
+    });
+
+    // اختيار الفترة
+    $('.period-badge').on('click', function() {
+        const periodKey = $(this).data('period-key');
+        window.location.href = "{{ url_for('salaries_list') }}?period_key=" + (periodKey || '');
+    });
 
     $(document).ready(function() {
-        $('#applyFilterBtn').on('click', function() {
-            const startDate = $('#startDate').val();
-            const endDate = $('#endDate').val();
-            let url = "{{ url_for('salaries_list') }}";
-            let params = [];
-            if (startDate) params.push(`start_date=${startDate}`);
-            if (endDate) params.push(`end_date=${endDate}`);
-            window.location.href = params.length > 0 ? url + '?' + params.join('&') : url;
-        });
-
-        $('#clearFilterBtn').on('click', function() {
-            window.location.href = "{{ url_for('salaries_list') }}";
-        });
-
-        $('.quick-period-btn').on('click', function() {
-            const period = $(this).data('period');
-            const now = new Date();
-            let startDate = '', endDate = '';
-            switch(period) {
-                case 'current_month':
-                    startDate = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
-                    endDate = startDate;
-                    break;
-                case 'last_month':
-                    let lastMonth = now.getMonth() === 0 ? 11 : now.getMonth() - 1;
-                    let lastMonthYear = now.getMonth() === 0 ? now.getFullYear() - 1 : now.getFullYear();
-                    startDate = `${lastMonthYear}-${String(lastMonth + 1).padStart(2, '0')}`;
-                    endDate = startDate;
-                    break;
-                case 'last_3_months':
-                    let threeMonthsAgo = new Date(now.getFullYear(), now.getMonth() - 2, 1);
-                    startDate = `${threeMonthsAgo.getFullYear()}-${String(threeMonthsAgo.getMonth() + 1).padStart(2, '0')}`;
-                    endDate = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
-                    break;
-                case 'last_6_months':
-                    let sixMonthsAgo = new Date(now.getFullYear(), now.getMonth() - 5, 1);
-                    startDate = `${sixMonthsAgo.getFullYear()}-${String(sixMonthsAgo.getMonth() + 1).padStart(2, '0')}`;
-                    endDate = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
-                    break;
-                case 'this_year':
-                    startDate = `${now.getFullYear()}-01`;
-                    endDate = `${now.getFullYear()}-12`;
-                    break;
-                case 'last_year':
-                    startDate = `${now.getFullYear() - 1}-01`;
-                    endDate = `${now.getFullYear() - 1}-12`;
-                    break;
-            }
-            if (startDate && endDate) {
-                window.location.href = "{{ url_for('salaries_list') }}?start_date=" + startDate + "&end_date=" + endDate;
-            }
-        });
-
-        $('#monthSelect').on('change', function() {
-            var month = $(this).val();
-            window.location.href = month ? "{{ url_for('salaries_list') }}?month=" + month : "{{ url_for('salaries_list') }}";
-        });
-
-        $('.month-badge').on('click', function() {
-            var month = $(this).data('month');
-            window.location.href = "{{ url_for('salaries_list') }}?month=" + month;
-        });
-
-        $('#searchInput').on('keyup', applySearchFilter);
-        $('#statusFilter').on('change', applyStatusFilter);
+        updateBulkActionsBar();
     });
 </script>
 {% endblock %}

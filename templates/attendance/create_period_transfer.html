@@ -1,0 +1,115 @@
+{% extends "base.html" %}
+
+{% block title %}ترحيل فترة دوام جديدة - ابن هائل{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-md-8 offset-md-2">
+            <div class="card">
+                <div class="card-header">
+                    <h3 class="card-title">
+                        <i class="fas fa-plus-circle"></i> ترحيل فترة دوام جديدة
+                    </h3>
+                    <div class="card-tools">
+                        <a href="{{ url_for('period_transfer_list') }}" class="btn btn-default">
+                            <i class="fas fa-arrow-right"></i> رجوع
+                        </a>
+                    </div>
+                </div>
+                <form method="POST">
+                    <div class="card-body">
+                        <div class="form-group">
+                            <label>اسم الفترة <span class="text-danger">*</span></label>
+                            <input type="text" name="period_name" class="form-control"
+                                   placeholder="مثال: فترة مارس 2024" required>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label>تاريخ البداية <span class="text-danger">*</span></label>
+                                    <input type="date" name="start_date" class="form-control"
+                                           value="{{ suggested_start_date.strftime('%Y-%m-%d') }}" required>
+                                    <small class="form-text text-muted">مثال: 26/03/2024</small>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label>تاريخ النهاية <span class="text-danger">*</span></label>
+                                    <input type="date" name="end_date" class="form-control"
+                                           value="{{ suggested_end_date.strftime('%Y-%m-%d') }}" required>
+                                    <small class="form-text text-muted">مثال: 25/04/2024</small>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label>فلترة حسب</label>
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <label>الشركة (اختياري)</label>
+                                    <select name="company_id" class="form-control" id="companySelect">
+                                        <option value="">جميع الشركات</option>
+                                        {% for company in companies %}
+                                        <option value="{{ company.id }}">{{ company.name }}</option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                                <div class="col-md-6">
+                                    <label>المنطقة (اختياري)</label>
+                                    <select name="region" class="form-control" id="regionSelect">
+                                        <option value="">جميع المناطق</option>
+                                        {% for region in regions %}
+                                        <option value="{{ region }}">{{ region }}</option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                            </div>
+                            <small class="form-text text-muted">
+                                يمكنك اختيار شركة أو منطقة لترحيل فترة دوام محددة
+                            </small>
+                        </div>
+
+                        <div class="alert alert-info">
+                            <i class="fas fa-info-circle"></i>
+                            <strong>ملاحظة:</strong> سيتم استخراج بيانات الحضور من سجلات الحضور اليومية للفترة المحددة.
+                            يتم حساب أيام الحضور والغياب والإضافي تلقائياً.
+                        </div>
+                    </div>
+                    <div class="card-footer">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-search"></i> استخراج البيانات
+                        </button>
+                        <a href="{{ url_for('period_transfer_list') }}" class="btn btn-default">إلغاء</a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // منع اختيار الشركة والمنطقة معاً
+    const companySelect = document.getElementById('companySelect');
+    const regionSelect = document.getElementById('regionSelect');
+
+    companySelect.addEventListener('change', function() {
+        if (this.value) {
+            regionSelect.disabled = true;
+            regionSelect.value = '';
+        } else {
+            regionSelect.disabled = false;
+        }
+    });
+
+    regionSelect.addEventListener('change', function() {
+        if (this.value) {
+            companySelect.disabled = true;
+            companySelect.value = '';
+        } else {
+            companySelect.disabled = false;
+        }
+    });
+</script>
+{% endblock %}

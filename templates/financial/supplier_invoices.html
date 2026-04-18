@@ -1,0 +1,172 @@
+{% extends "base.html" %}
+
+{% block title %}فواتير الموردين - طلعت هائل{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="page-header mb-4">
+        <div class="d-flex justify-content-between align-items-center">
+            <div>
+                <h2><i class="fas fa-file-invoice text-danger"></i> فواتير الموردين</h2>
+                <p class="text-muted">الفواتير الواردة من الشركات (مستحقة على طلعت هائل)</p>
+            </div>
+            <a href="{{ url_for('add_supplier_invoice') }}" class="btn btn-danger">
+                <i class="fas fa-plus-circle"></i> إضافة فاتورة واردة
+            </a>
+        </div>
+    </div>
+
+    <!-- إحصائيات -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="info-box bg-white">
+                <span class="info-box-icon bg-danger"><i class="fas fa-file-invoice"></i></span>
+                <div class="info-box-content">
+                    <span class="info-box-text">إجمالي الفواتير</span>
+                    <span class="info-box-number">{{ stats.total }}</span>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="info-box bg-white">
+                <span class="info-box-icon bg-warning"><i class="fas fa-money-bill"></i></span>
+                <div class="info-box-content">
+                    <span class="info-box-text">إجمالي المبالغ</span>
+                    <span class="info-box-number">{{ "{:,.0f}".format(stats.total_amount) }} ر.ي</span>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="info-box bg-white">
+                <span class="info-box-icon bg-success"><i class="fas fa-check-circle"></i></span>
+                <div class="info-box-content">
+                    <span class="info-box-text">المدفوع</span>
+                    <span class="info-box-number">{{ "{:,.0f}".format(stats.paid_amount) }} ر.ي</span>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="info-box bg-white">
+                <span class="info-box-icon bg-danger"><i class="fas fa-clock"></i></span>
+                <div class="info-box-content">
+                    <span class="info-box-text">المتبقي</span>
+                    <span class="info-box-number">{{ "{:,.0f}".format(stats.pending_amount) }} ر.ي</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- جدول الفواتير -->
+    <div class="card">
+        <div class="card-header bg-white">
+            <h5 class="mb-0"><i class="fas fa-list"></i> قائمة الفواتير الواردة</h5>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-bordered table-hover mb-0">
+                    <thead class="table-danger">
+                        <tr>
+                            <th>#</th>
+                            <th>رقم الفاتورة</th>
+                            <th>الشركة</th>
+                            <th>المبلغ</th>
+                            <th>المدفوع</th>
+                            <th>المتبقي</th>
+                            <th>تاريخ الفاتورة</th>
+                            <th>تاريخ الاستحقاق</th>
+                            <th>الحالة</th>
+                            <th>الإجراءات</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for inv in invoices %}
+                        <tr>
+                            <td>{{ loop.index }}</td>
+                            <td><strong>{{ inv.invoice_number }}</strong></td>
+                            <td>{{ inv.company.name }}</td>
+                            <td class="text-end">{{ "{:,.0f}".format(inv.amount) }} ر.ي</td>
+                            <td class="text-end text-success">{{ "{:,.0f}".format(inv.paid_amount) }} ر.ي</td>
+                            <td class="text-end text-danger">{{ "{:,.0f}".format(inv.remaining_amount) }} ر.ي</td>
+                            <td>{{ inv.invoice_date.strftime('%Y-%m-%d') }}</td>
+                            <td>{{ inv.due_date.strftime('%Y-%m-%d') if inv.due_date else '-' }}</td>
+                            <td>
+                                {% if inv.status == 'paid' %}
+                                <span class="badge bg-success">مدفوعة</span>
+                                {% elif inv.status == 'partial' %}
+                                <span class="badge bg-warning">مدفوعة جزئياً</span>
+                                {% else %}
+                                <span class="badge bg-danger">غير مدفوعة</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if inv.status != 'paid' %}
+                                <button type="button" class="btn btn-sm btn-success" data-bs-toggle="modal" data-bs-target="#payModal{{ inv.id }}">
+                                    <i class="fas fa-money-bill-wave"></i> تسديد
+                                </button>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                    <tfoot class="table-dark">
+                        <tr>
+                            <th colspan="3">الإجمالي</th>
+                            <th class="text-end">{{ "{:,.0f}".format(invoices|sum(attribute='amount')) }} ر.ي</th>
+                            <th class="text-end">{{ "{:,.0f}".format(invoices|sum(attribute='paid_amount')) }} ر.ي</th>
+                            <th class="text-end">{{ "{:,.0f}".format(invoices|sum(attribute='remaining_amount')) }} ر.ي</th>
+                            <th colspan="4"></th>
+                        </tr>
+                    </tfoot>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- نماذج الدفع -->
+{% for inv in invoices %}
+{% if inv.status != 'paid' %}
+<div class="modal fade" id="payModal{{ inv.id }}" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-success text-white">
+                <h5 class="modal-title"><i class="fas fa-money-bill-wave"></i> تسديد فاتورة</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="POST" action="{{ url_for('pay_supplier_invoice', invoice_id=inv.id) }}">
+                <div class="modal-body">
+                    <p><strong>الشركة:</strong> {{ inv.company.name }}</p>
+                    <p><strong>رقم الفاتورة:</strong> {{ inv.invoice_number }}</p>
+                    <p><strong>المبلغ المتبقي:</strong> {{ "{:,.0f}".format(inv.remaining_amount) }} ر.ي</p>
+
+                    <div class="mb-3">
+                        <label class="form-label">المبلغ المراد تسديده</label>
+                        <input type="number" name="payment_amount" class="form-control"
+                               max="{{ inv.remaining_amount }}" min="1" required>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">طريقة الدفع</label>
+                        <select name="payment_method" class="form-control" required>
+                            <option value="cash">💵 نقدي</option>
+                            <option value="bank_transfer">🏦 تحويل بنكي</option>
+                            <option value="check">📄 شيك</option>
+                        </select>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">رقم المرجع</label>
+                        <input type="text" name="reference_number" class="form-control" placeholder="رقم الإيصال / التحويل">
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">إلغاء</button>
+                    <button type="submit" class="btn btn-success">تأكيد التسديد</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endif %}
+{% endfor %}
+{% endblock %}

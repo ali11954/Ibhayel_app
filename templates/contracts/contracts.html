@@ -4,425 +4,245 @@
 
 {% block extra_css %}
 <style>
-    /* تنسيقات متقدمة لصفحة العقود */
-    .contracts-stats {
-        background: linear-gradient(135deg, #9c27b0 0%, #7b1fa2 100%);
-        border-radius: 20px;
-        padding: 1.5rem;
-        margin-bottom: 1.5rem;
-        color: white;
-        position: relative;
+    .contract-card {
+        background: white;
+        border-radius: 12px;
+        margin-bottom: 1rem;
+        border: 1px solid #e9ecef;
         overflow: hidden;
     }
 
-    .contracts-stats::before {
-        content: '';
-        position: absolute;
-        top: -50%;
-        right: -50%;
-        width: 200%;
-        height: 200%;
-        background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, transparent 70%);
-        animation: rotate 20s linear infinite;
-    }
-
-    @keyframes rotate {
-        from { transform: rotate(0deg); }
-        to { transform: rotate(360deg); }
-    }
-
-    .stat-item {
-        text-align: center;
-        border-left: 1px solid rgba(255,255,255,0.2);
-        position: relative;
-        z-index: 1;
-    }
-
-    .stat-item:last-child {
-        border-left: none;
-    }
-
-    .stat-number {
-        font-size: 2rem;
-        font-weight: 800;
-        margin-bottom: 0;
-    }
-
-    .stat-label {
-        font-size: 0.85rem;
-        opacity: 0.9;
-        margin-bottom: 0;
-    }
-
-    .search-section {
-        background: white;
-        border-radius: 15px;
-        padding: 1rem;
-        margin-bottom: 1.5rem;
-        box-shadow: var(--shadow-sm);
-    }
-
-    .table-contracts {
-        margin-bottom: 0;
-    }
-
-    .table-contracts thead th {
+    .contract-header {
         background: linear-gradient(135deg, #9c27b0, #7b1fa2);
         color: white;
-        font-weight: 600;
         padding: 1rem;
-        border: none;
-        font-size: 0.85rem;
-        text-align: center;
-        vertical-align: middle;
-    }
-
-    .table-contracts thead th i {
-        margin-left: 6px;
-    }
-
-    .table-contracts tbody tr {
-        transition: all 0.3s ease;
-        border-bottom: 1px solid #f0f0f0;
-    }
-
-    .table-contracts tbody tr:hover {
-        background: rgba(156, 39, 176, 0.05);
-        transform: translateX(5px);
-    }
-
-    .table-contracts tbody td {
-        padding: 1rem;
-        vertical-align: middle;
-        text-align: center;
-    }
-
-    .contract-type-badge {
-        padding: 0.3rem 0.8rem;
-        border-radius: 20px;
-        font-size: 0.7rem;
-        font-weight: 600;
-        display: inline-flex;
-        align-items: center;
-        gap: 0.3rem;
-        background: rgba(156, 39, 176, 0.1);
-        color: #9c27b0;
-    }
-
-    .action-buttons {
-        display: flex;
-        gap: 0.5rem;
-        justify-content: center;
-    }
-
-    .btn-icon {
-        width: 32px;
-        height: 32px;
-        padding: 0;
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        border-radius: 10px;
-        transition: all 0.3s ease;
-    }
-
-    .btn-icon:hover {
-        transform: translateY(-2px);
-    }
-
-    .empty-state {
-        text-align: center;
-        padding: 3rem;
-    }
-
-    .empty-state i {
-        font-size: 4rem;
-        color: #dee2e6;
-        margin-bottom: 1rem;
-    }
-
-    .filter-btn {
-        border: 1px solid #e0e0e0;
-        border-radius: 10px;
-        padding: 0.5rem 1rem;
-        transition: all 0.3s ease;
         cursor: pointer;
+    }
+
+    .contract-header:hover {
+        background: linear-gradient(135deg, #7b1fa2, #6a1b9a);
+    }
+
+    .contract-body {
+        padding: 1rem;
+        background: #f8f9fa;
+        border-top: 1px solid #e9ecef;
+    }
+
+    .invoices-table {
+        width: 100%;
         background: white;
+        border-radius: 8px;
+        overflow: hidden;
+        margin-top: 1rem;
     }
 
-    .filter-btn:hover,
-    .filter-btn.active {
-        background: #9c27b0;
-        color: white;
-        border-color: #9c27b0;
-    }
-
-    .amount-badge {
-        font-weight: 700;
-        color: #9c27b0;
-    }
-
-    .progress-custom {
-        height: 8px;
-        border-radius: 10px;
+    .invoices-table th {
         background: #e9ecef;
+        padding: 0.5rem;
+        font-size: 0.8rem;
+        text-align: center;
     }
 
-    .progress-bar-custom {
-        background: linear-gradient(90deg, #9c27b0, #7b1fa2);
-        border-radius: 10px;
-        transition: width 0.5s ease;
+    .invoices-table td {
+        padding: 0.5rem;
+        font-size: 0.8rem;
+        text-align: center;
+        border-bottom: 1px solid #dee2e6;
     }
+
+    .invoices-table tr:last-child td {
+        border-bottom: none;
+    }
+
+    .toggle-icon {
+        transition: transform 0.3s;
+    }
+
+    .toggle-icon.rotated {
+        transform: rotate(180deg);
+    }
+
+    .invoices-section {
+        display: none;
+        margin-top: 1rem;
+    }
+
+    .invoices-section.show {
+        display: block;
+    }
+
+    .badge-paid { background: #28a745; color: white; padding: 0.2rem 0.5rem; border-radius: 20px; font-size: 0.7rem; }
+    .badge-unpaid { background: #dc3545; color: white; padding: 0.2rem 0.5rem; border-radius: 20px; font-size: 0.7rem; }
+    .badge-partial { background: #ffc107; color: #333; padding: 0.2rem 0.5rem; border-radius: 20px; font-size: 0.7rem; }
+
+    .btn-sm { padding: 0.2rem 0.5rem; font-size: 0.7rem; border-radius: 5px; }
 </style>
 {% endblock %}
 
 {% block content %}
-<div class="page-header">
-    <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
-        <div>
-            <h2>
-                <i class="fas fa-file-contract"></i>
-                إدارة العقود
-            </h2>
-            <p class="text-muted mb-0 mt-2">إدارة العقود المبرمة مع الشركات ومتابعة المدفوعات</p>
-        </div>
-        <a href="{{ url_for('add_contract') }}" class="btn btn-success">
-            <i class="fas fa-plus-circle me-2"></i> عقد جديد
-        </a>
-    </div>
-</div>
-
-<!-- إحصائيات العقود -->
-<div class="contracts-stats">
-    <div class="row">
-        <div class="col-md-3 col-6">
-            <div class="stat-item">
-                <p class="stat-number mb-0">{{ contracts|length }}</p>
-                <p class="stat-label">إجمالي العقود</p>
+<div class="container-fluid">
+    <div class="page-header mb-4">
+        <div class="d-flex justify-content-between align-items-center">
+            <div>
+                <h2><i class="fas fa-file-contract"></i> إدارة العقود</h2>
+                <p class="text-muted">إدارة العقود المبرمة مع الشركات ومتابعة المدفوعات</p>
             </div>
-        </div>
-        <div class="col-md-3 col-6">
-            <div class="stat-item">
-                <p class="stat-number mb-0">{{ contracts|selectattr('status', 'equalto', 'active')|list|length }}</p>
-                <p class="stat-label">عقود نشطة</p>
-            </div>
-        </div>
-        <div class="col-md-3 col-6">
-            <div class="stat-item">
-                <p class="stat-number mb-0">{{ contracts|sum(attribute='contract_value')|round|int }} ر.ي</p>
-                <p class="stat-label">إجمالي القيمة</p>
-            </div>
-        </div>
-        <div class="col-md-3 col-6">
-            <div class="stat-item">
-                <p class="stat-number mb-0">{{ contracts|sum(attribute='remaining_amount')|round|int }} ر.ي</p>
-                <p class="stat-label">المبالغ المتبقية</p>
+            <div>
+                <a href="{{ url_for('generate_monthly_invoices') }}" class="btn btn-primary me-2"
+                   onclick="return confirm('سيتم إنشاء فواتير شهرية لجميع العقود السنوية النشطة. هل أنت متأكد؟')">
+                    <i class="fas fa-calendar-alt"></i> إنشاء فواتير الشهر
+                </a>
+                <a href="{{ url_for('add_contract') }}" class="btn btn-success">
+                    <i class="fas fa-plus-circle"></i> عقد جديد
+                </a>
             </div>
         </div>
     </div>
-</div>
 
-<!-- شريط البحث والفلترة -->
-<div class="search-section">
-    <div class="row align-items-center">
-        <div class="col-md-5 mb-3 mb-md-0">
-            <div class="input-group">
-                <span class="input-group-text bg-white border-end-0">
-                    <i class="fas fa-search text-muted"></i>
-                </span>
-                <input type="text" id="searchInput" class="form-control border-start-0"
-                       placeholder="بحث باسم الشركة...">
+    <!-- العقود -->
+    {% for contract in contracts %}
+    <div class="contract-card">
+        <div class="contract-header" onclick="toggleInvoices({{ contract.id }})">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <i class="fas fa-building"></i>
+                    <strong>{{ contract.company.name if contract.company else '-' }}</strong>
+                    <span class="badge bg-light text-dark ms-2">
+                        {% if contract.contract_type == 'annual' %}سنوي{% else %}شهري{% endif %}
+                    </span>
+                    <span class="badge bg-light text-dark ms-2">
+                        {{ "{:,.0f}".format(contract.contract_value) }} ر.ي
+                    </span>
+                </div>
+                <div>
+                    <span class="badge bg-success me-2">المستلم: {{ "{:,.0f}".format(contract.amount_received) }} ر.ي</span>
+                    <span class="badge bg-danger me-2">المتبقي: {{ "{:,.0f}".format(contract.remaining_amount) }} ر.ي</span>
+                    <i class="fas fa-chevron-down toggle-icon" id="toggleIcon{{ contract.id }}"></i>
+                </div>
             </div>
         </div>
-        <div class="col-md-4 mb-3 mb-md-0">
-            <select id="statusFilter" class="form-select">
-                <option value="all">جميع الحالات</option>
-                <option value="active">نشط</option>
-                <option value="completed">مكتمل</option>
-                <option value="cancelled">ملغي</option>
-            </select>
-        </div>
-        <div class="col-md-3">
-            <div class="d-flex gap-2">
-                <button id="filterAnnual" class="filter-btn flex-grow-1 text-center">
-                    <i class="fas fa-calendar-year"></i> سنوي
-                </button>
-                <button id="filterMonthly" class="filter-btn flex-grow-1 text-center">
-                    <i class="fas fa-calendar-alt"></i> شهري
-                </button>
-                <button id="filterAll" class="filter-btn active flex-grow-1 text-center">
-                    <i class="fas fa-list"></i> الكل
-                </button>
-            </div>
-        </div>
-    </div>
-</div>
 
-<!-- جدول العقود المحسن -->
-<div class="card">
-    <div class="card-body p-0">
-        <div class="table-responsive">
-            <table class="table table-contracts" id="contractsTable">
-                <thead>
-                    <tr>
-                        <th style="width: 5%">#</th>
-                        <th style="width: 18%">الشركة</th>
-                        <th style="width: 10%">نوع العقد</th>
-                        <th style="width: 12%">القيمة</th>
-                        <th style="width: 10%">تاريخ البدء</th>
-                        <th style="width: 10%">تاريخ الانتهاء</th>
-                        <th style="width: 10%">المستلم</th>
-                        <th style="width: 10%">المتبقي</th>
-                        <th style="width: 8%">نسبة الإنجاز</th>
-                        <th style="width: 7%">الإجراءات</th>
-                    </thead>
-                <tbody>
-                    {% for contract in contracts %}
-                    {% set percentage = (contract.amount_received / contract.contract_value * 100) if contract.contract_value > 0 else 0 %}
-                    <tr data-type="{{ contract.contract_type }}" data-status="{{ contract.status }}">
-                        <td class="fw-bold">{{ loop.index }}<td
-                        <td class="text-center">
-                            <div class="d-flex align-items-center gap-2 justify-content-center">
-                                <i class="fas fa-building text-primary"></i>
-                                <strong>{{ contract.company.name if contract.company else '-' }}</strong>
-                            </div>
-                        </td>
-                        <td>
-                            <span class="contract-type-badge">
-                                {% if contract.contract_type == 'annual' %}
-                                <i class="fas fa-calendar-year"></i> سنوي
+        <div class="contract-body">
+            <div class="row mb-3">
+                <div class="col-md-3">
+                    <small class="text-muted">تاريخ البدء</small>
+                    <div>{{ contract.start_date.strftime('%Y-%m-%d') if contract.start_date else '-' }}</div>
+                </div>
+                <div class="col-md-3">
+                    <small class="text-muted">تاريخ الانتهاء</small>
+                    <div>{{ contract.end_date.strftime('%Y-%m-%d') if contract.end_date else '-' }}</div>
+                </div>
+                <div class="col-md-3">
+                    <small class="text-muted">نسبة الإنجاز</small>
+                    <div>
+                        <div class="progress" style="height: 8px;">
+                            {% set percentage = (contract.amount_received / contract.contract_value * 100) if contract.contract_value > 0 else 0 %}
+                            <div class="progress-bar bg-success" style="width: {{ percentage }}%;"></div>
+                        </div>
+                        <small>{{ "%.1f"|format(percentage) }}%</small>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <a href="{{ url_for('add_invoice') }}?contract_id={{ contract.id }}" class="btn btn-sm btn-primary">
+                        <i class="fas fa-plus"></i> إضافة فاتورة
+                    </a>
+                    {% if contract.contract_type == 'annual' %}
+                    <a href="{{ url_for('auto_generate_contract_invoices', contract_id=contract.id) }}"
+                       class="btn btn-sm btn-info ms-1"
+                       onclick="return confirm('إنشاء فاتورة شهرية تلقائية؟')">
+                        <i class="fas fa-calendar-alt"></i> فاتورة تلقائية
+                    </a>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- الفواتير -->
+            <div class="invoices-section" id="invoicesSection{{ contract.id }}">
+                <h6 class="mb-2"><i class="fas fa-file-invoice"></i> الفواتير</h6>
+                {% if contract.invoices and contract.invoices|length > 0 %}
+                <table class="invoices-table">
+                    <thead>
+                        <tr>
+                            <th>#</th>
+                            <th>رقم الفاتورة</th>
+                            <th>تاريخ الفاتورة</th>
+                            <th>تاريخ الاستحقاق</th>
+                            <th>المبلغ</th>
+                            <th>المدفوع</th>
+                            <th>المتبقي</th>
+                            <th>الحالة</th>
+                            <th>الإجراءات</th>
+                        </thead>
+                    <tbody>
+                        {% for invoice in contract.invoices|sort(attribute='invoice_date', reverse=True) %}
+                        {% set paid_amount = invoice.paid_amount or 0 %}
+                        {% set remaining = invoice.amount - paid_amount %}
+                        <tr>
+                            <td>{{ loop.index }}</td>
+                            <td><strong>{{ invoice.invoice_number }}</strong></td>
+                            <td>{{ invoice.invoice_date.strftime('%Y-%m-%d') }}</td>
+                            <td>{{ invoice.due_date.strftime('%Y-%m-%d') if invoice.due_date else '-' }}</td>
+                            <td>{{ "{:,.0f}".format(invoice.amount) }} ر.ي</td>
+                            <td class="text-success">{{ "{:,.0f}".format(paid_amount) }} ر.ي</td>
+                            <td class="{% if remaining > 0 %}text-danger{% endif %}">{{ "{:,.0f}".format(remaining) }} ر.ي</td>
+                            <td>
+                                {% if invoice.is_paid %}
+                                <span class="badge-paid">مدفوعة</span>
+                                {% elif paid_amount > 0 %}
+                                <span class="badge-partial">مدفوعة جزئياً</span>
                                 {% else %}
-                                <i class="fas fa-calendar-alt"></i> شهري
+                                <span class="badge-unpaid">غير مدفوعة</span>
                                 {% endif %}
-                            </span>
-                        </td>
-                        <td class="amount-badge">
-                            {{ "{:,.0f}".format(contract.contract_value) }} ر.ي
-                        </td>
-                        <td>
-                            <i class="far fa-calendar-alt text-muted me-1"></i>
-                            {{ contract.start_date.strftime('%Y-%m-%d') if contract.start_date else '-' }}
-                        </td>
-                        <td>
-                            {% if contract.end_date %}
-                            <i class="far fa-calendar-check text-muted me-1"></i>
-                            {{ contract.end_date.strftime('%Y-%m-%d') }}
-                            {% else %}
-                            <span class="text-muted">-</span>
-                            {% endif %}
-                        </td>
-                        <td class="text-success">
-                            <i class="fas fa-check-circle"></i>
-                            {{ "{:,.0f}".format(contract.amount_received) }} ر.ي
-                        </td>
-                        <td class="{% if contract.remaining_amount > 0 %}text-danger{% else %}text-success{% endif %}">
-                            <i class="fas fa-clock"></i>
-                            {{ "{:,.0f}".format(contract.remaining_amount) }} ر.ي
-                        </td>
-                        <td>
-                            <div class="d-flex flex-column gap-1">
-                                <div class="progress-custom">
-                                    <div class="progress-bar-custom" style="width: {{ percentage }}%"></div>
-                                </div>
-                                <small class="text-muted">{{ "%.1f"|format(percentage) }}%</small>
-                            </div>
-                        </td>
-                        <td>
-                            <div class="action-buttons">
-                                <a href="#" class="btn btn-icon btn-outline-primary" title="عرض التفاصيل">
-                                    <i class="fas fa-eye"></i>
+                            </td>
+                            <td>
+                                <a href="{{ url_for('pay_invoice', invoice_id=invoice.id) }}" class="btn btn-sm btn-success" title="تسديد">
+                                    <i class="fas fa-money-bill-wave"></i>
                                 </a>
-                                <a href="{{ url_for('add_invoice') }}?contract_id={{ contract.id }}" class="btn btn-icon btn-outline-success" title="إضافة فاتورة">
-                                    <i class="fas fa-file-invoice"></i>
+                                <a href="{{ url_for('print_invoice', invoice_id=invoice.id) }}" class="btn btn-sm btn-info" title="طباعة" target="_blank">
+                                    <i class="fas fa-print"></i>
                                 </a>
-                            </div>
-                        </td>
-                    </tr>
-                    {% else %}
-                    <tr>
-                        <td colspan="10">
-                            <div class="empty-state">
-                                <i class="fas fa-file-contract"></i>
-                                <h5>لا توجد عقود</h5>
-                                <p class="text-muted">قم بإضافة عقد جديد للبدء</p>
-                                <a href="{{ url_for('add_contract') }}" class="btn btn-primary mt-2">
-                                    <i class="fas fa-plus-circle"></i> إضافة عقد
-                                </a>
-                            </div>
-                        </td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                    <tfoot style="background: #e9ecef;">
+                        <tr>
+                            <th colspan="4" class="text-center">الإجمالي</th>
+                            <th>{{ "{:,.0f}".format(contract.invoices|sum(attribute='amount')) }} ر.ي</th>
+                            <th>{{ "{:,.0f}".format(contract.invoices|sum(attribute='paid_amount')) }} ر.ي</th>
+                            <th>{{ "{:,.0f}".format(contract.invoices|sum(attribute='amount') - contract.invoices|sum(attribute='paid_amount')) }} ر.ي</th>
+                            <th colspan="2"></th>
+                        </tr>
+                    </tfoot>
+                </table>
+                {% else %}
+                <div class="alert alert-info text-center mb-0">
+                    <i class="fas fa-info-circle"></i> لا توجد فواتير لهذا العقد
+                </div>
+                {% endif %}
+            </div>
         </div>
     </div>
+    {% else %}
+    <div class="alert alert-info text-center">
+        <i class="fas fa-info-circle"></i> لا توجد عقود
+    </div>
+    {% endfor %}
 </div>
-
-<!-- تذييل مع إحصائيات إضافية -->
-{% if contracts|length > 0 %}
-<div class="d-flex justify-content-between align-items-center mt-3">
-    <small class="text-muted">
-        <i class="fas fa-info-circle me-1"></i>
-        عرض {{ contracts|length }} من إجمالي {{ contracts|length }} عقد
-    </small>
-    <small class="text-muted">
-        <i class="fas fa-chart-line me-1"></i>
-        إجمالي القيمة: {{ contracts|sum(attribute='contract_value')|round|int }} ر.ي
-    </small>
-</div>
-{% endif %}
 
 <script>
-    $(document).ready(function() {
-        // البحث
-        $('#searchInput').on('keyup', function() {
-            var value = $(this).val().toLowerCase();
-            $('#contractsTable tbody tr').filter(function() {
-                var text = $(this).text().toLowerCase();
-                $(this).toggle(text.indexOf(value) > -1);
-            });
-        });
+    function toggleInvoices(contractId) {
+        var section = document.getElementById('invoicesSection' + contractId);
+        var icon = document.getElementById('toggleIcon' + contractId);
 
-        // تصفية حسب الحالة
-        $('#statusFilter').on('change', function() {
-            var status = $(this).val();
-            $('#contractsTable tbody tr').each(function() {
-                if (status === 'all' || $(this).data('status') === status) {
-                    $(this).show();
-                } else {
-                    $(this).hide();
-                }
-            });
-        });
-
-        // تصفية حسب نوع العقد
-        function filterByType(type) {
-            $('#contractsTable tbody tr').each(function() {
-                if (type === 'all' || $(this).data('type') === type) {
-                    $(this).show();
-                } else {
-                    $(this).hide();
-                }
-            });
+        if (section.classList.contains('show')) {
+            section.classList.remove('show');
+            icon.classList.remove('rotated');
+        } else {
+            section.classList.add('show');
+            icon.classList.add('rotated');
         }
-
-        $('#filterAnnual').on('click', function() {
-            $(this).addClass('active');
-            $('#filterMonthly, #filterAll').removeClass('active');
-            filterByType('annual');
-        });
-
-        $('#filterMonthly').on('click', function() {
-            $(this).addClass('active');
-            $('#filterAnnual, #filterAll').removeClass('active');
-            filterByType('monthly');
-        });
-
-        $('#filterAll').on('click', function() {
-            $(this).addClass('active');
-            $('#filterAnnual, #filterMonthly').removeClass('active');
-            filterByType('all');
-        });
-    });
+    }
 </script>
 {% endblock %}

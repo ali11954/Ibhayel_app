@@ -1,13 +1,30 @@
+# إطار العمل الأساسي
 Flask==2.3.3
 Flask-Login==0.6.2
 Flask-SQLAlchemy==3.1.1
 SQLAlchemy==2.0.21
 Werkzeug==2.3.7
+
+# قاعدة البيانات
+psycopg2-binary==2.9.9
+
+# معالجة البيانات
 pandas==2.2.3
 openpyxl==3.1.2
+numpy==1.26.3
+
+# التقارير PDF
+weasyprint==60.1
+
+# التوثيق والبيئة
 python-dotenv==1.0.0
 email-validator==2.0.0
+
+# خادم الإنتاج
 gunicorn==21.2.0
-psycopg2-binary==2.9.9
-numpy==1.26.3
-weasyprint==60.1
+
+# إضافات (اختيارية)
+APScheduler==3.10.4  # للمجدول التلقائي
+google-auth==2.23.4  # للتوثيق مع Google
+google-auth-oauthlib==1.0.0
+google-auth-httplib2==0.1.1

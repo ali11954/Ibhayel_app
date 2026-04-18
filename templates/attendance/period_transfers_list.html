@@ -1,0 +1,133 @@
+{% extends "base.html" %}
+
+{% block title %}ترحيل فترات الدوام - طلعت هائل{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="card">
+        <div class="card-header">
+            <h3 class="card-title">
+                <i class="fas fa-exchange-alt"></i> ترحيل فترات الدوام
+            </h3>
+            <div class="card-tools">
+                <a href="{{ url_for('create_period_transfer') }}" class="btn btn-primary">
+                    <i class="fas fa-plus"></i> إنشاء فترة جديدة
+                </a>
+            </div>
+        </div>
+        <div class="card-body">
+            {% if transfers %}
+            <div class="table-responsive">
+                <table class="table table-bordered table-hover">
+                    <thead>
+                        <tr>
+                            <th>#</th>
+                            <th>اسم الفترة</th>
+                            <th>تاريخ البداية</th>
+                            <th>تاريخ النهاية</th>
+                            <th>عدد الموظفين</th>
+                            <th>المقفولين</th>
+                            <th>الحالة</th>
+                            <th>تاريخ الترحيل</th>
+                            <th>الإجراءات</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for transfer in transfers %}
+                        <tr>
+                            <td>{{ loop.index }}</td>
+                            <td>{{ transfer.period_name }}</td>
+                            <td>{{ transfer.start_date.strftime('%Y-%m-%d') }}</td>
+                            <td>{{ transfer.end_date.strftime('%Y-%m-%d') }}</td>
+                            <td>{{ transfer.transfers_details|length }}</td>
+                            <td>
+                                {% set locked_count = transfer.transfers_details|selectattr('is_locked')|list|length %}
+                                <span class="badge {% if locked_count == transfer.transfers_details|length %}bg-success{% else %}bg-warning{% endif %}">
+                                    {{ locked_count }}/{{ transfer.transfers_details|length }}
+                                </span>
+                             </td>
+                            <td>
+                                {% if transfer.is_transferred %}
+                                    <span class="badge bg-success">تم الترحيل</span>
+                                {% else %}
+                                    <span class="badge bg-warning">قيد الانتظار</span>
+                                {% endif %}
+                             </td>
+                            <td>{{ transfer.transfer_date.strftime('%Y-%m-%d') if transfer.transfer_date else '-' }}</td>
+                            <td>
+                                <div class="btn-group btn-group-sm">
+                                    <a href="{{ url_for('view_period_transfer', transfer_id=transfer.id) }}"
+                                       class="btn btn-info" title="عرض التفاصيل">
+                                        <i class="fas fa-eye"></i>
+                                    </a>
+
+                                    {% if not transfer.is_transferred %}
+                                        <!-- زر التحديث (جديد) -->
+                                        <button type="button" class="btn btn-warning"
+                                                onclick="refreshPeriod({{ transfer.id }})"
+                                                title="تحديث بيانات الفترة">
+                                            <i class="fas fa-sync-alt"></i>
+                                        </button>
+
+                                        <a href="{{ url_for('edit_period_transfer', transfer_id=transfer.id) }}"
+                                           class="btn btn-primary" title="تعديل">
+                                            <i class="fas fa-edit"></i>
+                                        </a>
+
+                                        <button type="button" class="btn btn-danger"
+                                                onclick="deletePeriod({{ transfer.id }})"
+                                                title="حذف">
+                                            <i class="fas fa-trash"></i>
+                                        </button>
+                                    {% else %}
+                                        <a href="{{ url_for('salaries_list', month=transfer.month_year) }}"
+                                           class="btn btn-success" title="عرض الرواتب">
+                                            <i class="fas fa-money-bill"></i>
+                                        </a>
+                                    {% endif %}
+                                </div>
+                             </td>
+                         </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <div class="alert alert-info text-center">
+                <i class="fas fa-info-circle"></i> لا توجد فترات ترحيل
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<script>
+function refreshPeriod(transferId) {
+    if (confirm('⚠️ هل أنت متأكد من تحديث هذه الفترة؟\nسيتم إعادة حساب بيانات الحضور والإضافي من جديد.')) {
+        fetch(`/attendance/period-transfer/refresh/${transferId}`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            }
+        }).then(response => {
+            window.location.reload();
+        }).catch(error => {
+            alert('حدث خطأ: ' + error);
+        });
+    }
+}
+
+function deletePeriod(transferId) {
+    if (confirm('⚠️ هل أنت متأكد من حذف هذه الفترة؟')) {
+        fetch(`/attendance/period-transfer/delete/${transferId}`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            }
+        }).then(response => {
+            window.location.reload();
+        });
+    }
+}
+</script>
+{% endblock %}
