@@ -4,42 +4,76 @@
 
 {% block content %}
 <div class="container-fluid">
-    <div class="page-header mb-4">
-        <div class="d-flex justify-content-between align-items-center">
-            <div>
-                <h2><i class="fas fa-tags text-danger"></i> فئات المصروفات</h2>
-                <p class="text-muted">إدارة فئات المصروفات (كهرباء، ماء، إيجار، إلخ)</p>
-            </div>
-            <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addCategoryModal">
-                <i class="fas fa-plus-circle"></i> إضافة فئة
-            </button>
-        </div>
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2><i class="fas fa-tags"></i> فئات المصروفات</h2>
+        <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addCategoryModal">
+            <i class="fas fa-plus"></i> فئة جديدة
+        </button>
     </div>
 
     <div class="card">
-        <div class="card-header bg-white">
-            <h5 class="mb-0"><i class="fas fa-list"></i> قائمة الفئات</h5>
+        <div class="card-header bg-primary text-white">
+            <h5 class="mb-0">قائمة فئات المصروفات</h5>
         </div>
         <div class="card-body p-0">
             <div class="table-responsive">
-                <table class="table table-bordered table-hover mb-0">
-                    <thead class="table-danger">
+                <table class="table table-bordered mb-0">
+                    <thead class="table-dark">
                         <tr>
                             <th>#</th>
                             <th>الاسم (إنجليزي)</th>
                             <th>الاسم (عربي)</th>
-                            <th>رقم الحساب المحاسبي</th>
+                            <th>رقم الحساب</th>
                             <th>تاريخ الإضافة</th>
+                            <th>الحالة</th>
+                            <th>الإجراءات</th>
                         </tr>
                     </thead>
                     <tbody>
                         {% for cat in categories %}
                         <tr>
-                            <td>{{ loop.index }}</td>
+                            <td class="text-center">{{ loop.index }}</td>
                             <td>{{ cat.name }}</td>
                             <td>{{ cat.name_ar }}</td>
-                            <td><code>{{ cat.account_code or '-' }}</code></td>
-                            <td>{{ cat.created_at.strftime('%Y-%m-%d') }}</td>
+                            <td>{{ cat.account_code or '-' }}</td>
+                            <td class="text-center">
+                                {% if cat.created_at %}
+                                    {{ cat.created_at.strftime('%Y-%m-%d') }}
+                                {% else %}
+                                    -
+                                {% endif %}
+                            </td>
+                            <td class="text-center">
+                                {% if cat.is_active %}
+                                <span class="badge bg-success">نشط</span>
+                                {% else %}
+                                <span class="badge bg-danger">غير نشط</span>
+                                {% endif %}
+                            </td>
+                            <td class="text-center">
+                                <div class="btn-group btn-group-sm">
+                                    <a href="{{ url_for('edit_expense_category', category_id=cat.id) }}"
+                                       class="btn btn-info" title="تعديل">
+                                        <i class="fas fa-edit"></i>
+                                    </a>
+                                    <button type="button"
+                                            class="btn btn-warning"
+                                            onclick="toggleCategory({{ cat.id }})"
+                                            title="{% if cat.is_active %}تعطيل{% else %}تفعيل{% endif %}">
+                                        <i class="fas fa-{% if cat.is_active %}ban{% else %}check{% endif %}"></i>
+                                    </button>
+                                    <button type="button"
+                                            class="btn btn-danger"
+                                            onclick="deleteCategory({{ cat.id }})"
+                                            title="حذف">
+                                        <i class="fas fa-trash"></i>
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+                        {% else %}
+                        <tr>
+                            <td colspan="7" class="text-center">لا توجد فئات مصروفات</td>
                         </tr>
                         {% endfor %}
                     </tbody>
@@ -49,45 +83,63 @@
     </div>
 </div>
 
-<!-- مودال إضافة فئة -->
+<!-- Modal إضافة فئة جديدة -->
 <div class="modal fade" id="addCategoryModal" tabindex="-1">
     <div class="modal-dialog">
         <div class="modal-content">
-            <div class="modal-header bg-danger text-white">
-                <h5 class="modal-title"><i class="fas fa-plus-circle"></i> إضافة فئة جديدة</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title">إضافة فئة مصروفات جديدة</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
             </div>
             <form method="POST" action="{{ url_for('add_expense_category') }}">
                 <div class="modal-body">
                     <div class="mb-3">
-                        <label class="form-label fw-bold">الاسم (إنجليزي)</label>
+                        <label class="form-label">الاسم (إنجليزي) *</label>
                         <input type="text" name="name" class="form-control" required>
+                        <small class="text-muted">مثال: utilities, rent, office</small>
                     </div>
                     <div class="mb-3">
-                        <label class="form-label fw-bold">الاسم (عربي)</label>
+                        <label class="form-label">الاسم (عربي) *</label>
                         <input type="text" name="name_ar" class="form-control" required>
                     </div>
                     <div class="mb-3">
-                        <label class="form-label fw-bold">رقم الحساب المحاسبي</label>
+                        <label class="form-label">رقم الحساب المحاسبي</label>
                         <input type="text" name="account_code" class="form-control" placeholder="مثال: 530001">
-                        <small class="text-muted">اختياري - يحدد الحساب المحاسبي المرتبط</small>
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label fw-bold">الفئة الأب (اختياري)</label>
-                        <select name="parent_id" class="form-control">
-                            <option value="">لا يوجد</option>
-                            {% for cat in categories %}
-                            <option value="{{ cat.id }}">{{ cat.name_ar }}</option>
-                            {% endfor %}
-                        </select>
+                        <small class="text-muted">اتركه فارغاً لاستخدام الحساب الافتراضي (590001)</small>
                     </div>
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">إلغاء</button>
-                    <button type="submit" class="btn btn-danger">حفظ</button>
+                    <button type="submit" class="btn btn-primary">حفظ</button>
                 </div>
             </form>
         </div>
     </div>
 </div>
+
+<script>
+function toggleCategory(id) {
+    fetch(`/expense-categories/toggle/${id}`, { method: 'POST' })
+        .then(response => {
+            if(response.ok) {
+                window.location.reload();
+            } else {
+                alert('حدث خطأ');
+            }
+        });
+}
+
+function deleteCategory(id) {
+    if(confirm('⚠️ هل أنت متأكد من حذف هذه الفئة؟')) {
+        fetch(`/expense-categories/delete/${id}`, { method: 'POST' })
+            .then(response => {
+                if(response.ok) {
+                    window.location.reload();
+                } else {
+                    alert('حدث خطأ أثناء الحذف');
+                }
+            });
+    }
+}
+</script>
 {% endblock %}

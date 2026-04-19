@@ -3,7 +3,7 @@ from functools import wraps
 from flask import flash, redirect, url_for, current_app
 from flask_login import current_user
 from datetime import datetime, timedelta
-
+from models import db
 
 def role_required(*roles):
     """محدد الصلاحيات"""
@@ -407,6 +407,7 @@ def create_journal_entry(date, description, entries, reference_type=None, refere
         reference_type: نوع المرجع
         reference_id: معرف المرجع
     """
+    from models import db, JournalEntry, JournalEntryDetail, Account  # ✅ أضف db
     from models import JournalEntry, JournalEntryDetail, db
     from flask_login import current_user
     from datetime import datetime
@@ -465,6 +466,7 @@ def create_journal_entry(date, description, entries, reference_type=None, refere
 def generate_supplier_invoice_number():
     """توليد رقم فاتورة مورد تلقائي"""
     from datetime import datetime
+    from models import db, JournalEntry, JournalEntryDetail, SupplierInvoice  # ✅ أضف db
 
     last_invoice = SupplierInvoice.query.order_by(SupplierInvoice.id.desc()).first()
 
@@ -700,10 +702,43 @@ def refresh_all_reports():
 
 def create_salary_accrual(salary):
     """إنشاء قيد استحقاق الراتب (يتم عند حساب الراتب)"""
+    from models import db, JournalEntry, JournalEntryDetail, Account
+    from utils import get_next_entry_number
+
+    # ✅ تعريف الحسابات داخل الدالة
+    salary_expense = Account.query.filter_by(code='510001').first()
+    if not salary_expense:
+        salary_expense = Account(
+            code='510001',
+            name='Salaries Expense',
+            name_ar='مصروف الرواتب',
+            account_type='expense',
+            nature='debit',
+            opening_balance=0,
+            is_active=True
+        )
+        db.session.add(salary_expense)
+        db.session.commit()
+
+    salaries_payable = Account.query.filter_by(code='210001').first()
+    if not salaries_payable:
+        salaries_payable = Account(
+            code='210001',
+            name='Salaries Payable',
+            name_ar='الرواتب المستحقة',
+            account_type='liability',
+            nature='credit',
+            opening_balance=0,
+            is_active=True
+        )
+        db.session.add(salaries_payable)
+        db.session.commit()
+
+    # إنشاء القيد المحاسبي
     journal_entry = JournalEntry(
         entry_number=get_next_entry_number(),
-        date=salary.created_at.date(),
-        description=f'استحقاق راتب {salary.employee.name} عن {salary.notes}',
+        date=salary.created_at.date() if salary.created_at else datetime.now().date(),
+        description=f'استحقاق راتب {salary.employee.name} عن {salary.notes or salary.month_year}',
         reference_type='salary_accrual',
         reference_id=salary.id
     )
@@ -713,20 +748,26 @@ def create_salary_accrual(salary):
     # مدين: مصروف الرواتب
     detail1 = JournalEntryDetail(
         entry_id=journal_entry.id,
-        account_id=salary_expense.id,  # حساب 510001
+        account_id=salary_expense.id,
         debit=salary.total_salary,
         credit=0,
         description=f'راتب {salary.employee.name}'
     )
+    db.session.add(detail1)
 
     # دائن: الرواتب المستحقة
     detail2 = JournalEntryDetail(
         entry_id=journal_entry.id,
-        account_id=salaries_payable.id,  # حساب 210001
+        account_id=salaries_payable.id,
         debit=0,
         credit=salary.total_salary,
         description=f'استحقاق راتب {salary.employee.name}'
     )
+    db.session.add(detail2)
+
+    db.session.commit()
+    return journal_entry
+
 def create_salary_journal_entry(salary):
     """
     إنشاء قيد محاسبي للراتب (عند استحقاق الراتب)
@@ -883,39 +924,21 @@ def create_transaction_journal_entry(transaction):
         reference_id=transaction.id
     )
 
+
 def create_invoice_journal_entry(invoice):
-    """إنشاء قيد محاسبي للفاتورة"""
-    from models import Account
+    """إنشاء قيد محاسبي للفاتورة (عملاء)"""
+    from models import Account, db
+    from utils import create_journal_entry
 
-    # ✅ استخدام الأكواد الصحيحة
-    receivable_account = Account.query.filter_by(code='120001').first()  # العملاء
-    revenue_account = Account.query.filter_by(code='410004').first()  # إيرادات الفواتير الإضافية
+    # الحصول على حسابات العملاء والإيرادات
+    receivable_account = Account.query.filter_by(code='120001').first()
+    revenue_account = Account.query.filter_by(code='410003').first()  # إيرادات الفواتير الإضافية
 
-    if not receivable_account or not revenue_account:
-        # محاولة إنشاء الحسابات إذا لم تكن موجودة
-        if not receivable_account:
-            receivable_account = Account(
-                code='120001',
-                name='Customers',
-                name_ar='العملاء',
-                account_type='asset',
-                nature='debit',
-                opening_balance=0,
-                is_active=True
-            )
-            db.session.add(receivable_account)
-        if not revenue_account:
-            revenue_account = Account(
-                code='410004',
-                name='Additional Invoices Revenue',
-                name_ar='إيرادات الفواتير الإضافية',
-                account_type='revenue',
-                nature='credit',
-                opening_balance=0,
-                is_active=True
-            )
-            db.session.add(revenue_account)
-        db.session.commit()
+    if not receivable_account:
+        raise ValueError("حساب العملاء (120001) غير موجود")
+
+    if not revenue_account:
+        raise ValueError("حساب إيرادات الفواتير الإضافية (410003) غير موجود")
 
     entries = [
         (receivable_account.id, invoice.amount, 0, f'فاتورة رقم {invoice.invoice_number}'),
@@ -924,7 +947,7 @@ def create_invoice_journal_entry(invoice):
 
     return create_journal_entry(
         date=invoice.invoice_date,
-        description=f'فاتورة رقم {invoice.invoice_number} - {invoice.contract.company.name if invoice.contract else ""}',
+        description=f'فاتورة رقم {invoice.invoice_number} - {invoice.contract.company.name if invoice.contract else "عميل"}',
         entries=entries,
         reference_type='invoice',
         reference_id=invoice.id
@@ -959,6 +982,8 @@ def create_salary_payment_journal_entry(salary):
     from models import Account, JournalEntry, JournalEntryDetail, db
     from flask_login import current_user
     from datetime import datetime
+    from utils import get_next_entry_number  # ✅ أضف هذا السطر
+
 
     # البحث عن الحسابات
     payable_account = Account.query.filter_by(code='210001').first()
@@ -1039,6 +1064,8 @@ def create_supplier_invoice_journal_entry(invoice):
     """إنشاء قيد محاسبي لفاتورة واردة من مورد"""
     from models import Account, JournalEntry, JournalEntryDetail, db
     from flask_login import current_user
+    from datetime import datetime
+    from utils import get_next_entry_number, create_journal_entry
 
     # حساب المصروفات حسب الفئة
     expense_accounts = {
@@ -1046,65 +1073,42 @@ def create_supplier_invoice_journal_entry(invoice):
         'rent': '530002',  # إيجار
         'office': '530003',  # مستلزمات مكتبية
         'equipment': '530004',  # معدات وأدوات
-        'general': '530005'  # مصروفات عامة
+        'general': '590001'  # مصروفات عامة
     }
 
     # تحديد الحساب بناءً على فئة المصروف
     category_name = invoice.category.name if invoice.category else 'general'
-    account_code = expense_accounts.get(category_name, '530005')
+    account_code = expense_accounts.get(category_name, '590001')
 
     expense_account = Account.query.filter_by(code=account_code).first()
-    payable_account = Account.query.filter_by(code='220001').first()  # الدائنون
+    payable_account = Account.query.filter_by(code='220001').first()
 
-    if not expense_account or not payable_account:
-        raise ValueError("الحسابات المحاسبية غير مهيأة بشكل صحيح")
+    if not expense_account:
+        raise ValueError(f"حساب المصروف غير موجود للكود: {account_code}")
 
-    # إنشاء رقم القيد
-    year = invoice.invoice_date.strftime('%Y')
-    count = JournalEntry.query.filter(JournalEntry.date >= f'{year}-01-01').count() + 1
-    entry_number = f'JE-{year}-{str(count).zfill(5)}'
+    if not payable_account:
+        raise ValueError("حساب الدائنون (220001) غير موجود")
 
-    # وصف القيد
-    description = f'فاتورة واردة من {invoice.supplier.name_ar} - {invoice.category.name_ar if invoice.category else "مصروفات"}'
+    # إنشاء قيد محاسبي
+    entries = [
+        (expense_account.id, invoice.amount, 0, f'فاتورة {invoice.invoice_number}'),
+        (payable_account.id, 0, invoice.amount, f'استحقاق فاتورة {invoice.invoice_number}')
+    ]
 
-    journal_entry = JournalEntry(
-        entry_number=entry_number,
+    return create_journal_entry(
         date=invoice.invoice_date,
-        description=description,
+        description=f'فاتورة واردة من {invoice.supplier.name_ar} - {invoice.category.name_ar if invoice.category else "مصروفات"}',
+        entries=entries,
         reference_type='supplier_invoice',
-        reference_id=invoice.id,
-        created_by=current_user.id if hasattr(current_user, 'id') else 1
+        reference_id=invoice.id
     )
-    db.session.add(journal_entry)
-    db.session.flush()
-
-    # إضافة تفاصيل القيد (مدين للمصروفات، دائن للدائنون)
-    detail1 = JournalEntryDetail(
-        entry_id=journal_entry.id,
-        account_id=expense_account.id,
-        debit=invoice.amount,
-        credit=0,
-        description=f'فاتورة {invoice.invoice_number} - {invoice.supplier.name_ar}'
-    )
-    db.session.add(detail1)
-
-    detail2 = JournalEntryDetail(
-        entry_id=journal_entry.id,
-        account_id=payable_account.id,
-        debit=0,
-        credit=invoice.amount,
-        description=f'استحقاق فاتورة {invoice.invoice_number}'
-    )
-    db.session.add(detail2)
-
-    db.session.commit()
-    return journal_entry
-
 
 def create_supplier_invoice_payment_journal_entry(invoice, payment_amount, payment_method):
     """إنشاء قيد محاسبي لتسديد فاتورة مورد"""
     from models import Account, JournalEntry, JournalEntryDetail, db
     from flask_login import current_user
+    from utils import get_next_entry_number  # ✅ أضف هذا السطر
+
 
     payable_account = Account.query.filter_by(code='220001').first()  # الدائنون
 
@@ -1224,6 +1228,8 @@ def reverse_journal_entry(journal_entry_id):
     from models import JournalEntry, JournalEntryDetail, db
     from flask_login import current_user
     from datetime import datetime
+    from utils import get_next_entry_number  # ✅ أضف هذا السطر
+
 
     original_entry = JournalEntry.query.get(journal_entry_id)
     if not original_entry:

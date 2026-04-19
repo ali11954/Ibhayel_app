@@ -3366,28 +3366,31 @@ def register_routes(app):
     @login_required
     @role_required('admin', 'finance')
     def pay_salary(salary_id):
-        """صرف راتب - للمدير والموظف المالي فقط"""
+        """صرف راتب - مع إنشاء استحقاق تلقائي إذا لم يكن موجوداً"""
         from models import Account, JournalEntry, JournalEntryDetail
         from datetime import datetime
-        from utils import get_next_entry_number
+        from utils import get_next_entry_number, create_salary_journal_entry
 
         salary = Salary.query.get_or_404(salary_id)
 
+        # ========== 1. التحقق من وجود قيد استحقاق ==========
         accrual_entry = JournalEntry.query.filter(
-            JournalEntry.reference_type == 'salary_accrual',
+            JournalEntry.reference_type == 'salary',  # ✅ تغيير من salary_accrual إلى salary
             JournalEntry.reference_id == salary.id
         ).first()
 
+        # ✅ إذا لم يكن هناك استحقاق، قم بإنشائه تلقائياً
         if not accrual_entry:
-            flash('⚠️ لا يمكن صرف الراتب قبل تسجيل استحقاقه!', 'danger')
-            flash('💡 يرجى إنشاء قيد استحقاق الراتب أولاً', 'warning')
-            return redirect(url_for('salaries_list'))
+            flash('⚠️ لا يوجد قيد استحقاق للراتب. جاري إنشاؤه تلقائياً...', 'info')
+            try:
+                accrual_entry = create_salary_journal_entry(salary)
+                flash(f'✅ تم إنشاء قيد استحقاق الراتب: {accrual_entry.entry_number}', 'success')
+            except Exception as e:
+                flash(f'❌ حدث خطأ في إنشاء استحقاق الراتب: {str(e)}', 'danger')
+                return redirect(url_for('salaries_list'))
 
-
-
-        # GET request - عرض نموذج الصرف
+        # ========== 2. عرض نموذج الصرف (GET) ==========
         if request.method == 'GET':
-            # جلب أرصدة الحسابات للعرض
             cash = Account.query.filter_by(code='110001').first()
             bank = Account.query.filter_by(code='110002').first()
             cash_balance = cash.get_balance() if cash else 0
@@ -3399,7 +3402,7 @@ def register_routes(app):
                                    bank_balance=bank_balance,
                                    now=datetime.now())
 
-        # POST request - تنفيذ الصرف
+        # ========== 3. تنفيذ الصرف (POST) ==========
         if salary.is_paid:
             flash('⚠️ هذا الراتب تم صرفه مسبقاً', 'warning')
             return redirect(url_for('salaries_list'))
@@ -3517,7 +3520,7 @@ def register_routes(app):
             db.session.commit()
 
             flash(f'✅ تم دفع راتب {salary.employee.name} بمبلغ {salary.total_salary:,.0f} ريال بنجاح', 'success')
-            flash(f'📋 رقم القيد: {entry_number}', 'info')
+            flash(f'📋 قيد الصرف: {entry_number}', 'info')
 
         except Exception as e:
             db.session.rollback()
@@ -3526,7 +3529,6 @@ def register_routes(app):
             traceback.print_exc()
 
         return redirect(url_for('salaries_list'))
-
 
     @app.route('/financial/salaries/bulk_pay', methods=['POST'])
     @login_required
@@ -4332,6 +4334,7 @@ def register_routes(app):
                                net_income=net_income,
                                now=datetime.now())
 
+    # ==================== إدارة الحسابات (دليل الحسابات) ====================
 
     @app.route('/accounts/chart')
     @login_required
@@ -4354,7 +4357,162 @@ def register_routes(app):
 
         return render_template('accounts/chart_of_accounts.html',
                                accounts=account_tree,
-                               account_types=Account.ACCOUNT_TYPES)
+                               account_types=Account.ACCOUNT_TYPES,
+                               now=datetime.now())
+
+    @app.route('/accounts/add', methods=['GET', 'POST'])
+    @login_required
+    @role_required('admin')
+    def add_account():
+        """إضافة حساب جديد"""
+        if request.method == 'POST':
+            try:
+                # التحقق من عدم وجود حساب بنفس الرقم
+                existing = Account.query.filter_by(code=request.form.get('code')).first()
+                if existing:
+                    flash('⚠️ رقم الحساب موجود مسبقاً', 'danger')
+                    return redirect(url_for('add_account'))
+
+                account = Account(
+                    code=request.form.get('code'),
+                    name=request.form.get('name'),
+                    name_ar=request.form.get('name_ar'),
+                    account_type=request.form.get('account_type'),
+                    nature=request.form.get('nature'),
+                    parent_id=request.form.get('parent_id') or None,
+                    opening_balance=float(request.form.get('opening_balance', 0)),
+                    is_active=True,
+                    notes=request.form.get('notes')
+                )
+                db.session.add(account)
+                db.session.commit()
+                flash(f'✅ تم إضافة الحساب {account.code} - {account.name_ar} بنجاح', 'success')
+                return redirect(url_for('chart_of_accounts'))
+
+            except Exception as e:
+                db.session.rollback()
+                flash(f'❌ حدث خطأ: {str(e)}', 'danger')
+
+        # GET request
+        parent_accounts = Account.query.filter_by(is_active=True).order_by(Account.code).all()
+        return render_template('accounts/add_account.html',
+                               parent_accounts=parent_accounts,
+                               account_types=Account.ACCOUNT_TYPES,
+                               natures={'debit': 'مدين', 'credit': 'دائن'},
+                               now=datetime.now())
+
+    @app.route('/accounts/edit/<int:account_id>', methods=['GET', 'POST'])
+    @login_required
+    @role_required('admin')
+    def edit_account(account_id):
+        """تعديل حساب"""
+        account = Account.query.get_or_404(account_id)
+
+        if request.method == 'POST':
+            try:
+                # التحقق من عدم وجود حساب بنفس الرقم (لحسابات أخرى)
+                existing = Account.query.filter(
+                    Account.code == request.form.get('code'),
+                    Account.id != account_id
+                ).first()
+                if existing:
+                    flash('⚠️ رقم الحساب موجود مسبقاً لحساب آخر', 'danger')
+                    return redirect(url_for('edit_account', account_id=account_id))
+
+                account.code = request.form.get('code')
+                account.name = request.form.get('name')
+                account.name_ar = request.form.get('name_ar')
+                account.account_type = request.form.get('account_type')
+                account.nature = request.form.get('nature')
+                account.parent_id = request.form.get('parent_id') or None
+                account.notes = request.form.get('notes')
+
+                # فقط المسموح بتعديل الرصيد الافتتاحي
+                if 'opening_balance' in request.form:
+                    account.opening_balance = float(request.form.get('opening_balance', 0))
+
+                db.session.commit()
+                flash(f'✅ تم تعديل الحساب {account.code} - {account.name_ar} بنجاح', 'success')
+                return redirect(url_for('chart_of_accounts'))
+
+            except Exception as e:
+                db.session.rollback()
+                flash(f'❌ حدث خطأ: {str(e)}', 'danger')
+
+        # GET request
+        parent_accounts = Account.query.filter(
+            Account.is_active == True,
+            Account.id != account_id
+        ).order_by(Account.code).all()
+
+        return render_template('accounts/edit_account.html',
+                               account=account,
+                               parent_accounts=parent_accounts,
+                               account_types=Account.ACCOUNT_TYPES,
+                               natures={'debit': 'مدين', 'credit': 'دائن'},
+                               now=datetime.now())
+
+    @app.route('/accounts/delete/<int:account_id>', methods=['POST'])
+    @login_required
+    @role_required('admin')
+    def delete_account(account_id):
+        """حذف حساب (تعطيل فقط) - مع التحقق من عدم ارتباطه بمعاملات"""
+        account = Account.query.get_or_404(account_id)
+
+        # التحقق من وجود معاملات مرتبطة بالحساب
+        from models import JournalEntryDetail, FinancialTransaction, Salary, Invoice, SupplierInvoice
+
+        # 1. التحقق من القيود المحاسبية
+        journal_entries = JournalEntryDetail.query.filter_by(account_id=account.id).count()
+        if journal_entries > 0:
+            flash(
+                f'⚠️ لا يمكن حذف الحساب {account.code} - {account.name_ar} لأنه مرتبط بـ {journal_entries} قيد محاسبي',
+                'danger')
+            return redirect(url_for('chart_of_accounts'))
+
+        # 2. التحقق من المعاملات المالية
+        transactions = FinancialTransaction.query.filter_by(employee_id=account.id).count()
+        if transactions > 0:
+            flash(f'⚠️ لا يمكن حذف الحساب {account.code} - {account.name_ar} لأنه مرتبط بمعاملات مالية', 'danger')
+            return redirect(url_for('chart_of_accounts'))
+
+        # 3. التحقق من الفواتير
+        invoices = Invoice.query.filter_by(contract_id=account.id).count()
+        if invoices > 0:
+            flash(f'⚠️ لا يمكن حذف الحساب {account.code} - {account.name_ar} لأنه مرتبط بفواتير', 'danger')
+            return redirect(url_for('chart_of_accounts'))
+
+        # 4. التحقق من فواتير الموردين
+        supplier_invoices = SupplierInvoice.query.filter_by(supplier_id=account.id).count()
+        if supplier_invoices > 0:
+            flash(f'⚠️ لا يمكن حذف الحساب {account.code} - {account.name_ar} لأنه مرتبط بفواتير موردين', 'danger')
+            return redirect(url_for('chart_of_accounts'))
+
+        # 5. التحقق من وجود حسابات فرعية
+        children = Account.query.filter_by(parent_id=account.id, is_active=True).count()
+        if children > 0:
+            flash(f'⚠️ لا يمكن حذف الحساب {account.code} - {account.name_ar} لأنه يحتوي على {children} حسابات فرعية',
+                  'danger')
+            return redirect(url_for('chart_of_accounts'))
+
+        # تعطيل الحساب بدلاً من حذفه
+        account.is_active = False
+        db.session.commit()
+
+        flash(f'✅ تم تعطيل الحساب {account.code} - {account.name_ar} بنجاح', 'success')
+        return redirect(url_for('chart_of_accounts'))
+
+    @app.route('/accounts/activate/<int:account_id>', methods=['POST'])
+    @login_required
+    @role_required('admin')
+    def activate_account(account_id):
+        """تفعيل حساب معطل"""
+        account = Account.query.get_or_404(account_id)
+        account.is_active = True
+        db.session.commit()
+        flash(f'✅ تم تفعيل الحساب {account.code} - {account.name_ar} بنجاح', 'success')
+        return redirect(url_for('chart_of_accounts'))
+
 
     @app.route('/accounts/journal')
     @login_required
@@ -4483,7 +4641,8 @@ def register_routes(app):
     def transfer_between_accounts():
         """نقل مبلغ من حساب إلى حساب آخر"""
         from utils import create_journal_entry
-        from models import Account, JournalEntry
+        from models import Account
+        from datetime import datetime
 
         try:
             from_account_id = int(request.form.get('from_account_id'))
@@ -4491,7 +4650,6 @@ def register_routes(app):
             amount = float(request.form.get('amount'))
             description = request.form.get('description')
 
-            # التحقق من صحة الحسابات
             from_account = Account.query.get(from_account_id)
             to_account = Account.query.get(to_account_id)
 
@@ -4503,17 +4661,18 @@ def register_routes(app):
                 flash('⚠️ لا يمكن التحويل لنفس الحساب', 'danger')
                 return redirect(url_for('journal_entries_list'))
 
-            # التحقق من الرصيد المتوفر
-            current_balance = from_account.get_balance()
-            if current_balance < amount:
-                flash(f'⚠️ الرصيد غير كافٍ في حساب {from_account.name_ar}. الرصيد المتوفر: {current_balance:,.2f}',
-                      'danger')
-                return redirect(url_for('journal_entries_list'))
+            # ✅ التحقق الصحيح من الرصيد
+            if from_account.nature == 'debit':
+                current_balance = from_account.get_balance()
+                if current_balance < amount:
+                    flash(f'⚠️ الرصيد غير كافٍ في حساب {from_account.name_ar}. المتوفر: {current_balance:,.2f}',
+                          'danger')
+                    return redirect(url_for('journal_entries_list'))
 
-            # إنشاء قيد التحويل
+            # ✅ القيد الصحيح للتحويل
             entries = [
-                (from_account.id, amount, 0, f'تحويل من {from_account.name_ar}'),
-                (to_account.id, 0, amount, f'تحويل إلى {to_account.name_ar}')
+                (to_account.id, amount, 0, f'استلام من {from_account.name_ar}'),  # مدين (يزيد)
+                (from_account.id, 0, amount, f'تحويل إلى {to_account.name_ar}')  # دائن (ينقص)
             ]
 
             journal_entry = create_journal_entry(
@@ -5562,6 +5721,62 @@ def register_routes(app):
 
         return redirect(url_for('expense_categories_list'))
 
+    @app.route('/expense-categories/edit/<int:category_id>', methods=['GET', 'POST'])
+    @login_required
+    @role_required('admin')
+    def edit_expense_category(category_id):
+        """تعديل فئة مصروفات"""
+        category = ExpenseCategory.query.get_or_404(category_id)
+
+        if request.method == 'POST':
+            try:
+                category.name = request.form.get('name')
+                category.name_ar = request.form.get('name_ar')
+                category.account_code = request.form.get('account_code')
+                category.parent_id = request.form.get('parent_id') or None
+                db.session.commit()
+                flash('✅ تم تحديث الفئة بنجاح', 'success')
+                return redirect(url_for('expense_categories_list'))
+            except Exception as e:
+                db.session.rollback()
+                flash(f'❌ حدث خطأ: {str(e)}', 'danger')
+
+        # GET request - عرض نموذج التعديل
+        categories = ExpenseCategory.query.filter(
+            ExpenseCategory.is_active == True,
+            ExpenseCategory.id != category_id
+        ).all()
+        accounts = Account.query.filter_by(account_type='expense', is_active=True).order_by(Account.code).all()
+
+        return render_template('suppliers/edit_category.html',
+                               category=category,
+                               categories=categories,
+                               accounts=accounts,
+                               now=datetime.now())
+
+    @app.route('/expense-categories/delete/<int:category_id>', methods=['POST'])
+    @login_required
+    @role_required('admin')
+    def delete_expense_category(category_id):
+        """حذف فئة مصروفات (تعطيلها فقط)"""
+        category = ExpenseCategory.query.get_or_404(category_id)
+        category.is_active = False
+        db.session.commit()
+        flash('✅ تم حذف الفئة بنجاح', 'success')
+        return redirect(url_for('expense_categories_list'))
+
+    @app.route('/expense-categories/toggle/<int:category_id>', methods=['POST'])
+    @login_required
+    @role_required('admin')
+    def toggle_expense_category(category_id):
+        """تفعيل/تعطيل فئة مصروفات"""
+        category = ExpenseCategory.query.get_or_404(category_id)
+        category.is_active = not category.is_active
+        db.session.commit()
+        status = 'تفعيل' if category.is_active else 'تعطيل'
+        flash(f'✅ تم {status} الفئة بنجاح', 'success')
+        return redirect(url_for('expense_categories_list'))
+
     @app.route('/supplier-invoices/print/<int:invoice_id>')
     @login_required
     @role_required('admin', 'finance')
@@ -5655,3 +5870,83 @@ def register_routes(app):
             flash(f'❌ حدث خطأ أثناء عكس القيد: {str(e)}', 'danger')
 
         return redirect(url_for('transactions_list'))
+
+    @app.route('/financial/collect-customers', methods=['POST'])
+    @login_required
+    @role_required('admin', 'finance')
+    def collect_customers():
+        """تحصيل مستحقات العملاء"""
+        from models import Account, JournalEntry, JournalEntryDetail
+        from datetime import datetime
+        from utils import get_next_entry_number
+
+        try:
+            amount = float(request.form.get('amount', 0))
+            payment_method = request.form.get('payment_method', 'bank')
+
+            if amount <= 0:
+                flash('⚠️ المبلغ يجب أن يكون أكبر من صفر', 'danger')
+                return redirect(url_for('chart_of_accounts'))
+
+            customers = Account.query.filter_by(code='120001').first()
+            current_balance = customers.get_balance()
+
+            if amount > current_balance:
+                flash(f'⚠️ المبلغ المطلوب ({amount:,.2f}) يتجاوز رصيد العملاء ({current_balance:,.2f})', 'danger')
+                return redirect(url_for('chart_of_accounts'))
+
+            if payment_method == 'bank':
+                target_account = Account.query.filter_by(code='110002').first()
+                method_name = 'البنك'
+            else:
+                target_account = Account.query.filter_by(code='110001').first()
+                method_name = 'الصندوق'
+
+            if not target_account:
+                flash(f'⚠️ حساب {method_name} غير موجود', 'danger')
+                return redirect(url_for('chart_of_accounts'))
+
+            # إنشاء قيد التحصيل
+            entry_number = get_next_entry_number()
+
+            journal_entry = JournalEntry(
+                entry_number=entry_number,
+                date=datetime.now().date(),
+                description=f'تحصيل مبلغ {amount:,.2f} ريال من العملاء عبر {method_name}',
+                reference_type='collection',
+                reference_id=None,
+                created_by=current_user.id
+            )
+            db.session.add(journal_entry)
+            db.session.flush()
+
+            # مدين: البنك/الصندوق
+            detail1 = JournalEntryDetail(
+                entry_id=journal_entry.id,
+                account_id=target_account.id,
+                debit=amount,
+                credit=0,
+                description='تحصيل من العملاء'
+            )
+            db.session.add(detail1)
+
+            # دائن: العملاء
+            detail2 = JournalEntryDetail(
+                entry_id=journal_entry.id,
+                account_id=customers.id,
+                debit=0,
+                credit=amount,
+                description='تخفيض رصيد العملاء'
+            )
+            db.session.add(detail2)
+
+            db.session.commit()
+
+            flash(f'✅ تم تحصيل {amount:,.2f} ريال من العملاء', 'success')
+            flash(f'📋 رقم القيد: {entry_number}', 'info')
+
+        except Exception as e:
+            db.session.rollback()
+            flash(f'❌ حدث خطأ: {str(e)}', 'danger')
+
+        return redirect(url_for('chart_of_accounts'))

@@ -2,63 +2,39 @@
 
 {% block title %}دليل الحسابات - طلعت هائل{% endblock %}
 
-{% block extra_css %}
-<style>
-    .account-tree {
-        list-style: none;
-        padding-right: 0;
-    }
-    .account-tree ul {
-        list-style: none;
-        padding-right: 20px;
-    }
-    .account-item {
-        padding: 8px 12px;
-        border-bottom: 1px solid #e9ecef;
-        transition: all 0.3s;
-    }
-    .account-item:hover {
-        background: #f8f9fa;
-        transform: translateX(-5px);
-    }
-    .account-code {
-        font-family: monospace;
-        font-weight: bold;
-        color: #6c757d;
-        width: 100px;
-        display: inline-block;
-    }
-    .account-name {
-        font-weight: 600;
-    }
-    .account-type {
-        font-size: 0.75rem;
-        padding: 2px 8px;
-        border-radius: 20px;
-    }
-    .type-asset { background: #d4edda; color: #155724; }
-    .type-liability { background: #f8d7da; color: #721c24; }
-    .type-equity { background: #d1ecf1; color: #0c5460; }
-    .type-revenue { background: #d4edda; color: #155724; }
-    .type-expense { background: #f8d7da; color: #721c24; }
-    .type-cost { background: #fff3cd; color: #856404; }
-    .nature-debit { color: #dc3545; }
-    .nature-credit { color: #28a745; }
-</style>
-{% endblock %}
-
 {% block content %}
 <div class="container-fluid">
-    <div class="card">
-        <div class="card-header">
-            <h3 class="card-title">
-                <i class="fas fa-book"></i> دليل الحسابات
-            </h3>
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2><i class="fas fa-book"></i> دليل الحسابات</h2>
+        <div>
+            <a href="{{ url_for('add_account') }}" class="btn btn-success">
+                <i class="fas fa-plus"></i> حساب جديد
+            </a>
         </div>
-        <div class="card-body">
+    </div>
+
+    <!-- أزرار الإجراءات السريعة -->
+    <div class="row mb-3">
+        <div class="col-md-12">
+            <div class="btn-group">
+                <button type="button" class="btn btn-outline-primary" onclick="collectAllCustomers()">
+                    <i class="fas fa-money-bill-wave"></i> تحصيل جميع مستحقات العملاء
+                </button>
+                <button type="button" class="btn btn-outline-success" onclick="payAllSuppliers()">
+                    <i class="fas fa-hand-holding-usd"></i> تسديد جميع مستحقات الموردين
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-header bg-primary text-white">
+            <h5 class="mb-0">قائمة الحسابات</h5>
+        </div>
+        <div class="card-body p-0">
             <div class="table-responsive">
-                <table class="table table-bordered table-hover">
-                    <thead>
+                <table class="table table-bordered mb-0">
+                    <thead class="table-dark">
                         <tr>
                             <th>رقم الحساب</th>
                             <th>اسم الحساب</th>
@@ -66,32 +42,189 @@
                             <th>الطبيعة</th>
                             <th>الرصيد الافتتاحي</th>
                             <th>الرصيد الحالي</th>
-                        </thead>
-                        <tbody>
-                            {% for account in accounts %}
-                            <tr>
-                                <td><code>{{ account.code }}</code></td>
-                                <td>
-                                    <strong>{{ account.name_ar }}</strong><br>
-                                    <small class="text-muted">{{ account.name }}</small>
-                                </td>
-                                <td>
-                                    <span class="account-type type-{{ account.account_type }}">
-                                        {{ account.get_type_name() }}
-                                    </span>
-                                </td>
-                                <td class="nature-{{ account.nature }}">
+                            <th>الحالة</th>
+                            <th>الإجراءات</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for account in accounts %}
+                        <tr>
+                            <td>{{ account.code }}</td>
+                            <td>
+                                <strong>{{ account.name_ar }}</strong>
+                                <br><small class="text-muted">{{ account.name }}</small>
+                            </td>
+                            <td>
+                                <span class="badge bg-secondary">{{ account.get_type_name() }}</span>
+                            </td>
+                            <td>
+                                <span class="badge {% if account.nature == 'debit' %}bg-info{% else %}bg-warning{% endif %}">
                                     {{ account.get_nature_name() }}
-                                </td>
-                                <td class="text-end">{{ "{:,.2f}".format(account.opening_balance) }} ر.ي</td>
-                                <td class="text-end">{{ "{:,.2f}".format(account.get_balance()) }} ر.ي</td>
-                            </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
-                </div>
+                                </span>
+                            </td>
+                            <td class="text-end">{{ "{:,.2f}".format(account.opening_balance) }} ر.ي</td>
+                            <td class="text-end {% if account.get_balance() < 0 %}text-danger{% else %}text-success{% endif %}">
+                                {{ "{:,.2f}".format(account.get_balance()) }} ر.ي
+                            </td>
+                            <td class="text-center">
+                                {% if account.is_active %}
+                                <span class="badge bg-success">نشط</span>
+                                {% else %}
+                                <span class="badge bg-danger">غير نشط</span>
+                                {% endif %}
+                            </td>
+                            <td class="text-center">
+                                <div class="btn-group btn-group-sm">
+                                    <a href="{{ url_for('edit_account', account_id=account.id) }}"
+                                       class="btn btn-info" title="تعديل">
+                                        <i class="fas fa-edit"></i>
+                                    </a>
+
+                                    {% if account.is_active %}
+                                    <button type="button"
+                                            class="btn btn-danger"
+                                            onclick="deleteAccount({{ account.id }}, '{{ account.code }}', '{{ account.name_ar }}')"
+                                            title="حذف">
+                                        <i class="fas fa-trash"></i>
+                                    </button>
+                                    {% else %}
+                                    <button type="button"
+                                            class="btn btn-success"
+                                            onclick="activateAccount({{ account.id }})"
+                                            title="تفعيل">
+                                        <i class="fas fa-check"></i>
+                                    </button>
+                                    {% endif %}
+
+                                    {% if account.code == '120001' and account.get_balance() > 0 %}
+                                    <button type="button"
+                                            class="btn btn-success"
+                                            onclick="collectCustomer({{ account.get_balance() }})"
+                                            title="تحصيل المبلغ">
+                                        <i class="fas fa-money-bill-wave"></i>
+                                    </button>
+                                    {% endif %}
+
+                                    {% if account.code == '220001' and account.get_balance() > 0 %}
+                                    <button type="button"
+                                            class="btn btn-warning"
+                                            onclick="paySupplier({{ account.get_balance() }})"
+                                            title="تسديد المبلغ">
+                                        <i class="fas fa-hand-holding-usd"></i>
+                                    </button>
+                                    {% endif %}
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
             </div>
         </div>
     </div>
 </div>
+
+<script>
+function deleteAccount(id, code, name) {
+    if(confirm(`⚠️ تحذير!\n\nهل أنت متأكد من حذف الحساب ${code} - ${name}؟\n\nسيتم التحقق من عدم ارتباطه بأي معاملات قبل الحذف.`)) {
+        fetch(`/accounts/delete/${id}`, { method: 'POST' })
+            .then(response => {
+                if(response.ok) {
+                    window.location.reload();
+                } else {
+                    alert('حدث خطأ أثناء الحذف');
+                }
+            });
+    }
+}
+
+function activateAccount(id) {
+    fetch(`/accounts/activate/${id}`, { method: 'POST' })
+        .then(response => {
+            if(response.ok) {
+                window.location.reload();
+            } else {
+                alert('حدث خطأ أثناء التفعيل');
+            }
+        });
+}
+
+function collectCustomer(amount) {
+    if(confirm(`💰 هل أنت متأكد من تحصيل مبلغ ${amount.toLocaleString()} ريال من العملاء؟\nسيتم إضافة المبلغ إلى حساب البنك.`)) {
+        fetch('/financial/collect-customers', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                amount: amount,
+                payment_method: 'bank'
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if(data.success) {
+                alert('✅ ' + data.message);
+                window.location.reload();
+            } else {
+                alert('❌ خطأ: ' + data.error);
+            }
+        });
+    }
+}
+
+function paySupplier(amount) {
+    if(confirm(`💸 هل أنت متأكد من تسديد مبلغ ${amount.toLocaleString()} ريال للموردين؟\nسيتم خصم المبلغ من حساب البنك.`)) {
+        fetch('/financial/pay-suppliers', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                amount: amount,
+                payment_method: 'bank'
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if(data.success) {
+                alert('✅ ' + data.message);
+                window.location.reload();
+            } else {
+                alert('❌ خطأ: ' + data.error);
+            }
+        });
+    }
+}
+
+function collectAllCustomers() {
+    if(confirm('💰 هل أنت متأكد من تحصيل جميع مستحقات العملاء؟')) {
+        fetch('/financial/collect-all-customers', { method: 'POST' })
+            .then(response => response.json())
+            .then(data => {
+                if(data.success) {
+                    alert('✅ ' + data.message);
+                    window.location.reload();
+                } else {
+                    alert('❌ خطأ: ' + data.error);
+                }
+            });
+    }
+}
+
+function payAllSuppliers() {
+    if(confirm('💸 هل أنت متأكد من تسديد جميع مستحقات الموردين؟')) {
+        fetch('/financial/pay-all-suppliers', { method: 'POST' })
+            .then(response => response.json())
+            .then(data => {
+                if(data.success) {
+                    alert('✅ ' + data.message);
+                    window.location.reload();
+                } else {
+                    alert('❌ خطأ: ' + data.error);
+                }
+            });
+    }
+}
+</script>
 {% endblock %}
