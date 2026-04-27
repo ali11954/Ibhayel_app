@@ -10,9 +10,14 @@
                 <i class="fas fa-exchange-alt"></i> ترحيل فترات الدوام
             </h3>
             <div class="card-tools">
-                <a href="{{ url_for('create_period_transfer') }}" class="btn btn-primary">
-                    <i class="fas fa-plus"></i> إنشاء فترة جديدة
-                </a>
+                <div class="btn-group">
+                    <a href="{{ url_for('create_period_transfer') }}" class="btn btn-primary">
+                        <i class="fas fa-plus"></i> إنشاء فترة جديدة
+                    </a>
+                    <a href="{{ url_for('create_management_transfer') }}" class="btn btn-info">
+                        <i class="fas fa-user-tie"></i> ترحيل رواتب الإدارة
+                    </a>
+                </div>
             </div>
         </div>
         <div class="card-body">
@@ -36,7 +41,12 @@
                         {% for transfer in transfers %}
                         <tr>
                             <td>{{ loop.index }}</td>
-                            <td>{{ transfer.period_name }}</td>
+                            <td>
+                                {{ transfer.period_name }}
+                                {% if 'رواتب الإدارة' in transfer.period_name %}
+                                <span class="badge bg-info ms-1">إدارة</span>
+                                {% endif %}
+                            </td>
                             <td>{{ transfer.start_date.strftime('%Y-%m-%d') }}</td>
                             <td>{{ transfer.end_date.strftime('%Y-%m-%d') }}</td>
                             <td>{{ transfer.transfers_details|length }}</td>
@@ -45,14 +55,14 @@
                                 <span class="badge {% if locked_count == transfer.transfers_details|length %}bg-success{% else %}bg-warning{% endif %}">
                                     {{ locked_count }}/{{ transfer.transfers_details|length }}
                                 </span>
-                             </td>
+                              </td>
                             <td>
                                 {% if transfer.is_transferred %}
                                     <span class="badge bg-success">تم الترحيل</span>
                                 {% else %}
                                     <span class="badge bg-warning">قيد الانتظار</span>
                                 {% endif %}
-                             </td>
+                              </td>
                             <td>{{ transfer.transfer_date.strftime('%Y-%m-%d') if transfer.transfer_date else '-' }}</td>
                             <td>
                                 <div class="btn-group btn-group-sm">
@@ -62,14 +72,13 @@
                                     </a>
 
                                     {% if not transfer.is_transferred %}
-                                        <!-- زر التحديث (جديد) -->
                                         <button type="button" class="btn btn-warning"
                                                 onclick="refreshPeriod({{ transfer.id }})"
                                                 title="تحديث بيانات الفترة">
                                             <i class="fas fa-sync-alt"></i>
                                         </button>
 
-                                        <a href="{{ url_for('edit_period_transfer', transfer_id=transfer.id) }}"
+                                       <a href="{{ url_for('view_period_transfer', transfer_id=transfer.id) }}"
                                            class="btn btn-primary" title="تعديل">
                                             <i class="fas fa-edit"></i>
                                         </a>
@@ -86,8 +95,8 @@
                                         </a>
                                     {% endif %}
                                 </div>
-                             </td>
-                         </tr>
+                            </td>
+                        </tr>
                         {% endfor %}
                     </tbody>
                 </table>

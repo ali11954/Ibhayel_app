@@ -1,0 +1,143 @@
+<!-- templates/labor/labor_costs_report.html -->
+{% extends "base.html" %}
+
+{% block title %}تقرير تكاليف العمال - طلعت هائل{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header bg-white">
+                    <h4 class="mb-0">
+                        <i class="fas fa-chart-line text-info me-2"></i>
+                        تقرير تكاليف العمال الشهرية
+                    </h4>
+                </div>
+                <div class="card-body">
+                    <!-- ملخص التكاليف -->
+                    <div class="row mb-4">
+                        <div class="col-md-3">
+                            <div class="card bg-primary text-white">
+                                <div class="card-body">
+                                    <h6 class="card-title">إجمالي الرواتب الأساسية</h6>
+                                    <h3>{{ "%.2f"|format(summary.total_basic_salaries) }} ريال</h3>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="card bg-info text-white">
+                                <div class="card-body">
+                                    <h6 class="card-title">بدل السكن</h6>
+                                    <h3>{{ "%.2f"|format(summary.total_resident_allowances) }} ريال</h3>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="card bg-warning text-white">
+                                <div class="card-body">
+                                    <h6 class="card-title">التأمين الصحي</h6>
+                                    <h3>{{ "%.2f"|format(summary.total_insurance) }} ريال</h3>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="card bg-success text-white">
+                                <div class="card-body">
+                                    <h6 class="card-title">الإجمالي الكلي</h6>
+                                    <h3>{{ "%.2f"|format(summary.grand_total) }} ريال</h3>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="row mb-4">
+                        <div class="col-md-4">
+                            <div class="card bg-secondary text-white">
+                                <div class="card-body">
+                                    <h6 class="card-title">بدل الملابس (شهري)</h6>
+                                    <h4>{{ "%.2f"|format(summary.total_clothing_allowance) }} ريال</h4>
+                                    <small>24480 سنوياً ÷ 12 شهر</small>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="card bg-secondary text-white">
+                                <div class="card-body">
+                                    <h6 class="card-title">البطائق الصحية (شهري)</h6>
+                                    <h4>{{ "%.2f"|format(summary.total_health_cards) }} ريال</h4>
+                                    <small>15000 سنوياً ÷ 12 شهر</small>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="card bg-dark text-white">
+                                <div class="card-body">
+                                    <h6 class="card-title">الشهر</h6>
+                                    <h4>{{ month_year }}</h4>
+                                    <small>عدد العمال: {{ employees_count }}</small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- جدول التفاصيل -->
+                    <div class="table-responsive">
+                        <table class="table table-bordered">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>الموظف</th>
+                                    <th>أيام العمل</th>
+                                    <th>الراتب الأساسي</th>
+                                    <th>بدل السكن</th>
+                                    <th>التأمين</th>
+                                    <th>بدل الملابس</th>
+                                    <th>بطائق صحية</th>
+                                    <th>الإجمالي</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for cost in details %}
+                                <tr>
+                                    <td>{{ cost.employee_name }}</td>
+                                    <td>{{ cost.attendance_days }}</td>
+                                    <td>{{ "%.2f"|format(cost.basic_salary) }}</td>
+                                    <td>{{ "%.2f"|format(cost.resident_allowance) }}</td>
+                                    <td>{{ "%.2f"|format(cost.insurance) }}</td>
+                                    <td>{{ "%.2f"|format(cost.clothing_allowance) }}</td>
+                                    <td>{{ "%.2f"|format(cost.health_card_allowance) }}</td>
+                                    <td>{{ "%.2f"|format(cost.total_cost) }}</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                            <tfoot class="table-dark">
+                                <tr>
+                                    <th colspan="2">الإجمالي</th>
+                                    <th>{{ "%.2f"|format(summary.total_basic_salaries) }}</th>
+                                    <th>{{ "%.2f"|format(summary.total_resident_allowances) }}</th>
+                                    <th>{{ "%.2f"|format(summary.total_insurance) }}</th>
+                                    <th>{{ "%.2f"|format(summary.total_clothing_allowance) }}</th>
+                                    <th>{{ "%.2f"|format(summary.total_health_cards) }}</th>
+                                    <th>{{ "%.2f"|format(summary.grand_total) }}</th>
+                                </tr>
+                            </tfoot>
+                        </table>
+                    </div>
+
+                    <!-- شرح التوزيع -->
+                    <div class="alert alert-info mt-4">
+                        <h5><i class="fas fa-info-circle"></i> شرح التوزيع:</h5>
+                        <ul class="mb-0">
+                            <li><strong>الراتب الأساسي:</strong> 2000 ريال شهرياً ÷ 30 يوم × أيام العمل الفعلية</li>
+                            <li><strong>بدل السكن:</strong> 500 ريال × أيام العمل (للساكنين فقط)</li>
+                            <li><strong>التأمين الصحي:</strong> 10800 ريال شهرياً لكل عامل (ثابت)</li>
+                            <li><strong>بدل الملابس:</strong> 24480 ريال سنوياً ÷ 12 شهر = 2040 ريال شهرياً</li>
+                            <li><strong>البطائق الصحية:</strong> 15000 ريال سنوياً ÷ 12 شهر = 1250 ريال شهرياً</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

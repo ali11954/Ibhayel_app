@@ -1,5 +1,5 @@
 # routes.py
-
+from models import ExpenseCategory
 from flask import render_template, request, redirect, url_for, flash, jsonify, make_response
 from flask_login import login_user, logout_user, login_required, current_user
 from werkzeug.security import generate_password_hash, check_password_hash
@@ -7,24 +7,8 @@ from datetime import datetime, timedelta
 import pandas as pd
 from sqlalchemy import func
 from weasyprint import HTML
-
-from config import Config
-from models import (
-    db, User, Employee, Attendance, FinancialTransaction, Salary,
-    Evaluation, Company, Contract, Invoice, Location, Region,
-    EvaluationCriteria, AttendancePreparation,
-    AttendancePreparationDetail,
-    AttendancePeriodTransfer,           # ✅ تأكد من وجودها
-    AttendancePeriodTransferDetail,     # ✅ تأكد من وجودها
-    AreaEvaluationCriteria,
-    AreaEvaluation, Account, TrialBalance, FiscalYear,
-    AccountBalance, JournalEntryDetail, JournalEntry,
-    CompanyPayment, Supplier, ExpenseCategory, SupplierInvoice,
-    SupplierInvoicePayment
-)
-# استيراد دوال utils بشكل منفصل
 from utils import (
-    role_required,
+    role_required,calculate_worker_salary_breakdown, print_salary_breakdown,
     get_financial_month_dates,
     format_currency,
     get_regions,
@@ -36,11 +20,7 @@ from utils import (
     get_status_text_ar,
     ensure_accounts_exist,
     auto_close_expenses,
-    redistribute_expenses
-)
-
-# استيراد دوال القيود المحاسبية
-from utils import (
+    redistribute_expenses,
     create_journal_entry,
     create_salary_journal_entry,
     create_salary_payment_journal_entry,
@@ -59,41 +39,55 @@ from utils import (
     reverse_invoice_journal_entry,
     get_next_entry_number,
     create_salary_accrual,
-    refresh_all_reports
+    refresh_all_reports,
+    calculate_worker_salary_breakdown,
+    print_salary_breakdown
 )
 
+from config import Config
+from models import (
+db, User, Employee, Attendance, FinancialTransaction, Salary,
+Evaluation, Company, Contract, Invoice, Location, Region,
+EvaluationCriteria, AttendancePreparation,
+AttendancePreparationDetail,
+AttendancePeriodTransfer,           # ✅ تأكد من وجودها
+AttendancePeriodTransferDetail,     # ✅ تأكد من وجودها
+AreaEvaluationCriteria,
+AreaEvaluation, Account, TrialBalance, FiscalYear,
+AccountBalance, JournalEntryDetail, JournalEntry,
+CompanyPayment, Supplier, ExpenseCategory, SupplierInvoice,
+SupplierInvoicePayment
+)
 
 def register_routes(app):
-    # ==================== الصفحة الرئيسية ====================
-    # ==================== الصفحة الرئيسية ====================
     @app.route('/')
     def index():
         if not current_user.is_authenticated:
-            return render_template('landing.html')  # <- هذا هو التعديل الوحيد
-
-        # باقي الكود للمستخدمين المسجلين فقط
+            return render_template('landing.html')
         try:
             today = datetime.now().date()
-
-            # إحصائيات
             total_employees = Employee.query.filter_by(is_active=True).count()
             today_attendance = Attendance.query.filter_by(date=today, attendance_status='present').count()
             pending_transactions = FinancialTransaction.query.filter_by(is_settled=False).count()
             pending_salaries = Salary.query.filter_by(is_paid=False).count()
-
             stats = {
                 'total_employees': total_employees,
                 'today_attendance': today_attendance,
                 'pending_transactions': pending_transactions,
                 'pending_salaries': pending_salaries
             }
+            recent_attendance = Attendance.query.filter(Attendance.attendance_status == 'present').order_by(
+                Attendance.date.desc()).limit(5).all()
 
-            # آخر 5 حضور
-            recent_attendance = Attendance.query.filter(
-                Attendance.attendance_status == 'present'
-            ).order_by(Attendance.date.desc()).limit(5).all()
+            # بيانات الرواتب للرسم البياني
+            salaries_data = []
+            for i in range(6):
+                date = datetime.now() - timedelta(days=30 * i)
+                month_year = date.strftime('%m-%Y')
+                total = db.session.query(func.sum(Salary.total_salary)).filter_by(month_year=month_year).scalar() or 0
+                salaries_data.append({'month': date.strftime('%b'), 'total': float(total)})
 
-            # توزيع الموظفين حسب المنطقة
+            # بيانات المناطق
             regions_result = db.session.query(
                 Employee.region,
                 db.func.count(Employee.id).label('count')
@@ -111,33 +105,12 @@ def register_routes(app):
                         'count': row[1]
                     })
 
-            # بيانات الرواتب لآخر 6 أشهر
-            salaries_data = []
-            for i in range(5, -1, -1):
-                date = datetime.now() - timedelta(days=30 * i)
-                month_year = date.strftime('%m-%Y')
-                month_name = date.strftime('%b %Y')
-
-                total = db.session.query(db.func.sum(Salary.total_salary)).filter_by(month_year=month_year).scalar()
-                total = float(total) if total else 0
-
-                salaries_data.append({
-                    'month': month_name,
-                    'total': total
-                })
-
-            # حساب إجمالي الرواتب للشهر الحالي
-            current_month = datetime.now().strftime('%m-%Y')
-            salaries_total = db.session.query(db.func.sum(Salary.total_salary)).filter_by(
-                month_year=current_month).scalar() or 0
-
             return render_template('index.html',
                                    stats=stats,
                                    recent_attendance=recent_attendance,
-                                   regions_data=regions_data,
                                    salaries_data=salaries_data,
-                                   now=datetime.now(),
-                                   salaries_total=salaries_total)
+                                   regions_data=regions_data,
+                                   now=datetime.now())
         except Exception as e:
             print(f"Error in index: {e}")
             import traceback
@@ -146,31 +119,19 @@ def register_routes(app):
                                    stats={'total_employees': 0, 'today_attendance': 0, 'pending_transactions': 0,
                                           'pending_salaries': 0},
                                    recent_attendance=[],
-                                   regions_data=[],
                                    salaries_data=[],
-                                   now=datetime.now(),
-                                   salaries_total=0)
+                                   regions_data=[],
+                                   now=datetime.now())
 
-    # في routes.py بعد تعريف التطبيق
-    @app.context_processor
-    def utility_processor():
-        """إضافة دوال مساعدة لجميع القوالب"""
-        from utils import get_current_month_preparation, format_currency, get_status_badge_class, get_status_text_ar
-        from datetime import datetime
-
-        return dict(
-            get_current_month_preparation=get_current_month_preparation,
-            format_currency=format_currency,
-            get_status_badge_class=get_status_badge_class,
-            get_status_text_ar=get_status_text_ar,
-            now=datetime.now()
-        )
+    # استيراد دوال utils بشكل منفصل
     # ==================== المصادقة ====================
     @app.route('/login', methods=['GET', 'POST'])
     def login():
         if request.method == 'POST':
             username = request.form.get('username')
             password = request.form.get('password')
+
+
             user = User.query.filter_by(username=username).first()
 
             if user and check_password_hash(user.password, password):
@@ -868,12 +829,12 @@ def register_routes(app):
             flash('تم تحديث الحضور بنجاح', 'success')
             return redirect(url_for('attendance_list', date=attendance.date))
 
-        return render_template('attendance/edit_attendance.html', attendance=attendance)
+        return render_template('attendance/edit_attendance_a.html', attendance=attendance)
 
     @app.route('/attendance/bulk_save', methods=['POST'])
     @login_required
     def save_bulk_attendance():
-        """حفظ جميع حالات الحضور دفعة واحدة"""
+        """حفظ جميع حالات الحضور دفعة واحدة مع دعم الإجازات السنوية"""
         try:
             date = datetime.strptime(request.form.get('date'), '%Y-%m-%d').date()
             employee_ids = request.form.getlist('employee_ids')
@@ -881,13 +842,15 @@ def register_routes(app):
             count = 0
             for emp_id in employee_ids:
                 status = request.form.get(f'status_{emp_id}')
+                employee = Employee.query.get(emp_id)
 
-                if not status:
+                if not status or not employee:
                     continue
 
                 # التحقق من وجود تسجيل سابق
                 existing = Attendance.query.filter_by(employee_id=emp_id, date=date).first()
 
+                # معالجة حالة الغياب
                 if status == 'absent':
                     if existing:
                         db.session.delete(existing)
@@ -905,8 +868,28 @@ def register_routes(app):
                 # بيانات إضافية حسب الحالة
                 late_minutes = int(request.form.get(f'late_minutes_{emp_id}', 0)) if status == 'late' else 0
                 sick_leave_days = int(request.form.get(f'sick_leave_days_{emp_id}', 0)) if status == 'sick' else 0
-                annual_leave_days = int(
-                    request.form.get(f'annual_leave_days_{emp_id}', 0)) if status == 'annual_leave' else 0
+
+                # معالجة الإجازة السنوية
+                annual_leave_days = 0
+                days_before = 0
+
+                if status == 'annual_leave_paid':
+                    # إجازة سنوية مدفوعة الأجر
+                    annual_leave_days = int(request.form.get(f'annual_leave_days_{emp_id}', 1))
+                    # تحديث رصيد الإجازات
+                    if employee.remaining_annual_leave is None:
+                        employee.remaining_annual_leave = 30
+                    days_before = employee.remaining_annual_leave
+                    employee.remaining_annual_leave -= annual_leave_days
+                    status = 'annual_leave'  # حفظ في قاعدة البيانات كـ annual_leave
+
+                elif status == 'annual_leave_unpaid':
+                    # إجازة سنوية بدون أجر
+                    annual_leave_days = int(request.form.get(f'annual_leave_unpaid_days_{emp_id}', 1))
+                    status = 'annual_leave_unpaid'  # نوع مختلف
+                else:
+                    annual_leave_days = int(
+                        request.form.get(f'annual_leave_days_{emp_id}', 0)) if status == 'annual_leave' else 0
 
                 if existing:
                     # تحديث التسجيل الموجود
@@ -936,6 +919,13 @@ def register_routes(app):
                     )
                     db.session.add(attendance)
 
+                # طباعة معلومات التصحيح للإجازة المدفوعة
+                if status == 'annual_leave' and days_before > 0:
+                    print(
+                        f'📅 {employee.name}: إجازة سنوية مدفوعة {annual_leave_days} يوم (الرصيد السابق: {days_before}, الرصيد الحالي: {employee.remaining_annual_leave})')
+                elif status == 'annual_leave_unpaid':
+                    print(f'📅 {employee.name}: إجازة سنوية بدون أجر {annual_leave_days} يوم')
+
                 count += 1
 
             db.session.commit()
@@ -947,6 +937,25 @@ def register_routes(app):
             print(f"Error in save_bulk_attendance: {e}")
 
         return redirect(url_for('attendance_list', date=date))
+
+    @app.route('/attendance/period-transfer/create-management')
+    @login_required
+    @role_required('admin', 'finance')
+    def create_management_transfer():
+        """إنشاء ترحيل مخصص للمدير والمشرف"""
+        from utils import create_management_salary_transfer
+
+        result = create_management_salary_transfer()
+
+        if result['success']:
+            flash(f"✅ {result['message']}", 'success')
+            flash(f"📋 الفترة: {result['start_date']} إلى {result['end_date']}", 'info')
+            for emp in result['employees']:
+                flash(f"   👤 {emp['type']}: {emp['name']} - الراتب: {emp['salary']:,.0f} ريال", 'info')
+            return redirect(url_for('view_period_transfer', transfer_id=result['transfer_id']))
+        else:
+            flash(f"❌ {result['message']}", 'danger')
+            return redirect(url_for('period_transfer_list'))
 
     # ==================== ترحيل فترة الدوام إلى الرواتب ====================
     @app.route('/attendance/period-transfer')
@@ -1167,13 +1176,14 @@ def register_routes(app):
     @login_required
     @role_required('admin', 'finance')
     def create_period_transfer():
-        """إنشاء ترحيل فترة دوام جديدة - يستخرج البيانات من سجلات الحضور اليومية"""
+        """إنشاء ترحيل فترة دوام جديدة للعمال - يستخرج البيانات من سجلات الحضور اليومية"""
         if request.method == 'POST':
             period_name = request.form.get('period_name')
             start_date = datetime.strptime(request.form.get('start_date'), '%Y-%m-%d').date()
             end_date = datetime.strptime(request.form.get('end_date'), '%Y-%m-%d').date()
             company_id = request.form.get('company_id')
             region = request.form.get('region')
+            payroll_type = request.form.get('payroll_type', 'labor')  # ✅ إضافة نوع الراتب
 
             # التحقق من صحة التواريخ
             if start_date > end_date:
@@ -1181,71 +1191,42 @@ def register_routes(app):
                 return redirect(url_for('create_period_transfer'))
 
             # ==================== التحقق من عدم تداخل الفترات ====================
-            # البحث عن أي ترحيل سابق (سواء تم ترحيله أم لا) له نفس الفلتر ويتداخل مع الفترة الجديدة
-
             query = AttendancePeriodTransfer.query.filter(
-                # حالة التداخل: الفترة الجديدة تتداخل مع فترة موجودة
-                # (start1 <= end2) AND (end1 >= start2)
+                AttendancePeriodTransfer.payroll_type == payroll_type,  # ✅ نفس نوع الراتب
                 AttendancePeriodTransfer.start_date <= end_date,
                 AttendancePeriodTransfer.end_date >= start_date
             )
 
             # تطبيق نفس الفلتر (شركة أو منطقة)
             if company_id:
-                # البحث عن ترحيلات لنفس الشركة
-                existing_with_company = AttendancePeriodTransfer.query.filter(
-                    AttendancePeriodTransfer.start_date <= end_date,
-                    AttendancePeriodTransfer.end_date >= start_date,
-                    AttendancePeriodTransfer.company_id == company_id
-                ).first()
-
-                if existing_with_company:
+                existing = query.filter(AttendancePeriodTransfer.company_id == company_id).first()
+                if existing:
                     flash(
-                        f'❌ لا يمكن إنشاء الترحيل: هناك فترة مكررة أو متداخلة لنفس الشركة من {existing_with_company.start_date} إلى {existing_with_company.end_date}',
+                        f'❌ لا يمكن إنشاء الترحيل: هناك فترة مكررة أو متداخلة لرواتب {existing.get_payroll_type_name()} لنفس الشركة من {existing.start_date} إلى {existing.end_date}',
                         'danger')
                     return redirect(url_for('create_period_transfer'))
-
             elif region:
-                # البحث عن ترحيلات لنفس المنطقة
-                existing_with_region = AttendancePeriodTransfer.query.filter(
-                    AttendancePeriodTransfer.start_date <= end_date,
-                    AttendancePeriodTransfer.end_date >= start_date,
-                    AttendancePeriodTransfer.region == region
-                ).first()
-
-                if existing_with_region:
+                existing = query.filter(AttendancePeriodTransfer.region == region).first()
+                if existing:
                     flash(
-                        f'❌ لا يمكن إنشاء الترحيل: هناك فترة مكررة أو متداخلة لنفس المنطقة من {existing_with_region.start_date} إلى {existing_with_region.end_date}',
+                        f'❌ لا يمكن إنشاء الترحيل: هناك فترة مكررة أو متداخلة لرواتب {existing.get_payroll_type_name()} لنفس المنطقة من {existing.start_date} إلى {existing.end_date}',
                         'danger')
                     return redirect(url_for('create_period_transfer'))
             else:
-                # البحث عن ترحيلات لجميع العمال
-                existing_all = AttendancePeriodTransfer.query.filter(
-                    AttendancePeriodTransfer.start_date <= end_date,
-                    AttendancePeriodTransfer.end_date >= start_date,
+                existing = query.filter(
                     AttendancePeriodTransfer.company_id == None,
                     AttendancePeriodTransfer.region == None
                 ).first()
-
-                if existing_all:
+                if existing:
                     flash(
-                        f'❌ لا يمكن إنشاء الترحيل: هناك فترة مكررة أو متداخلة لجميع العمال من {existing_all.start_date} إلى {existing_all.end_date}',
+                        f'❌ لا يمكن إنشاء الترحيل: هناك فترة مكررة أو متداخلة لرواتب {existing.get_payroll_type_name()} لجميع الموظفين من {existing.start_date} إلى {existing.end_date}',
                         'danger')
                     return redirect(url_for('create_period_transfer'))
-
-            # التحقق أيضاً من وجود ترحيل بنفس التواريخ بالكامل
-            exact_match = AttendancePeriodTransfer.query.filter(
-                AttendancePeriodTransfer.start_date == start_date,
-                AttendancePeriodTransfer.end_date == end_date
-            ).first()
-
-            if exact_match:
-                flash('❌ لا يمكن إنشاء الترحيل: هناك فترة بنفس التواريخ موجودة مسبقاً', 'danger')
-                return redirect(url_for('create_period_transfer'))
 
             # إنشاء ترحيل جديد
             transfer = AttendancePeriodTransfer(
                 period_name=period_name,
+                payroll_type=payroll_type,  # ✅ تحديد نوع الراتب
                 start_date=start_date,
                 end_date=end_date,
                 transfer_date=datetime.now().date(),
@@ -1256,19 +1237,24 @@ def register_routes(app):
             db.session.add(transfer)
             db.session.commit()
 
-            # جلب الموظفين حسب الفلتر
+            # جلب الموظفين حسب الفلتر ونوع الراتب
             query = Employee.query.filter_by(is_active=True)
+
+            if payroll_type == 'admin':
+                # إدارة: admin, supervisor
+                query = query.filter(Employee.employee_type.in_(['admin', 'supervisor']))
+            else:
+                # عمال: worker فقط
+                query = query.filter(Employee.employee_type == 'worker')
 
             if company_id:
                 query = query.filter_by(company_id=company_id)
-                company = Company.query.get(company_id)
-                filter_desc = f"شركة {company.name if company else ''}"
+                filter_desc = f"شركة {Company.query.get(company_id).name if company_id else ''}"
             elif region:
                 query = query.filter_by(region=region)
                 filter_desc = f"منطقة {region}"
             else:
-                query = query.filter(Employee.employee_type == 'worker')
-                filter_desc = "جميع العمال"
+                filter_desc = "جميع الموظفين"
 
             employees = query.all()
 
@@ -1326,6 +1312,7 @@ def register_routes(app):
                                regions=regions,
                                suggested_start_date=start_date,
                                suggested_end_date=end_date)
+
 
     # ==================== Company Management Routes ====================
     @app.route('/companies')
@@ -2590,11 +2577,14 @@ def register_routes(app):
         invoices_due_total = sum(i.amount for i in invoices_due)
 
         # ==================== المصروفات ====================
-        expenses = Expense.query.filter(
-            Expense.date >= start_date,
-            Expense.date <= end_date
+        # ==================== المصروفات ====================
+        # استخدام FinancialTransaction بدلاً من Expense (لأن Expense غير موجود)
+        expenses = FinancialTransaction.query.filter(
+            FinancialTransaction.transaction_type.in_(['deduction', 'penalty']),
+            FinancialTransaction.date >= start_date,
+            FinancialTransaction.date <= end_date
         ).all()
-        expenses_total = sum(e.amount for e in expenses)
+        expenses_total = sum(e.amount for e in expenses) if expenses else 0
 
         # السلف
         advances = FinancialTransaction.query.filter(
@@ -3217,21 +3207,17 @@ def register_routes(app):
 
         if request.method == 'POST':
             transfer_id = request.form.get('transfer_id')
-
             if not transfer_id:
                 flash('⚠️ الرجاء اختيار فترة ترحيل أولاً', 'danger')
                 return redirect(url_for('salary_calculation'))
 
             transfer = AttendancePeriodTransfer.query.get(transfer_id)
-
             if not transfer:
                 flash('⚠️ فترة الترحيل غير موجودة', 'danger')
                 return redirect(url_for('salary_calculation'))
-
             if transfer.is_transferred:
                 flash(f'⚠️ فترة الترحيل "{transfer.period_name}" تم ترحيلها مسبقاً', 'warning')
                 return redirect(url_for('salary_calculation'))
-
             if not transfer.transfers_details:
                 flash('⚠️ لا توجد بيانات في فترة الترحيل المحددة', 'danger')
                 return redirect(url_for('salary_calculation'))
@@ -3245,85 +3231,62 @@ def register_routes(app):
 
                 for detail in transfer.transfers_details:
                     employee = detail.employee
-
-                    # التحقق من وجود الموظف
                     if not employee:
-                        print(f"⚠️ موظف غير موجود للمعرف: {detail.employee_id}")
                         continue
 
-                    # حساب الراتب اليومي
-                    daily_rate = employee.salary / 30
-
-                    # حساب البدل اليومي (للساكنين فقط)
-                    daily_allowance = 0
-                    if employee.is_resident:
-                        daily_rate_allowance = getattr(employee, 'daily_allowance', 500)
-                        daily_allowance = detail.attendance_days * daily_rate_allowance
-
-                    # حساب الإضافي (المبلغ مباشرة)
-                    overtime_amount = detail.overtime_hours if detail.overtime_hours else 0
-
-                    # جلب المعاملات المالية للفترة فقط
-                    advances = employee.get_transactions_sum('advance', start_date, end_date)
-                    deductions = employee.get_transactions_sum('deduction', start_date, end_date)
-                    penalties = employee.get_transactions_sum('penalty', start_date, end_date)
-
-                    # حساب مبلغ الحضور
-                    attendance_amount = daily_rate * detail.attendance_days
-
-                    # الراتب النهائي
-                    total_salary = attendance_amount + daily_allowance + overtime_amount - advances - deductions - penalties
-                    total_salaries += total_salary
-
-                    # مفتاح الفترة
                     period_key = f"{start_date.strftime('%Y%m%d')}_{end_date.strftime('%Y%m%d')}"
 
-                    # البحث عن راتب موجود
-                    existing = Salary.query.filter_by(
+                    # البحث عن راتب موجود أو إنشاء جديد
+                    salary = Salary.query.filter_by(
                         employee_id=employee.id,
                         month_year=period_key
                     ).first()
 
-                    if existing:
-                        # تحديث الراتب الموجود
-                        existing.attendance_days = detail.attendance_days
-                        existing.attendance_amount = attendance_amount
-                        existing.overtime_amount = overtime_amount
-                        existing.daily_allowance_amount = daily_allowance
-                        existing.advance_amount = advances
-                        existing.deduction_amount = deductions
-                        existing.penalty_amount = penalties
-                        existing.total_salary = total_salary
-                        existing.notes = f"فترة من {start_date} إلى {end_date}"
-                        print(f"✅ تم تحديث راتب {employee.name}: {total_salary:,.2f}")
-                    else:
-                        # إنشاء راتب جديد
+                    if not salary:
                         salary = Salary(
                             employee_id=employee.id,
                             month_year=period_key,
                             base_salary=employee.salary,
-                            attendance_days=detail.attendance_days,
-                            attendance_amount=attendance_amount,
-                            daily_allowance_amount=daily_allowance,
-                            overtime_amount=overtime_amount,
-                            advance_amount=advances,
-                            deduction_amount=deductions,
-                            penalty_amount=penalties,
-                            total_salary=total_salary,
                             notes=f"فترة من {start_date} إلى {end_date}"
                         )
                         db.session.add(salary)
-                        db.session.flush()
-                        print(f"✅ تم إنشاء راتب جديد لـ {employee.name}: {total_salary:,.2f}")
 
-                        # إنشاء قيد محاسبي للراتب
-                        try:
-                            create_salary_journal_entry(salary)
-                            print(f"   ✅ تم إنشاء القيد المحاسبي لراتب {employee.name}")
-                        except Exception as je:
-                            print(f"   ⚠️ خطأ في القيد المحاسبي لراتب {employee.name}: {je}")
+                    # استخدام الدالة الموجودة في نموذج Salary لحساب الراتب
+                    # هذه الدالة ستستدعي employee.calculate_salary_breakdown تلقائياً
+                    salary.calculate_from_preparation_detail(detail)
 
-                    # ترحيل المعاملات المالية للفترة فقط
+                    # جلب المعاملات المالية
+                    advances = employee.get_transactions_sum('advance', start_date, end_date)
+                    deductions = employee.get_transactions_sum('deduction', start_date, end_date)
+                    penalties = employee.get_transactions_sum('penalty', start_date, end_date)
+
+                    # تطبيق الخصومات على الراتب النهائي
+                    final_salary = salary.total_salary - advances - deductions - penalties
+                    salary.total_salary = final_salary
+                    salary.advance_amount = advances
+                    salary.deduction_amount = deductions
+                    salary.penalty_amount = penalties
+
+                    total_salaries += final_salary
+
+                    # طباعة تفاصيل الراتب للتصحيح
+                    if employee.employee_type == 'worker':
+                        print(f"\n{'=' * 50}")
+                        print(f"📊 راتب {employee.name}:")
+                        print(f"{'=' * 50}")
+                        print(f"   أيام الحضور: {detail.attendance_days}")
+                        print(f"   يصرف للعامل: {salary.total_salary:,.0f} ريال")
+                        print(f"   الراتب الأساسي: {salary.basic_salary_amount:,.0f} ريال")
+                        print(f"   بدل السكن: {salary.resident_allowance_amount:,.0f} ريال")
+                        print(f"   بدل الملابس: {salary.clothing_allowance_amount:,.0f} ريال")
+                        print(f"   بطاقة صحية: {salary.health_card_amount:,.0f} ريال")
+                        print(f"   تأمين: {salary.insurance_amount:,.0f} ريال")
+                        print(f"   ربح المتعهد: {salary.contractor_profit:,.0f} ريال")
+                        print(f"{'=' * 50}\n")
+                    else:
+                        print(f"\n📊 راتب {employee.name} (مشرف): {salary.total_salary:,.0f} ريال")
+
+                    # ترحيل المعاملات المالية
                     for trans in employee.transactions:
                         if not trans.is_settled and start_date <= trans.date <= end_date:
                             trans.is_settled = True
@@ -3332,32 +3295,27 @@ def register_routes(app):
                     detail.is_processed = True
                     count += 1
 
-                # تحديث حالة الترحيل
                 transfer.is_transferred = True
                 transfer.transfer_date = datetime.now().date()
                 db.session.commit()
 
                 flash(f'✅ تم حساب وترحيل رواتب {count} موظف من فترة "{period_name}"', 'success')
-                flash(f'💰 إجمالي الرواتب: {total_salaries:,.2f} ريال', 'info')
+                flash(f'💰 إجمالي الرواتب: {total_salaries:,.0f} ريال', 'info')
                 return redirect(url_for('salaries_list'))
 
             except Exception as e:
                 db.session.rollback()
-                flash(f'❌ حدث خطأ أثناء حساب الرواتب: {str(e)}', 'danger')
-                print(f"❌ خطأ في salary_calculation: {e}")
+                flash(f'❌ حدث خطأ: {str(e)}', 'danger')
+                print(f"❌ خطأ: {e}")
                 import traceback
                 traceback.print_exc()
                 return redirect(url_for('salary_calculation'))
 
         # GET request
-        pending_transfers = AttendancePeriodTransfer.query.filter_by(
-            is_transferred=False
-        ).order_by(AttendancePeriodTransfer.start_date.desc()).all()
-
-        completed_transfers = AttendancePeriodTransfer.query.filter_by(
-            is_transferred=True
-        ).order_by(AttendancePeriodTransfer.start_date.desc()).limit(10).all()
-
+        pending_transfers = AttendancePeriodTransfer.query.filter_by(is_transferred=False).order_by(
+            AttendancePeriodTransfer.start_date.desc()).all()
+        completed_transfers = AttendancePeriodTransfer.query.filter_by(is_transferred=True).order_by(
+            AttendancePeriodTransfer.start_date.desc()).limit(10).all()
         return render_template('financial/salary_calculation.html',
                                pending_transfers=pending_transfers,
                                completed_transfers=completed_transfers)
@@ -5950,3 +5908,568 @@ def register_routes(app):
             flash(f'❌ حدث خطأ: {str(e)}', 'danger')
 
         return redirect(url_for('chart_of_accounts'))
+
+    # ==================== دوال رواتب العمال والتكاليف الإضافية ====================
+
+    def calculate_worker_monthly_cost(employee, attendance_days, month_year):
+        """
+        حساب التكلفة الشهرية الكاملة للعامل
+
+        التوزيع:
+        - الراتب الأساسي: 2000 ريال شهرياً (موزع حسب أيام العمل)
+        - بدل سكن: 500 ريال لكل يوم عمل (للساكنين فقط)
+        - التأمين: 10800 ريال شهرياً (ثابت)
+        - بدل ملابس: 24480 ريال سنوياً ÷ 12 = 2040 ريال شهرياً
+        - بطائق صحية: 15000 ريال سنوياً ÷ 12 = 1250 ريال شهرياً
+
+        Returns:
+            dict: تفاصيل التكلفة
+        """
+        # الراتب الأساسي حسب أيام العمل
+        daily_rate = employee.basic_salary / 30  # 2000 / 30 = 66.67
+        basic_salary = daily_rate * attendance_days
+
+        # بدل السكن (للساكنين فقط) - 500 لكل يوم عمل
+        resident_allowance = 0
+        if employee.is_resident:
+            resident_allowance = 500 * attendance_days
+
+        # التأمين الشهري (ثابت)
+        insurance = employee.monthly_insurance  # 10800
+
+        # بدل الملابس الشهري (تقسيط سنوي)
+        monthly_clothing = employee.clothing_allowance / 12  # 24480 / 12 = 2040
+
+        # بدل البطائق الصحية الشهري (تقسيط سنوي)
+        monthly_health = employee.health_card_allowance / 12  # 15000 / 12 = 1250
+
+        # إجمالي التكلفة الشهرية
+        total_cost = basic_salary + resident_allowance + insurance + monthly_clothing + monthly_health
+
+        return {
+            'employee_id': employee.id,
+            'employee_name': employee.name,
+            'month_year': month_year,
+            'attendance_days': attendance_days,
+            'basic_salary': round(basic_salary, 2),
+            'resident_allowance': round(resident_allowance, 2),
+            'insurance': round(insurance, 2),
+            'clothing_allowance': round(monthly_clothing, 2),
+            'health_card_allowance': round(monthly_health, 2),
+            'total_cost': round(total_cost, 2),
+            'breakdown': {
+                'basic_salary_formula': f'{employee.basic_salary} / 30 * {attendance_days} = {basic_salary:.2f}',
+                'resident_formula': f'500 * {attendance_days} = {resident_allowance:.2f}' if employee.is_resident else 'غير ساكن',
+                'insurance_formula': f'10800 شهرياً = {insurance:.2f}',
+                'clothing_formula': f'24480 / 12 = {monthly_clothing:.2f}',
+                'health_formula': f'15000 / 12 = {monthly_health:.2f}'
+            }
+        }
+
+    def calculate_all_workers_monthly_cost(company_id, attendance_data, month_year=None):
+        """
+        حساب تكاليف جميع عمال الشركة في شهر معين
+
+        Args:
+            company_id: معرف الشركة
+            attendance_data: dict {employee_id: attendance_days}
+            month_year: الشهر والسنة (MM-YYYY)
+
+        Returns:
+            dict: إجمالي التكاليف
+        """
+        from datetime import datetime
+        from models import Employee
+
+        if month_year is None:
+            month_year = datetime.now().strftime('%m-%Y')
+
+        employees = Employee.query.filter_by(
+            company_id=company_id,
+            employee_type='worker',
+            is_active=True
+        ).all()
+
+        results = []
+        total_basic = 0
+        total_resident = 0
+        total_insurance = 0
+        total_clothing = 0
+        total_health = 0
+        total_all = 0
+
+        for employee in employees:
+            attendance_days = attendance_data.get(employee.id, 0)
+
+            # حساب التكلفة
+            cost = calculate_worker_monthly_cost(employee, attendance_days, month_year)
+
+            results.append(cost)
+
+            # تجميع الإجماليات
+            total_basic += cost['basic_salary']
+            total_resident += cost['resident_allowance']
+            total_insurance += cost['insurance']
+            total_clothing += cost['clothing_allowance']
+            total_health += cost['health_card_allowance']
+            total_all += cost['total_cost']
+
+        return {
+            'success': True,
+            'month_year': month_year,
+            'company_id': company_id,
+            'employees_count': len(results),
+            'summary': {
+                'total_basic_salaries': round(total_basic, 2),
+                'total_resident_allowances': round(total_resident, 2),
+                'total_insurance': round(total_insurance, 2),
+                'total_clothing_allowance': round(total_clothing, 2),
+                'total_health_cards': round(total_health, 2),
+                'grand_total': round(total_all, 2)
+            },
+            'details': results
+        }
+
+    def create_worker_salary_journal_entry(company_id, month_year, cost_summary):
+        """
+        إنشاء قيد محاسبي لرواتب وتكاليف العمال
+
+        القيد يتكون من:
+        مدين:
+            - مصروف رواتب العمال الأساسية (511001)
+            - مصروف بدل سكن العمال (511002)
+            - مصروف تأمين العمال (511003)
+            - مصروف بدل ملابس العمال (511004)
+            - مصروف بطائق صحية للعمال (511005)
+
+        دائن:
+            - رواتب العمال المستحقة (211001)
+            - بدلات العمال المستحقة (211002)
+            - تأمينات مستحقة (211003)
+        """
+        from models import Account, JournalEntry, JournalEntryDetail, db
+        from datetime import datetime
+        from utils import get_next_entry_number
+
+        summary = cost_summary['summary']
+
+        # البحث عن الحسابات
+        basic_salary_expense = Account.query.filter_by(code='511001').first()
+        resident_allowance_expense = Account.query.filter_by(code='511002').first()
+        insurance_expense = Account.query.filter_by(code='511003').first()
+        clothing_expense = Account.query.filter_by(code='511004').first()
+        health_expense = Account.query.filter_by(code='511005').first()
+
+        salaries_payable = Account.query.filter_by(code='211001').first()
+        allowances_payable = Account.query.filter_by(code='211002').first()
+        insurance_payable = Account.query.filter_by(code='211003').first()
+
+        # التأكد من وجود الحسابات - إنشاؤها إذا لم تكن موجودة
+        from models import create_labor_accounts
+        if not all([basic_salary_expense, resident_allowance_expense, insurance_expense,
+                    clothing_expense, health_expense, salaries_payable, allowances_payable, insurance_payable]):
+            create_labor_accounts()
+            # إعادة المحاولة
+            basic_salary_expense = Account.query.filter_by(code='511001').first()
+            resident_allowance_expense = Account.query.filter_by(code='511002').first()
+            insurance_expense = Account.query.filter_by(code='511003').first()
+            clothing_expense = Account.query.filter_by(code='511004').first()
+            health_expense = Account.query.filter_by(code='511005').first()
+            salaries_payable = Account.query.filter_by(code='211001').first()
+            allowances_payable = Account.query.filter_by(code='211002').first()
+            insurance_payable = Account.query.filter_by(code='211003').first()
+
+        entry_number = get_next_entry_number()
+
+        # إنشاء القيد المحاسبي
+        journal_entry = JournalEntry(
+            entry_number=entry_number,
+            date=datetime.now().date(),
+            description=f'رواتب وتكاليف العمال عن شهر {month_year} - شركة رقم {company_id}',
+            reference_type='worker_salaries',
+            reference_id=None,
+            created_by=current_user.id
+        )
+        db.session.add(journal_entry)
+        db.session.flush()
+
+        # إضافة تفاصيل القيد (مدين)
+        debit_entries = [
+            (basic_salary_expense.id, summary['total_basic_salaries'], 'رواتب العمال الأساسية'),
+            (resident_allowance_expense.id, summary['total_resident_allowances'], 'بدل سكن العمال'),
+            (insurance_expense.id, summary['total_insurance'], 'تأمين العمال'),
+            (clothing_expense.id, summary['total_clothing_allowance'], 'بدل ملابس العمال'),
+            (health_expense.id, summary['total_health_cards'], 'بطائق صحية للعمال')
+        ]
+
+        for acc_id, amount, desc in debit_entries:
+            if amount > 0:
+                detail = JournalEntryDetail(
+                    entry_id=journal_entry.id,
+                    account_id=acc_id,
+                    debit=amount,
+                    credit=0,
+                    description=desc
+                )
+                db.session.add(detail)
+
+        # إضافة تفاصيل القيد (دائن)
+        total_salaries = summary['total_basic_salaries'] + summary['total_resident_allowances']
+        total_allowances = summary['total_clothing_allowance'] + summary['total_health_cards']
+
+        credit_entries = [
+            (salaries_payable.id, total_salaries, 'رواتب العمال المستحقة'),
+            (allowances_payable.id, total_allowances, 'بدلات العمال المستحقة'),
+            (insurance_payable.id, summary['total_insurance'], 'تأمينات مستحقة')
+        ]
+
+        for acc_id, amount, desc in credit_entries:
+            if amount > 0:
+                detail = JournalEntryDetail(
+                    entry_id=journal_entry.id,
+                    account_id=acc_id,
+                    debit=0,
+                    credit=amount,
+                    description=desc
+                )
+                db.session.add(detail)
+
+        db.session.commit()
+
+        return journal_entry
+
+    @app.route('/labor/costs/calculate', methods=['POST'])
+    @login_required
+    @role_required('admin', 'finance')
+    def calculate_labor_costs():
+        """حساب تكاليف العمال الشهرية"""
+        from models import AttendancePeriodTransfer
+        import json
+
+        try:
+            transfer_id = request.form.get('transfer_id')
+            month_year = request.form.get('month_year')
+
+            if not transfer_id:
+                flash('⚠️ الرجاء اختيار فترة ترحيل أولاً', 'danger')
+                return redirect(url_for('period_transfer_list'))
+
+            transfer = AttendancePeriodTransfer.query.get(transfer_id)
+            if not transfer:
+                flash('⚠️ فترة الترحيل غير موجودة', 'danger')
+                return redirect(url_for('period_transfer_list'))
+
+            # تجميع بيانات الحضور من تفاصيل الترحيل
+            attendance_data = {}
+            for detail in transfer.transfers_details:
+                if detail.employee and detail.employee.employee_type == 'worker':
+                    attendance_data[detail.employee_id] = detail.attendance_days
+
+            if not attendance_data:
+                flash('⚠️ لا يوجد عمال في فترة الترحيل هذه', 'warning')
+                return redirect(url_for('view_period_transfer', transfer_id=transfer.id))
+
+            # حساب التكاليف
+            result = calculate_all_workers_monthly_cost(
+                company_id=transfer.company_id,
+                attendance_data=attendance_data,
+                month_year=month_year or transfer.period_name
+            )
+
+            # تخزين النتيجة في session لعرضها
+            session['labor_cost_result'] = result
+
+            flash(f'✅ تم حساب تكاليف {result["employees_count"]} عامل بنجاح', 'success')
+            flash(f'💰 إجمالي التكاليف: {result["summary"]["grand_total"]:,.2f} ريال', 'info')
+
+            return render_template('labor/costs_report.html',
+                                   result=result,
+                                   transfer=transfer,
+                                   now=datetime.now())
+
+        except Exception as e:
+            db.session.rollback()
+            flash(f'❌ حدث خطأ: {str(e)}', 'danger')
+            return redirect(url_for('period_transfer_list'))
+
+    @app.route('/labor/costs/journal/<int:transfer_id>', methods=['POST'])
+    @login_required
+    @role_required('admin', 'finance')
+    def create_labor_costs_journal(transfer_id):
+        """إنشاء قيد محاسبي لتكاليف العمال"""
+        import json
+
+        try:
+            transfer = AttendancePeriodTransfer.query.get(transfer_id)
+            if not transfer:
+                flash('⚠️ فترة الترحيل غير موجودة', 'danger')
+                return redirect(url_for('period_transfer_list'))
+
+            # استعادة النتيجة من session أو إعادة حسابها
+            result = session.get('labor_cost_result')
+            if not result or result.get('company_id') != transfer.company_id:
+                # إعادة الحساب إذا لم تكن النتيجة موجودة
+                attendance_data = {}
+                for detail in transfer.transfers_details:
+                    if detail.employee and detail.employee.employee_type == 'worker':
+                        attendance_data[detail.employee_id] = detail.attendance_days
+
+                result = calculate_all_workers_monthly_cost(
+                    company_id=transfer.company_id,
+                    attendance_data=attendance_data,
+                    month_year=transfer.period_name
+                )
+
+            # التحقق من وجود قيد مسبق
+            existing = JournalEntry.query.filter(
+                JournalEntry.reference_type == 'worker_salaries',
+                JournalEntry.description.like(f'%{transfer.period_name}%')
+            ).first()
+
+            if existing:
+                flash(f'⚠️ يوجد قيد محاسبي مسبق لهذه الفترة: {existing.entry_number}', 'warning')
+                return redirect(url_for('view_period_transfer', transfer_id=transfer.id))
+
+            # إنشاء القيد المحاسبي
+            journal_entry = create_worker_salary_journal_entry(
+                company_id=transfer.company_id,
+                month_year=transfer.period_name,
+                cost_summary=result
+            )
+
+            flash(f'✅ تم إنشاء القيد المحاسبي لتكاليف العمال', 'success')
+            flash(f'📋 رقم القيد: {journal_entry.entry_number}', 'info')
+
+        except Exception as e:
+            db.session.rollback()
+            flash(f'❌ حدث خطأ: {str(e)}', 'danger')
+
+        return redirect(url_for('view_period_transfer', transfer_id=transfer.id))
+
+    @app.route('/labor/costs/report')
+    @login_required
+    @role_required('admin', 'finance')
+    def labor_costs_report():
+        """تقرير تكاليف العمال"""
+        company_id = request.args.get('company_id', type=int)
+        month_year = request.args.get('month_year')
+
+        from datetime import datetime
+        if not month_year:
+            month_year = datetime.now().strftime('%m-%Y')
+
+        from models import LaborMonthlyCost
+
+        query = LaborMonthlyCost.query
+
+        if company_id:
+            query = query.join(Employee).filter(Employee.company_id == company_id)
+
+        if month_year:
+            query = query.filter(LaborMonthlyCost.month_year == month_year)
+
+        costs = query.all()
+
+        # تجميع الإحصائيات
+        summary = {
+            'total_basic_salaries': sum(c.basic_salary_cost for c in costs),
+            'total_resident_allowances': sum(c.resident_allowance_cost for c in costs),
+            'total_insurance': sum(c.insurance_cost for c in costs),
+            'total_clothing_allowance': sum(c.clothing_allowance_cost for c in costs),
+            'total_health_cards': sum(c.health_card_cost for c in costs),
+            'grand_total': sum(c.total_cost for c in costs)
+        }
+
+        companies = Company.query.all()
+
+        return render_template('labor/costs_report.html',
+                               costs=costs,
+                               summary=summary,
+                               companies=companies,
+                               selected_company=company_id,
+                               selected_month=month_year,
+                               now=datetime.now())
+
+    @app.route('/labor/contractor/annual')
+    @login_required
+    @role_required('admin', 'finance')
+    def contractor_annual_costs():
+        """عرض تكاليف المتعهد السنوية (ضريبة وزكاة)"""
+        from models import ContractorAnnualCost
+
+        year = request.args.get('year', type=int)
+        if not year:
+            year = datetime.now().year
+
+        costs = ContractorAnnualCost.query.filter_by(year=year).all()
+
+        # حساب الإجماليات
+        total_tax = sum(c.tax_amount for c in costs)
+        total_zakat = sum(c.zakat_amount for c in costs)
+
+        return render_template('labor/contractor_costs.html',
+                               costs=costs,
+                               year=year,
+                               total_tax=total_tax,
+                               total_zakat=total_zakat,
+                               now=datetime.now())
+
+    @app.route('/labor/contractor/journal/<int:year>', methods=['POST'])
+    @login_required
+    @role_required('admin', 'finance')
+    def create_contractor_journal(year):
+        """إنشاء قيد محاسبي لضريبة وزكاة المتعهد"""
+        from models import Account, JournalEntry, JournalEntryDetail, ContractorAnnualCost, db
+        from utils import get_next_entry_number
+        from datetime import datetime
+
+        try:
+            company_id = request.form.get('company_id', type=int)
+
+            # البحث أو إنشاء سجل التكلفة السنوية
+            annual_cost = ContractorAnnualCost.query.filter_by(
+                year=year,
+                company_id=company_id
+            ).first()
+
+            if not annual_cost:
+                annual_cost = ContractorAnnualCost(
+                    year=year,
+                    company_id=company_id,
+                    tax_amount=500000,
+                    zakat_amount=75000
+                )
+                db.session.add(annual_cost)
+                db.session.commit()
+
+            # التحقق من وجود قيد مسبق
+            existing = JournalEntry.query.filter(
+                JournalEntry.reference_type == 'contractor_annual',
+                JournalEntry.reference_id == annual_cost.id
+            ).first()
+
+            if existing:
+                flash(f'⚠️ يوجد قيد محاسبي مسبق لهذه السنة: {existing.entry_number}', 'warning')
+                return redirect(url_for('contractor_annual_costs', year=year))
+
+            # البحث عن الحسابات
+            tax_expense = Account.query.filter_by(code='521001').first()
+            zakat_expense = Account.query.filter_by(code='521002').first()
+            tax_payable = Account.query.filter_by(code='221001').first()
+            zakat_payable = Account.query.filter_by(code='221002').first()
+
+            # إنشاء الحسابات إذا لم تكن موجودة
+            from models import create_labor_accounts
+            if not all([tax_expense, zakat_expense, tax_payable, zakat_payable]):
+                create_labor_accounts()
+                tax_expense = Account.query.filter_by(code='521001').first()
+                zakat_expense = Account.query.filter_by(code='521002').first()
+                tax_payable = Account.query.filter_by(code='221001').first()
+                zakat_payable = Account.query.filter_by(code='221002').first()
+
+            entry_number = get_next_entry_number()
+
+            # إنشاء القيد المحاسبي
+            journal_entry = JournalEntry(
+                entry_number=entry_number,
+                date=datetime.now().date(),
+                description=f'إقفال ضريبة وزكاة المتعهد عن سنة {year}',
+                reference_type='contractor_annual',
+                reference_id=annual_cost.id,
+                created_by=current_user.id
+            )
+            db.session.add(journal_entry)
+            db.session.flush()
+
+            # مدين: مصروفات الضريبة والزكاة
+            if annual_cost.tax_amount > 0:
+                detail1 = JournalEntryDetail(
+                    entry_id=journal_entry.id,
+                    account_id=tax_expense.id,
+                    debit=annual_cost.tax_amount,
+                    credit=0,
+                    description=f'ضريبة المتعهدين عن سنة {year}'
+                )
+                db.session.add(detail1)
+
+            if annual_cost.zakat_amount > 0:
+                detail2 = JournalEntryDetail(
+                    entry_id=journal_entry.id,
+                    account_id=zakat_expense.id,
+                    debit=annual_cost.zakat_amount,
+                    credit=0,
+                    description=f'زكاة المتعهدين عن سنة {year}'
+                )
+                db.session.add(detail2)
+
+            # دائن: التزامات تجاه الجهات
+            if annual_cost.tax_amount > 0:
+                detail3 = JournalEntryDetail(
+                    entry_id=journal_entry.id,
+                    account_id=tax_payable.id,
+                    debit=0,
+                    credit=annual_cost.tax_amount,
+                    description=f'ضريبة مستحقة للجهات الضريبية'
+                )
+                db.session.add(detail3)
+
+            if annual_cost.zakat_amount > 0:
+                detail4 = JournalEntryDetail(
+                    entry_id=journal_entry.id,
+                    account_id=zakat_payable.id,
+                    debit=0,
+                    credit=annual_cost.zakat_amount,
+                    description=f'زكاة مستحقة'
+                )
+                db.session.add(detail4)
+
+            # تحديث حالة الترحيل
+            annual_cost.is_paid = True
+            annual_cost.paid_date = datetime.now().date()
+            annual_cost.payment_reference = entry_number
+
+            db.session.commit()
+
+            flash(f'✅ تم إنشاء القيد المحاسبي لضريبة وزكاة سنة {year}', 'success')
+            flash(f'📋 رقم القيد: {entry_number}', 'info')
+
+        except Exception as e:
+            db.session.rollback()
+            flash(f'❌ حدث خطأ: {str(e)}', 'danger')
+
+        return redirect(url_for('contractor_annual_costs', year=year))
+
+    @app.route('/labor/costs/view/<int:transfer_id>')
+    @login_required
+    @role_required('admin', 'finance')
+    def view_labor_costs(transfer_id):
+        """عرض تفاصيل تكاليف العمال لفترة ترحيل"""
+        from models import AttendancePeriodTransfer
+
+        transfer = AttendancePeriodTransfer.query.get_or_404(transfer_id)
+
+        # حساب تكاليف العمال
+        attendance_data = {}
+        for detail in transfer.transfers_details:
+            if detail.employee and detail.employee.employee_type == 'worker':
+                attendance_data[detail.employee_id] = detail.attendance_days
+
+        if not attendance_data:
+            flash('⚠️ لا يوجد عمال في فترة الترحيل هذه', 'warning')
+            return redirect(url_for('period_transfer_list'))
+
+        result = calculate_all_workers_monthly_cost(
+            company_id=transfer.company_id,
+            attendance_data=attendance_data,
+            month_year=transfer.period_name
+        )
+
+        return render_template('labor/costs_report.html',
+                               result=result,
+                               transfer=transfer,
+                               now=datetime.now())
+
+
+
+
+

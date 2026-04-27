@@ -4,7 +4,6 @@
 
 {% block extra_css %}
 <style>
-    /* جميع التنسيقات السابقة تبقى كما هي */
     .salaries-stats {
         background: linear-gradient(135deg, var(--primary-color) 0%, var(--primary-dark) 100%);
         border-radius: 20px;
@@ -129,9 +128,9 @@
         background: linear-gradient(135deg, var(--primary-color), var(--primary-dark));
         color: white;
         font-weight: 600;
-        padding: 1rem;
+        padding: 0.8rem;
         border: none;
-        font-size: 0.85rem;
+        font-size: 0.8rem;
         text-align: center;
         vertical-align: middle;
     }
@@ -147,9 +146,10 @@
     }
 
     .table-salaries tbody td {
-        padding: 1rem;
+        padding: 0.8rem;
         vertical-align: middle;
         text-align: center;
+        font-size: 0.85rem;
     }
 
     .salary-amount {
@@ -169,19 +169,20 @@
 
     .action-buttons {
         display: flex;
-        gap: 0.5rem;
+        gap: 0.3rem;
         justify-content: center;
     }
 
     .btn-icon {
-        width: 32px;
-        height: 32px;
+        width: 30px;
+        height: 30px;
         padding: 0;
         display: inline-flex;
         align-items: center;
         justify-content: center;
-        border-radius: 10px;
+        border-radius: 8px;
         transition: all 0.3s ease;
+        font-size: 0.8rem;
     }
 
     .btn-icon:hover {
@@ -238,12 +239,12 @@
 
     .company-card-header h5 {
         margin: 0;
-        font-size: 1.1rem;
+        font-size: 1rem;
     }
 
     .company-summary {
         background: #f8f9fa;
-        padding: 0.8rem;
+        padding: 0.5rem;
         border-bottom: 1px solid #e9ecef;
     }
 
@@ -257,7 +258,7 @@
     }
 
     .summary-number {
-        font-size: 1.3rem;
+        font-size: 1.1rem;
         font-weight: 800;
         color: var(--primary-color);
     }
@@ -270,15 +271,6 @@
         transform: rotate(-180deg);
     }
 
-    .search-section {
-        background: white;
-        border-radius: 15px;
-        padding: 1rem;
-        margin-bottom: 1.5rem;
-        box-shadow: var(--shadow-sm);
-    }
-
-    /* تنسيقات الصرف الجماعي */
     .bulk-actions-bar {
         background: #e3f2fd;
         border-radius: 12px;
@@ -296,8 +288,8 @@
     }
 
     .salary-checkbox {
-        width: 20px;
-        height: 20px;
+        width: 18px;
+        height: 18px;
         cursor: pointer;
     }
 
@@ -308,6 +300,72 @@
 
     .zero-salary {
         background-color: #fff3cd !important;
+    }
+
+    /* تنسيق مودال التفاصيل */
+    .salary-details-modal .modal-content {
+        border-radius: 20px;
+        overflow: hidden;
+    }
+
+    .salary-details-header {
+        background: linear-gradient(135deg, #17a2b8, #0dcaf0);
+        color: white;
+        padding: 1rem 1.5rem;
+    }
+
+    .salary-summary-card {
+        background: #f8f9fa;
+        border-radius: 15px;
+        padding: 1rem;
+        margin-bottom: 1rem;
+    }
+
+    .info-row {
+        display: flex;
+        justify-content: space-between;
+        padding: 0.5rem 0;
+        border-bottom: 1px solid #e9ecef;
+    }
+
+    .info-row:last-child {
+        border-bottom: none;
+    }
+
+    .detail-label {
+        font-size: 0.85rem;
+        color: #6c757d;
+    }
+
+    .detail-value {
+        font-size: 1rem;
+        font-weight: 600;
+    }
+
+    .contractor-profit {
+        background: #d4edda;
+        color: #155724;
+    }
+
+    .contractor-cost {
+        background: #fff3cd;
+        color: #856404;
+    }
+
+    .section-title {
+        font-size: 1rem;
+        font-weight: 700;
+        margin: 1rem 0 0.5rem 0;
+        padding-bottom: 0.3rem;
+        border-bottom: 2px solid #dee2e6;
+    }
+
+    .table-details {
+        font-size: 0.85rem;
+    }
+
+    .table-details td {
+        padding: 0.5rem;
     }
 </style>
 {% endblock %}
@@ -376,11 +434,11 @@
         </div>
     </div>
     <div class="filter-actions">
-        <button type="button" id="applyFiltersBtn" class="btn btn-primary">
-            <i class="fas fa-filter me-2"></i> تطبيق الفلتر
+        <button type="button" id="applyFiltersBtn" class="btn btn-primary btn-sm">
+            <i class="fas fa-filter me-1"></i> تطبيق الفلتر
         </button>
-        <button type="button" id="clearFiltersBtn" class="btn btn-secondary">
-            <i class="fas fa-undo-alt me-2"></i> إلغاء الفلتر
+        <button type="button" id="clearFiltersBtn" class="btn btn-secondary btn-sm">
+            <i class="fas fa-undo-alt me-1"></i> إلغاء الفلتر
         </button>
     </div>
 </div>
@@ -414,7 +472,7 @@
         </div>
     </div>
     {% if stats.zero_or_negative > 0 %}
-    <div class="alert alert-warning mt-2 mb-0">
+    <div class="alert alert-warning mt-2 mb-0 py-1">
         <i class="fas fa-exclamation-triangle"></i>
         ملاحظة: يوجد {{ stats.zero_or_negative }} راتب بقيمة صفر أو أقل لا يمكن صرفها
     </div>
@@ -440,13 +498,13 @@
 <!-- قائمة الشركات مع جداول الرواتب -->
 {% set companies_dict = {} %}
 {% for salary in salaries %}
-    {% set company_name = salary.employee.employee_company.name if salary.employee and salary.employee.employee_company else 'ابن هائل (الشركة الأم)' %}
+    {% set company_name = salary.employee.employee_company.name if salary.employee and salary.employee.employee_company else 'الشركة الأم' %}
     {% set company_id = salary.employee.employee_company.id if salary.employee and salary.employee.employee_company else 0 %}
     {% if companies_dict.update({company_id: {'name': company_name, 'salaries': companies_dict.get(company_id, {'salaries': []})['salaries'] + [salary]}}) %}{% endif %}
 {% endfor %}
 
 {% for company_id, company_data in companies_dict.items() %}
-<div class="company-card mb-4" data-company-id="{{ company_id }}">
+<div class="company-card mb-3" data-company-id="{{ company_id }}">
     <div class="company-card-header" onclick="toggleCompanyTable({{ company_id }})">
         <div class="d-flex justify-content-between align-items-center">
             <h5><i class="fas fa-building"></i> {{ company_data.name }}</h5>
@@ -481,18 +539,21 @@
                         <th style="width: 3%">
                             <input type="checkbox" id="selectAllCompany{{ company_id }}" class="select-all-company form-check-input">
                         </th>
-                        <th style="width: 5%">#</th>
-                        <th style="width: 18%">الموظف</th>
-                        <th style="width: 12%">الفترة</th>
-                        <th style="width: 8%">أيام الحضور</th>
-                        <th style="width: 10%">راتب الحضور</th>
+                        <th style="width: 3%">#</th>
+                        <th style="width: 12%">الموظف</th>
+                        <th style="width: 10%">الفترة</th>
+                        <th style="width: 5%">أيام</th>
+                        <th style="width: 8%">الراتب الأساسي</th>
                         <th style="width: 8%">بدل السكن</th>
-                        <th style="width: 8%">إضافي</th>
-                        <th style="width: 8%">سلف</th>
-                        <th style="width: 8%">خصم/جزاء</th>
-                        <th style="width: 10%">الإجمالي</th>
-                        <th style="width: 8%">الحالة</th>
-                        <th style="width: 10%">الإجراءات</th>
+                        <th style="width: 8%">الإضافي</th>
+                        <th style="width: 8%">بدل ملابس</th>
+                        <th style="width: 8%">بطائق صحية</th>
+                        <th style="width: 8%">تأمين</th>
+                        <th style="width: 8%">السلف</th>
+                        <th style="width: 8%">الخصم</th>
+                        <th style="width: 8%">الصافي</th>
+                        <th style="width: 6%">الحالة</th>
+                        <th style="width: 8%">الإجراءات</th>
                     </tr>
                 </thead>
                 <tbody class="salaries-tbody">
@@ -525,21 +586,30 @@
                             <span class="badge bg-info">{{ salary.attendance_days }} يوم</span>
                         </td>
                         <td class="salary-amount">
-                            {{ "{:,.0f}".format(salary.attendance_amount) }} ر.ي
+                            {{ "{:,.0f}".format(salary.basic_salary_amount or 0) }} ر.ي
                         </td>
                         <td class="salary-amount">
-                            {{ "{:,.0f}".format(salary.daily_allowance_amount) }} ر.ي
+                            {{ "{:,.0f}".format(salary.resident_allowance_amount or 0) }} ر.ي
                         </td>
                         <td class="positive-amount">
-                            + {{ "{:,.0f}".format(salary.overtime_amount) }} ر.ي
+                            + {{ "{:,.0f}".format(salary.overtime_amount or 0) }} ر.ي
+                        </td>
+                        <td class="salary-amount">
+                            {{ "{:,.0f}".format(salary.clothing_allowance_amount or 0) }} ر.ي
+                        </td>
+                        <td class="salary-amount">
+                            {{ "{:,.0f}".format(salary.health_card_amount or 0) }} ر.ي
+                        </td>
+                        <td class="salary-amount">
+                            {{ "{:,.0f}".format(salary.insurance_amount or 0) }} ر.ي
                         </td>
                         <td class="negative-amount">
-                            - {{ "{:,.0f}".format(salary.advance_amount) }} ر.ي
+                            - {{ "{:,.0f}".format(salary.advance_amount or 0) }} ر.ي
                         </td>
                         <td class="negative-amount">
-                            - {{ "{:,.0f}".format(salary.deduction_amount + salary.penalty_amount) }} ر.ي
+                            - {{ "{:,.0f}".format((salary.deduction_amount or 0) + (salary.penalty_amount or 0)) }} ر.ي
                         </td>
-                        <td class="fw-bold salary-amount salary-total {% if is_zero_or_negative %}text-danger{% endif %}">
+                        <td class="fw-bold salary-amount {% if is_zero_or_negative %}text-danger{% endif %}">
                             {{ "{:,.0f}".format(salary.total_salary) }} ر.ي
                         </td>
                         <td>
@@ -549,7 +619,7 @@
                             </span>
                             {% elif is_zero_or_negative %}
                             <span class="badge bg-secondary">
-                                <i class="fas fa-ban"></i> غير قابل للصرف
+                                <i class="fas fa-ban"></i> غير قابل
                             </span>
                             {% else %}
                             <span class="badge bg-warning">
@@ -572,7 +642,7 @@
                                     <i class="fas fa-eye"></i>
                                 </button>
                             </div>
-                         </td>
+                        </td>
                     </tr>
                     {% endfor %}
                 </tbody>
@@ -595,7 +665,7 @@
 {% for salary in salaries %}
 {% if not salary.is_paid and salary.total_salary > 0 %}
 <div class="modal fade payment-modal" id="payModal{{ salary.id }}" tabindex="-1">
-    <div class="modal-dialog">
+    <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
             <div class="modal-header bg-success text-white">
                 <h5 class="modal-title">
@@ -625,8 +695,8 @@
                     </div>
 
                     <div class="mb-3">
-                        <label for="payment_method" class="form-label fw-bold">طريقة الدفع</label>
-                        <select class="form-select" id="payment_method" name="payment_method" required>
+                        <label class="form-label fw-bold">طريقة الدفع</label>
+                        <select class="form-select" name="payment_method" required>
                             <option value="cash">💵 نقدي</option>
                             <option value="bank_transfer">🏦 تحويل بنكي</option>
                             <option value="check">📄 شيك</option>
@@ -634,8 +704,8 @@
                     </div>
 
                     <div class="mb-3">
-                        <label for="payment_reference" class="form-label fw-bold">رقم المرجع</label>
-                        <input type="text" class="form-control" id="payment_reference" name="payment_reference"
+                        <label class="form-label fw-bold">رقم المرجع</label>
+                        <input type="text" class="form-control" name="payment_reference"
                                placeholder="رقم الإيصال / رقم التحويل / رقم الشيك">
                         <small class="text-muted">اختياري - للتوثيق</small>
                     </div>
@@ -653,11 +723,194 @@
 {% endif %}
 {% endfor %}
 
+<!-- Modal لعرض تفاصيل الراتب -->
+<div class="modal fade salary-details-modal" id="salaryDetailsModal" tabindex="-1">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content">
+            <div class="salary-details-header">
+                <div class="d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0"><i class="fas fa-file-invoice-dollar"></i> تفاصيل الراتب</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+            </div>
+            <div class="modal-body" id="salaryDetailsContent">
+                <div class="text-center py-4">
+                    <i class="fas fa-spinner fa-spin fa-2x"></i>
+                    <p class="mt-2">جاري التحميل...</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
 <script>
     let selectedSalaries = [];
 
     function viewSalaryDetails(salaryId) {
-        alert('سيتم إضافة وظيفة عرض تفاصيل الراتب قريباً');
+        $('#salaryDetailsModal').modal('show');
+        $('#salaryDetailsContent').html('<div class="text-center py-4"><i class="fas fa-spinner fa-spin fa-2x"></i><p class="mt-2">جاري التحميل...</p></div>');
+
+        // جلب تفاصيل الراتب
+        fetch(`/api/salary/${salaryId}`)
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    displaySalaryDetails(data.salary);
+                } else {
+                    $('#salaryDetailsContent').html(`<div class="alert alert-danger">${data.error}</div>`);
+                }
+            })
+            .catch(error => {
+                $('#salaryDetailsContent').html(`<div class="alert alert-danger">حدث خطأ: ${error}</div>`);
+            });
+    }
+
+    function displaySalaryDetails(salary) {
+        const html = `
+            <div class="salary-summary-card">
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="info-row">
+                            <span class="detail-label">الموظف:</span>
+                            <span class="detail-value">${salary.employee_name}</span>
+                        </div>
+                        <div class="info-row">
+                            <span class="detail-label">الفترة:</span>
+                            <span class="detail-value">${salary.period}</span>
+                        </div>
+                        <div class="info-row">
+                            <span class="detail-label">أيام الحضور:</span>
+                            <span class="detail-value">${salary.attendance_days} يوم</span>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="info-row">
+                            <span class="detail-label">الحالة:</span>
+                            <span class="detail-value">
+                                ${salary.is_paid ? '<span class="badge bg-success">مدفوع</span>' : '<span class="badge bg-warning">غير مدفوع</span>'}
+                            </span>
+                        </div>
+                        <div class="info-row">
+                            <span class="detail-label">تاريخ الدفع:</span>
+                            <span class="detail-value">${salary.paid_date || '-'}</span>
+                        </div>
+                        <div class="info-row">
+                            <span class="detail-label">طريقة الدفع:</span>
+                            <span class="detail-value">${salary.payment_method || '-'}</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <h6 class="section-title"><i class="fas fa-user-check text-primary"></i> ما يصرف للعامل</h6>
+            <div class="salary-summary-card">
+                <div class="row">
+                    <div class="col-md-4">
+                        <div class="info-row">
+                            <span class="detail-label">الراتب الأساسي:</span>
+                            <span class="detail-value">${formatNumber(salary.basic_salary)} ريال</span>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="info-row">
+                            <span class="detail-label">بدل السكن:</span>
+                            <span class="detail-value">${formatNumber(salary.resident_allowance)} ريال</span>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="info-row">
+                            <span class="detail-label">الإضافي:</span>
+                            <span class="detail-value positive-amount">+ ${formatNumber(salary.overtime)} ريال</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="info-row mt-2">
+                    <span class="detail-label fw-bold">إجمالي المصروف للعامل:</span>
+                    <span class="detail-value fw-bold salary-amount">${formatNumber(salary.total_payout)} ريال</span>
+                </div>
+            </div>
+
+            <h6 class="section-title"><i class="fas fa-chart-line text-warning"></i> تكاليف المتعهد</h6>
+            <div class="salary-summary-card">
+                <div class="row">
+                    <div class="col-md-4">
+                        <div class="info-row">
+                            <span class="detail-label">بدل الملابس:</span>
+                            <span class="detail-value">${formatNumber(salary.clothing)} ريال</span>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="info-row">
+                            <span class="detail-label">بطائق صحية:</span>
+                            <span class="detail-value">${formatNumber(salary.health_card)} ريال</span>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="info-row">
+                            <span class="detail-label">تأمين:</span>
+                            <span class="detail-value">${formatNumber(salary.insurance)} ريال</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="info-row mt-2">
+                    <span class="detail-label fw-bold">إجمالي تكاليف المتعهد:</span>
+                    <span class="detail-value fw-bold contractor-cost">${formatNumber(salary.total_contractor_cost)} ريال</span>
+                </div>
+            </div>
+
+            <h6 class="section-title"><i class="fas fa-chart-line text-success"></i> ملخص الخصومات</h6>
+            <div class="salary-summary-card">
+                <div class="row">
+                    <div class="col-md-4">
+                        <div class="info-row">
+                            <span class="detail-label">سلف:</span>
+                            <span class="detail-value negative-amount">- ${formatNumber(salary.advance)} ريال</span>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="info-row">
+                            <span class="detail-label">خصومات:</span>
+                            <span class="detail-value negative-amount">- ${formatNumber(salary.deduction)} ريال</span>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="info-row">
+                            <span class="detail-label">جزاءات:</span>
+                            <span class="detail-value negative-amount">- ${formatNumber(salary.penalty)} ريال</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="info-row mt-2">
+                    <span class="detail-label fw-bold">إجمالي الخصومات:</span>
+                    <span class="detail-value fw-bold negative-amount">- ${formatNumber(salary.total_deductions)} ريال</span>
+                </div>
+            </div>
+
+            <div class="salary-summary-card contractor-profit mt-3">
+                <div class="info-row">
+                    <span class="detail-label fw-bold">💰 ربح المتعهد (طلعت هائل):</span>
+                    <span class="detail-value fw-bold">${formatNumber(salary.contractor_profit)} ريال</span>
+                </div>
+                <div class="info-row">
+                    <span class="detail-label fw-bold">🏦 الراتب الصافي المصروف للعامل:</span>
+                    <span class="detail-value fw-bold salary-amount">${formatNumber(salary.total_salary)} ريال</span>
+                </div>
+            </div>
+
+            ${salary.notes ? `
+            <div class="mt-3">
+                <small class="text-muted">ملاحظات:</small>
+                <p class="mb-0">${salary.notes}</p>
+            </div>
+            ` : ''}
+        `;
+
+        $('#salaryDetailsContent').html(html);
+    }
+
+    function formatNumber(value) {
+        if (!value) return '0';
+        return new Intl.NumberFormat().format(Math.round(value));
     }
 
     function toggleCompanyTable(companyId) {
@@ -672,7 +925,6 @@
         }
     }
 
-    // تحديث شريط الصرف الجماعي
     function updateBulkActionsBar() {
         const checkedBoxes = document.querySelectorAll('.salary-checkbox:checked');
         const totalAmount = Array.from(checkedBoxes).reduce((sum, cb) => {
@@ -687,7 +939,6 @@
         }
     }
 
-    // صرف الرواتب المحددة
     $('#bulkPayBtn').on('click', function() {
         const selectedIds = [];
         $('.salary-checkbox:checked').each(function() {
@@ -699,9 +950,9 @@
             return;
         }
 
-        const paymentMethod = prompt('طريقة الدفع:\n1- نقدي\n2- تحويل بنكي\n3- شيك');
+        const method = prompt('طريقة الدفع:\n1- نقدي\n2- تحويل بنكي\n3- شيك', '1');
         const methodMap = {'1': 'cash', '2': 'bank_transfer', '3': 'check'};
-        const paymentMethodValue = methodMap[paymentMethod] || 'bank_transfer';
+        const paymentMethod = methodMap[method] || 'bank_transfer';
 
         if (confirm(`هل أنت متأكد من صرف ${selectedIds.length} راتب؟`)) {
             $.ajax({
@@ -710,12 +961,12 @@
                 contentType: 'application/json',
                 data: JSON.stringify({
                     salary_ids: selectedIds,
-                    payment_method: paymentMethodValue
+                    payment_method: paymentMethod
                 }),
                 success: function(response) {
                     if (response.success) {
                         alert(response.message);
-                        window.location.reload();
+                        location.reload();
                     } else {
                         alert('خطأ: ' + response.error);
                     }
@@ -732,45 +983,25 @@
         updateBulkActionsBar();
     });
 
-    // تحديد الكل لكل شركة
     $('.select-all-company').on('change', function() {
-        const companyId = $(this).closest('.company-card').data('company-id');
+        const companyCard = $(this).closest('.company-card');
+        const companyId = companyCard.data('company-id');
         const isChecked = $(this).prop('checked');
         $(`#companyTable${companyId} .salary-checkbox:not(:disabled)`).prop('checked', isChecked);
         updateBulkActionsBar();
     });
 
-    // عند تغيير أي checkbox
     $(document).on('change', '.salary-checkbox', function() {
         updateBulkActionsBar();
+        // تحديث تحديد الكل للشركة
+        const companyCard = $(this).closest('.company-card');
+        const companyId = companyCard.data('company-id');
+        const totalCheckboxes = $(`#companyTable${companyId} .salary-checkbox:not(:disabled)`).length;
+        const checkedCheckboxes = $(`#companyTable${companyId} .salary-checkbox:not(:disabled):checked`).length;
+        $(`#selectAllCompany${companyId}`).prop('checked', totalCheckboxes === checkedCheckboxes && totalCheckboxes > 0);
     });
 
-    // تطبيق الفلاتر
     function applyFilters() {
-        const employeeId = $('#employeeFilter').val();
-        const status = $('#statusFilter').val();
-        const searchText = $('#searchInput').val().toLowerCase();
-
-        $('.salaries-tbody tr').each(function() {
-            let show = true;
-            const rowStatus = $(this).data('status');
-            const employeeName = $(this).data('employee');
-            const isPaid = rowStatus === 'paid';
-
-            if (employeeId && $(this).data('employee-id') != employeeId) {
-                // يمكن إضافة data-employee-id في كل صف
-            }
-            if (status !== 'all') {
-                if (status === 'paid' && !isPaid) show = false;
-                if (status === 'unpaid' && isPaid) show = false;
-            }
-            if (searchText && !employeeName.includes(searchText)) show = false;
-
-            $(this).toggle(show);
-        });
-    }
-
-    $('#applyFiltersBtn').on('click', function() {
         const employeeId = $('#employeeFilter').val();
         const status = $('#statusFilter').val();
         let url = "{{ url_for('salaries_list') }}";
@@ -778,13 +1009,13 @@
         if (employeeId) params.push(`employee_id=${employeeId}`);
         if (status && status !== 'all') params.push(`status=${status}`);
         window.location.href = params.length > 0 ? url + '?' + params.join('&') : url;
-    });
+    }
 
+    $('#applyFiltersBtn').on('click', applyFilters);
     $('#clearFiltersBtn').on('click', function() {
         window.location.href = "{{ url_for('salaries_list') }}";
     });
 
-    // اختيار الفترة
     $('.period-badge').on('click', function() {
         const periodKey = $(this).data('period-key');
         window.location.href = "{{ url_for('salaries_list') }}?period_key=" + (periodKey || '');

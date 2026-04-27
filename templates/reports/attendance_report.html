@@ -4,31 +4,12 @@
 
 {% block extra_css %}
 <style>
-    /* تنسيقات متقدمة لصفحة تقرير الحضور */
     .report-header {
         background: linear-gradient(135deg, #17a2b8 0%, #0dcaf0 100%);
         border-radius: 20px;
         padding: 1.5rem;
         margin-bottom: 1.5rem;
         color: white;
-        position: relative;
-        overflow: hidden;
-    }
-
-    .report-header::before {
-        content: '';
-        position: absolute;
-        top: -50%;
-        right: -50%;
-        width: 200%;
-        height: 200%;
-        background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, transparent 70%);
-        animation: rotate 20s linear infinite;
-    }
-
-    @keyframes rotate {
-        from { transform: rotate(0deg); }
-        to { transform: rotate(360deg); }
     }
 
     .filter-section {
@@ -36,7 +17,60 @@
         border-radius: 15px;
         padding: 1.5rem;
         margin-bottom: 1.5rem;
-        box-shadow: var(--shadow-sm);
+        box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+    }
+
+    .quick-filters {
+        display: flex;
+        gap: 10px;
+        flex-wrap: wrap;
+        margin-bottom: 20px;
+        padding-bottom: 15px;
+        border-bottom: 1px solid #e9ecef;
+    }
+
+    .quick-filter-btn {
+        padding: 8px 20px;
+        border-radius: 25px;
+        border: 1px solid #dee2e6;
+        background: white;
+        transition: all 0.3s ease;
+        font-size: 0.85rem;
+        cursor: pointer;
+    }
+
+    .quick-filter-btn:hover {
+        background: #17a2b8;
+        color: white;
+        border-color: #17a2b8;
+    }
+
+    .export-buttons {
+        display: flex;
+        gap: 10px;
+    }
+
+    .btn-export-excel {
+        background: linear-gradient(135deg, #28a745, #20c997);
+        border: none;
+        color: white;
+        padding: 10px 20px;
+        border-radius: 10px;
+        cursor: pointer;
+    }
+
+    .btn-export-pdf {
+        background: linear-gradient(135deg, #dc3545, #e83e8c);
+        border: none;
+        color: white;
+        padding: 10px 20px;
+        border-radius: 10px;
+        cursor: pointer;
+    }
+
+    .btn-export-excel:hover, .btn-export-pdf:hover {
+        transform: translateY(-2px);
+        color: white;
     }
 
     .report-summary {
@@ -71,26 +105,13 @@
         color: white;
         font-weight: 600;
         padding: 1rem;
-        border: none;
-        font-size: 0.85rem;
         text-align: center;
-        vertical-align: middle;
-    }
-
-    .table-report tbody tr {
-        transition: all 0.3s ease;
-        border-bottom: 1px solid #f0f0f0;
-    }
-
-    .table-report tbody tr:hover {
-        background: rgba(23, 162, 184, 0.05);
-        transform: translateX(5px);
     }
 
     .table-report tbody td {
         padding: 1rem;
-        vertical-align: middle;
         text-align: center;
+        vertical-align: middle;
     }
 
     .attendance-badge {
@@ -115,12 +136,6 @@
         padding: 3rem;
     }
 
-    .empty-state i {
-        font-size: 4rem;
-        color: #dee2e6;
-        margin-bottom: 1rem;
-    }
-
     .action-buttons {
         display: flex;
         gap: 5px;
@@ -137,6 +152,7 @@
         transition: all 0.2s ease;
         cursor: pointer;
         border: none;
+        text-decoration: none;
     }
 
     .action-buttons .btn-edit {
@@ -144,65 +160,24 @@
         color: #856404;
     }
 
-    .action-buttons .btn-edit:hover {
-        background: #e0a800;
-        transform: scale(1.1);
-    }
-
     .action-buttons .btn-delete {
         background: #dc3545;
         color: white;
     }
 
-    .action-buttons .btn-delete:hover {
-        background: #c82333;
+    .action-buttons .btn-action:hover {
         transform: scale(1.1);
     }
 
-    /* مودال التعديل */
-    .modal-content {
-        border-radius: 20px;
-    }
-
-    .modal-header {
-        background: linear-gradient(135deg, #17a2b8, #0dcaf0);
-        color: white;
-        border-radius: 20px 20px 0 0;
-    }
-
-    .modal-header .btn-close {
-        filter: invert(1);
-    }
-
     @media print {
-        .sidebar, .navbar, .footer, .btn, form, .no-print, .filter-section, .action-buttons {
+        .sidebar, .navbar, .footer, .btn-export, .filter-section, .action-buttons, .quick-filters, .btn, .no-print {
             display: none !important;
-        }
-        .col-md-10 {
-            width: 100% !important;
-            margin: 0 !important;
-            padding: 0 !important;
-        }
-        .card {
-            box-shadow: none !important;
-        }
-        .report-header {
-            background: #17a2b8;
-            color: white;
-            -webkit-print-color-adjust: exact;
-            print-color-adjust: exact;
-        }
-        .table-report thead th {
-            background: #17a2b8;
-            -webkit-print-color-adjust: exact;
-            print-color-adjust: exact;
         }
     }
 </style>
 {% endblock %}
 
 {% block content %}
-<!-- رأس التقرير -->
 <div class="report-header">
     <div class="row align-items-center">
         <div class="col-md-8">
@@ -218,9 +193,32 @@
     </div>
 </div>
 
-<!-- شريط الفلترة -->
 <div class="filter-section">
-    <form method="GET" class="row g-3" id="filterForm">
+    <div class="quick-filters">
+        <button type="button" class="quick-filter-btn" onclick="setQuickFilter('today')">
+            <i class="fas fa-calendar-day"></i> اليوم
+        </button>
+        <button type="button" class="quick-filter-btn" onclick="setQuickFilter('yesterday')">
+            <i class="fas fa-calendar-day"></i> أمس
+        </button>
+        <button type="button" class="quick-filter-btn" onclick="setQuickFilter('week')">
+            <i class="fas fa-calendar-week"></i> هذا الأسبوع
+        </button>
+        <button type="button" class="quick-filter-btn" onclick="setQuickFilter('month')">
+            <i class="fas fa-calendar-alt"></i> هذا الشهر
+        </button>
+        <button type="button" class="quick-filter-btn" onclick="setQuickFilter('lastmonth')">
+            <i class="fas fa-calendar-minus"></i> الشهر الماضي
+        </button>
+        <button type="button" class="quick-filter-btn" onclick="setQuickFilter('quarter')">
+            <i class="fas fa-chart-line"></i> هذا الربع
+        </button>
+        <button type="button" class="quick-filter-btn" onclick="setQuickFilter('year')">
+            <i class="fas fa-calendar-year"></i> هذه السنة
+        </button>
+    </div>
+
+    <form method="GET" class="row g-3" id="filterForm" action="{{ url_for('attendance_report') }}">
         <div class="col-md-3">
             <label class="form-label fw-bold">
                 <i class="fas fa-calendar-alt text-info"></i> من تاريخ
@@ -246,22 +244,44 @@
                 {% endfor %}
             </select>
         </div>
-        <div class="col-md-3 d-flex align-items-end">
-            <button type="submit" class="btn btn-info w-100">
-                <i class="fas fa-search me-2"></i> عرض التقرير
-            </button>
+        <div class="col-md-3">
+            <label class="form-label fw-bold">
+                <i class="fas fa-tag text-info"></i> نوع الحضور
+            </label>
+            <select class="form-select" id="attendance_type" name="attendance_type">
+                <option value="">الكل</option>
+                <option value="individual" {% if request.args.get('attendance_type') == 'individual' %}selected{% endif %}>فردي</option>
+                <option value="group" {% if request.args.get('attendance_type') == 'group' %}selected{% endif %}>جماعي</option>
+            </select>
+        </div>
+        <div class="col-md-12 d-flex justify-content-between align-items-end">
+            <div class="d-flex gap-2">
+                <button type="submit" class="btn btn-info">
+                    <i class="fas fa-search me-2"></i> عرض التقرير
+                </button>
+                <button type="button" class="btn btn-secondary" onclick="resetFilters()">
+                    <i class="fas fa-undo-alt me-2"></i> إعادة تعيين
+                </button>
+            </div>
+            <div class="export-buttons">
+                <button type="button" class="btn-export-excel" onclick="exportToExcel()">
+                    <i class="fas fa-file-excel me-2"></i> تصدير Excel
+                </button>
+                <button type="button" class="btn-export-pdf" onclick="exportToPDF()">
+                    <i class="fas fa-file-pdf me-2"></i> تصدير PDF
+                </button>
+            </div>
         </div>
     </form>
 </div>
 
-<!-- ملخص التقرير -->
 {% if attendances %}
 <div class="report-summary">
     <div class="row">
         <div class="col-md-3 col-6">
             <div class="summary-item">
                 <div class="summary-number">{{ attendances|length }}</div>
-                <div class="summary-label">إجمالي سجلات الحضور</div>
+                <div class="summary-label">إجمالي السجلات</div>
             </div>
         </div>
         <div class="col-md-3 col-6">
@@ -279,60 +299,46 @@
         <div class="col-md-3 col-6">
             <div class="summary-item">
                 <div class="summary-number">{{ attendances|selectattr('check_in_time')|list|length }}</div>
-                <div class="summary-label">مسجلين وقت الدخول</div>
+                <div class="summary-label">مسجلين الدخول</div>
             </div>
         </div>
     </div>
 </div>
 {% endif %}
 
-<!-- جدول التقرير -->
 <div class="card">
     <div class="card-header bg-white d-flex justify-content-between align-items-center">
         <h5 class="mb-0">
             <i class="fas fa-table text-info me-2"></i>
             نتائج التقرير
-            {% if request.args.get('start_date') and request.args.get('end_date') %}
-            <small class="text-muted">({{ request.args.get('start_date') }} - {{ request.args.get('end_date') }})</small>
-            {% endif %}
         </h5>
-        <div>
-            <button onclick="window.print()" class="btn btn-secondary btn-sm">
-                <i class="fas fa-print"></i> طباعة
-            </button>
-        </div>
     </div>
     <div class="card-body p-0">
         <div class="table-responsive">
-            <table class="table table-report">
+            <table class="table table-report" id="attendanceTable">
                 <thead>
                     <tr>
-                        <th style="width: 5%">#</th>
-                        <th style="width: 15%">الموظف</th>
-                        <th style="width: 10%">التاريخ</th>
-                        <th style="width: 8%">اليوم</th>
-                        <th style="width: 8%">نوع الحضور</th>
-                        <th style="width: 10%">الحالة</th>
-                        <th style="width: 8%">وقت الدخول</th>
-                        <th style="width: 8%">وقت الخروج</th>
-                        <th style="width: 13%">ملاحظات</th>
-                        <th style="width: 10%">الإجراءات</th>
-                    </thead>
+                        <th>#</th>
+                        <th>الموظف</th>
+                        <th>التاريخ</th>
+                        <th>اليوم</th>
+                        <th>نوع الحضور</th>
+                        <th>الحالة</th>
+                        <th>وقت الدخول</th>
+                        <th>وقت الخروج</th>
+                        <th>ملاحظات</th>
+                        <th>الإجراءات</th>
+                    </tr>
+                </thead>
                 <tbody>
                     {% for att in attendances %}
-                    <tr>
-                        <td class="fw-bold">{{ loop.index }}</td>
-                        <td class="text-center">
-                            <div class="d-flex align-items-center gap-2 justify-content-center">
-                                <i class="fas fa-user-circle text-primary"></i>
-                                <strong>{{ att.employee.name if att.employee else '-' }}</strong>
-                            </div>
+                    <tr id="row-{{ att.id }}">
+                        <td>{{ loop.index }}</td>
+                        <td>
+                            <strong>{{ att.employee.name if att.employee else '-' }}</strong><br>
                             <small class="text-muted">{{ att.employee.job_title or 'موظف' }}</small>
                         </td>
-                        <td>
-                            <i class="far fa-calendar-alt text-muted me-1"></i>
-                            {{ att.date.strftime('%Y-%m-%d') if att.date else '-' }}
-                        </td>
+                        <td>{{ att.date.strftime('%Y-%m-%d') if att.date else '-' }}</td>
                         <td>
                             <span class="badge bg-secondary">
                                 {{ att.date.strftime('%A') if att.date else '-' }}
@@ -345,7 +351,11 @@
                             </span>
                         </td>
                         <td>
-                            <span class="attendance-badge badge-{{ att.attendance_status }}">
+                            <span class="attendance-badge
+                                {% if att.attendance_status == 'present' %}badge-present
+                                {% elif att.attendance_status == 'absent' %}badge-absent
+                                {% elif att.attendance_status == 'late' %}badge-late
+                                {% elif att.attendance_status == 'sick' %}badge-sick{% endif %}">
                                 <i class="fas
                                     {% if att.attendance_status == 'present' %}fa-check-circle
                                     {% elif att.attendance_status == 'absent' %}fa-times-circle
@@ -354,50 +364,31 @@
                                     {% endif %}">
                                 </i>
                                 {{ {'present':'حاضر', 'absent':'غائب', 'late':'متأخر', 'sick':'إجازة مرضية'}.get(att.attendance_status, att.attendance_status) }}
-                                {% if att.attendance_status == 'late' and att.late_minutes %}
-                                <br><small>({{ att.late_minutes }} دقيقة)</small>
-                                {% endif %}
-                                {% if att.attendance_status == 'sick' and att.sick_leave_days %}
-                                <br><small>({{ att.sick_leave_days }} يوم)</small>
-                                {% endif %}
                             </span>
                         </td>
                         <td>
                             {% if att.check_in_time %}
-                            <i class="fas fa-sign-in-alt text-success me-1"></i>
                             {{ att.check_in_time.strftime('%H:%M') }}
-                            {% else %}
-                            <span class="text-muted">--:--</span>
-                            {% endif %}
+                            {% else %}--:--{% endif %}
                         </td>
                         <td>
                             {% if att.check_out_time %}
-                            <i class="fas fa-sign-out-alt text-danger me-1"></i>
                             {{ att.check_out_time.strftime('%H:%M') }}
-                            {% else %}
-                            <span class="text-muted">--:--</span>
-                            {% endif %}
+                            {% else %}--:--{% endif %}
                         </td>
                         <td>
                             {% if att.notes %}
-                            <div class="text-truncate" style="max-width: 150px;" title="{{ att.notes }}">
-                                <i class="fas fa-quote-right text-muted me-1"></i>
-                                {{ att.notes[:50] }}{% if att.notes|length > 50 %}...{% endif %}
-                            </div>
-                            {% else %}
-                            <span class="text-muted"><i class="fas fa-minus-circle"></i> لا توجد ملاحظات</span>
-                            {% endif %}
+                            {{ att.notes[:50] }}
+                            {% else %}--{% endif %}
                         </td>
                         <td>
                             <div class="action-buttons">
-                                <button type="button" class="btn-action btn-edit"
-                                        onclick="editAttendance({{ att.id }})"
-                                        title="تعديل">
+                                <a href="{{ url_for('edit_attendance', attendance_id=att.id) }}"
+                                   class="btn-action btn-edit" title="تعديل">
                                     <i class="fas fa-edit"></i>
-                                </button>
+                                </a>
                                 <button type="button" class="btn-action btn-delete"
-                                        onclick="deleteAttendance({{ att.id }})"
-                                        title="حذف">
+                                        onclick="deleteAttendance({{ att.id }})" title="حذف">
                                     <i class="fas fa-trash-alt"></i>
                                 </button>
                             </div>
@@ -407,12 +398,9 @@
                     <tr>
                         <td colspan="10">
                             <div class="empty-state">
-                                <i class="fas fa-calendar-times"></i>
-                                <h5>لا توجد بيانات حضور</h5>
+                                <i class="fas fa-calendar-times fa-3x"></i>
+                                <h5 class="mt-3">لا توجد بيانات حضور</h5>
                                 <p class="text-muted">لا توجد سجلات حضور في الفترة المحددة</p>
-                                <button onclick="window.history.back()" class="btn btn-info mt-2">
-                                    <i class="fas fa-arrow-right"></i> تغيير الفترة
-                                </button>
                             </div>
                         </td>
                     </tr>
@@ -423,136 +411,123 @@
     </div>
 </div>
 
-<!-- تذييل التقرير مع إحصائيات إضافية -->
-{% if attendances %}
-<div class="d-flex justify-content-between align-items-center mt-3">
-    <small class="text-muted">
-        <i class="fas fa-info-circle me-1"></i>
-        تاريخ إنشاء التقرير: {{ now.strftime('%Y-%m-%d %H:%M') }}
-    </small>
-    <small class="text-muted">
-        <i class="fas fa-chart-line me-1"></i>
-        إجمالي ساعات العمل:
-        {% set total_hours = 0 %}
-        {% for att in attendances %}
-            {% if att.check_in_time and att.check_out_time %}
-                {% set hours = (att.check_out_time.hour - att.check_in_time.hour) %}
-                {% set total_hours = total_hours + hours %}
-            {% endif %}
-        {% endfor %}
-        {{ total_hours }} ساعة
-    </small>
-</div>
-{% endif %}
-
-<!-- مودال تعديل الحضور -->
-<div class="modal fade" id="editAttendanceModal" tabindex="-1">
-    <div class="modal-dialog modal-lg">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title">
-                    <i class="fas fa-edit"></i> تعديل سجل الحضور
-                </h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-            </div>
-            <div class="modal-body" id="editModalBody">
-                <div class="text-center py-4">
-                    <i class="fas fa-spinner fa-spin fa-2x"></i>
-                    <p class="mt-2">جاري التحميل...</p>
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
+<script src="https://cdn.sheetjs.com/xlsx-0.20.2/package/dist/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 
 <script>
-    // تعيين التواريخ الافتراضية إذا لم تكن محددة
-    $(document).ready(function() {
-        if (!$('#start_date').val()) {
-            var defaultStart = new Date();
-            defaultStart.setDate(defaultStart.getDate() - 30);
-            $('#start_date').val(defaultStart.toISOString().split('T')[0]);
-        }
-        if (!$('#end_date').val()) {
-            var defaultEnd = new Date();
-            $('#end_date').val(defaultEnd.toISOString().split('T')[0]);
-        }
-    });
+// تعيين التواريخ الافتراضية
+function setDefaultDates() {
+    const startDateInput = document.getElementById('start_date');
+    const endDateInput = document.getElementById('end_date');
 
-   // دالة تعديل الحضور
-function editAttendance(attendanceId) {
-    console.log('Edit button clicked for ID:', attendanceId);
-
-    // الحصول على معلمات الفلترة الحالية
-    var start_date = document.getElementById('start_date').value;
-    var end_date = document.getElementById('end_date').value;
-    var employee_id = document.getElementById('employee_id').value;
-
-    // بناء الرابط
-    var url = '/attendance/edit/' + attendanceId +
-              '?start_date=' + encodeURIComponent(start_date) +
-              '&end_date=' + encodeURIComponent(end_date) +
-              '&employee_id=' + encodeURIComponent(employee_id);
-
-    console.log('Fetching URL:', url);
-
-    // استخدام fetch بدلاً من $.ajax (قد يكون jQuery لا يعمل)
-    fetch(url)
-        .then(response => {
-            console.log('Response status:', response.status);
-            if (!response.ok) {
-                throw new Error('HTTP error ' + response.status);
-            }
-            return response.text();
-        })
-        .then(html => {
-            console.log('HTML received, showing modal');
-            document.getElementById('editModalBody').innerHTML = html;
-
-            // إظهار المودال باستخدام Bootstrap 5
-            var modalElement = document.getElementById('editAttendanceModal');
-            var modal = new bootstrap.Modal(modalElement);
-            modal.show();
-        })
-        .catch(error => {
-            console.error('Fetch error:', error);
-            document.getElementById('editModalBody').innerHTML = `
-                <div class="alert alert-danger text-center">
-                    <i class="fas fa-exclamation-triangle fa-2x"></i>
-                    <p>حدث خطأ في تحميل بيانات التعديل</p>
-                    <p class="text-muted small">${error.message}</p>
-                    <hr>
-                    <p class="text-muted small">يمكنك التعديل مباشرة من خلال:</p>
-                    <a href="${url}" target="_blank" class="btn btn-primary btn-sm">
-                        <i class="fas fa-external-link-alt"></i> فتح صفحة التعديل
-                    </a>
-                    <button class="btn btn-secondary btn-sm mt-2" data-bs-dismiss="modal">إغلاق</button>
-                </div>
-            `;
-            var modal = new bootstrap.Modal(document.getElementById('editAttendanceModal'));
-            modal.show();
-        });
+    if (!startDateInput.value) {
+        const defaultStart = new Date();
+        defaultStart.setDate(defaultStart.getDate() - 30);
+        startDateInput.value = defaultStart.toISOString().split('T')[0];
+    }
+    if (!endDateInput.value) {
+        const defaultEnd = new Date();
+        endDateInput.value = defaultEnd.toISOString().split('T')[0];
+    }
 }
 
-    // دالة حذف الحضور
-    function deleteAttendance(attendanceId) {
-        if (confirm('⚠️ هل أنت متأكد من حذف هذا السجل؟\nلا يمكن التراجع عن هذا الإجراء.')) {
-            var start_date = $('#start_date').val();
-            var end_date = $('#end_date').val();
-            var employee_id = $('#employee_id').val();
+// الفلاتر السريعة
+function setQuickFilter(type) {
+    const today = new Date();
+    let start = new Date(today);
+    let end = new Date(today);
 
-            var form = $('<form>', {
-                method: 'POST',
-                action: '/attendance/delete/' + attendanceId
-            });
-
-            form.append($('<input>', {name: 'start_date', value: start_date, type: 'hidden'}));
-            form.append($('<input>', {name: 'end_date', value: end_date, type: 'hidden'}));
-            form.append($('<input>', {name: 'employee_id', value: employee_id, type: 'hidden'}));
-
-            $('body').append(form);
-            form.submit();
-        }
+    switch(type) {
+        case 'today':
+            // اليوم - نفس التاريخ
+            break;
+        case 'yesterday':
+            start.setDate(today.getDate() - 1);
+            end = new Date(start);
+            break;
+        case 'week':
+            start.setDate(today.getDate() - today.getDay());
+            end.setDate(start.getDate() + 6);
+            break;
+        case 'month':
+            start = new Date(today.getFullYear(), today.getMonth(), 1);
+            end = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+            break;
+        case 'lastmonth':
+            start = new Date(today.getFullYear(), today.getMonth() - 1, 1);
+            end = new Date(today.getFullYear(), today.getMonth(), 0);
+            break;
+        case 'quarter':
+            const quarter = Math.floor(today.getMonth() / 3);
+            start = new Date(today.getFullYear(), quarter * 3, 1);
+            end = new Date(today.getFullYear(), quarter * 3 + 3, 0);
+            break;
+        case 'year':
+            start = new Date(today.getFullYear(), 0, 1);
+            end = new Date(today.getFullYear(), 11, 31);
+            break;
     }
+
+    document.getElementById('start_date').value = start.toISOString().split('T')[0];
+    document.getElementById('end_date').value = end.toISOString().split('T')[0];
+    document.getElementById('filterForm').submit();
+}
+
+// إعادة تعيين الفلاتر
+function resetFilters() {
+    window.location.href = "{{ url_for('attendance_report') }}";
+}
+
+// تصدير إلى Excel
+function exportToExcel() {
+    const table = document.getElementById('attendanceTable');
+    const ws = XLSX.utils.table_to_sheet(table, { raw: true });
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'تقرير الحضور');
+    const fileName = `تقرير_الحضور_${new Date().toISOString().split('T')[0]}.xlsx`;
+    XLSX.writeFile(wb, fileName);
+    alert('✅ تم تصدير التقرير بنجاح إلى Excel');
+}
+
+// تصدير إلى PDF
+function exportToPDF() {
+    const element = document.getElementById('attendanceTable');
+    const opt = {
+        margin: [0.5, 0.5, 0.5, 0.5],
+        filename: `تقرير_الحضور_${new Date().toISOString().split('T')[0]}.pdf`,
+        image: { type: 'jpeg', quality: 0.98 },
+        html2canvas: { scale: 2 },
+        jsPDF: { unit: 'in', format: 'a4', orientation: 'landscape' }
+    };
+    html2pdf().set(opt).from(element).save();
+}
+
+// حذف سجل الحضور
+function deleteAttendance(attendanceId) {
+    if (confirm('⚠️ هل أنت متأكد من حذف هذا السجل؟')) {
+        fetch(`/attendance/delete/${attendanceId}`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            }
+        }).then(response => {
+            if (response.ok) {
+                document.getElementById(`row-${attendanceId}`).remove();
+                alert('✅ تم حذف السجل بنجاح');
+                location.reload();
+            } else {
+                alert('❌ حدث خطأ في حذف السجل');
+            }
+        }).catch(error => {
+            console.error('Error:', error);
+            alert('❌ حدث خطأ في حذف السجل');
+        });
+    }
+}
+
+// تحميل الصفحة
+document.addEventListener('DOMContentLoaded', function() {
+    setDefaultDates();
+});
 </script>
 {% endblock %}

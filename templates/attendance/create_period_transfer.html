@@ -44,6 +44,18 @@
                             </div>
                         </div>
 
+                        <!-- ✅ إضافة خيار نوع الراتب -->
+                        <div class="form-group">
+                            <label>نوع الراتب <span class="text-danger">*</span></label>
+                            <select name="payroll_type" class="form-control" required>
+                                <option value="labor">رواتب العمال</option>
+                                <option value="admin">رواتب الإدارة (مدير/مشرفين)</option>
+                            </select>
+                            <small class="form-text text-muted">
+                                اختر نوع الموظفين الذين تريد ترحيل رواتبهم
+                            </small>
+                        </div>
+
                         <div class="form-group">
                             <label>فلترة حسب</label>
                             <div class="row">
@@ -76,6 +88,12 @@
                             <strong>ملاحظة:</strong> سيتم استخراج بيانات الحضور من سجلات الحضور اليومية للفترة المحددة.
                             يتم حساب أيام الحضور والغياب والإضافي تلقائياً.
                         </div>
+
+                        <!-- ✅ إضافة معلومات إضافية حسب نوع الراتب -->
+                        <div class="alert alert-warning" id="payrollTypeInfo">
+                            <i class="fas fa-users"></i>
+                            <strong>رواتب العمال:</strong> يشمل العمال فقط (نوع الموظف worker)
+                        </div>
                     </div>
                     <div class="card-footer">
                         <button type="submit" class="btn btn-primary">
@@ -93,6 +111,8 @@
     // منع اختيار الشركة والمنطقة معاً
     const companySelect = document.getElementById('companySelect');
     const regionSelect = document.getElementById('regionSelect');
+    const payrollTypeSelect = document.querySelector('select[name="payroll_type"]');
+    const payrollTypeInfo = document.getElementById('payrollTypeInfo');
 
     companySelect.addEventListener('change', function() {
         if (this.value) {
@@ -109,6 +129,17 @@
             companySelect.value = '';
         } else {
             companySelect.disabled = false;
+        }
+    });
+
+    // تحديث المعلومات حسب نوع الراتب المختار
+    payrollTypeSelect.addEventListener('change', function() {
+        if (this.value === 'labor') {
+            payrollTypeInfo.innerHTML = '<i class="fas fa-users"></i> <strong>رواتب العمال:</strong> يشمل العمال فقط (نوع الموظف worker)';
+            payrollTypeInfo.className = 'alert alert-warning';
+        } else {
+            payrollTypeInfo.innerHTML = '<i class="fas fa-user-tie"></i> <strong>رواتب الإدارة:</strong> يشمل المدير والمشرفين (نوع الموظف admin, supervisor)';
+            payrollTypeInfo.className = 'alert alert-success';
         }
     });
 </script>

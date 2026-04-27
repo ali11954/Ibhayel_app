@@ -154,78 +154,125 @@ class FinancialTransaction(db.Model):
         # 2. لها قيد محاسبي مرتبط
         return not self.is_settled and self.journal_entry_id is None
 
-class Salary(db.Model):
-    """نموذج الرواتب الشهرية"""
-    __tablename__ = 'salaries'
+
+# ==================== Employee Model (النسخة النهائية) ====================
+class Employee(db.Model):
+    __tablename__ = 'employees'
 
     id = db.Column(db.Integer, primary_key=True)
-    employee_id = db.Column(db.Integer, db.ForeignKey('employees.id'), nullable=False)
-    month_year = db.Column(db.String(10), nullable=False)
-    base_salary = db.Column(db.Float, default=0)
-    attendance_days = db.Column(db.Integer, default=0)
-    attendance_amount = db.Column(db.Float, default=0)
-    daily_allowance_amount = db.Column(db.Float, default=0)
-    overtime_amount = db.Column(db.Float, default=0)
-    advance_amount = db.Column(db.Float, default=0)
-    deduction_amount = db.Column(db.Float, default=0)
-    penalty_amount = db.Column(db.Float, default=0)
-    total_salary = db.Column(db.Float, default=0)
-    is_paid = db.Column(db.Boolean, default=False)
-    paid_date = db.Column(db.Date)
-    payment_method = db.Column(db.String(50))
-    payment_reference = db.Column(db.String(100))
-    notes = db.Column(db.Text)
+    name = db.Column(db.String(100), nullable=False)
+    card_number = db.Column(db.String(20), unique=True, nullable=False)
+    code = db.Column(db.String(20), unique=True, nullable=False)
+    job_title = db.Column(db.String(100))
+    region = db.Column(db.String(100))
+    is_resident = db.Column(db.Boolean, default=False)
+    phone = db.Column(db.String(20))
+    salary = db.Column(db.Float, default=60000)
+    daily_allowance = db.Column(db.Float, default=500)
+    is_active = db.Column(db.Boolean, default=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    employee_type = db.Column(db.String(20), default='worker')
+    supervisor_id = db.Column(db.Integer, db.ForeignKey('employees.id'), nullable=True)
+    supervised_workers = db.relationship('Employee', backref=db.backref('supervisor', remote_side=[id]), lazy=True)
+    company_id = db.Column(db.Integer, db.ForeignKey('companies.id'))
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=True)
+    user = db.relationship('User', backref='employee_profile')
+    worker_type = db.Column(db.String(20), default='permanent')
+    basic_salary = db.Column(db.Float, default=2000)
+    clothing_allowance = db.Column(db.Float, default=24480)
+    health_card_allowance = db.Column(db.Float, default=15000)
+    monthly_insurance = db.Column(db.Float, default=10800)
+    contractor_tax = db.Column(db.Float, default=500000)
+    contractor_zakat = db.Column(db.Float, default=75000)
+    allowances_updated_at = db.Column(db.DateTime, default=datetime.utcnow)
 
-    employee = db.relationship('Employee', backref='salaries')
+    # ========== الدالة الوحيدة لحساب الراتب ==========
+    def calculate_salary_breakdown(self, attendance_days, paid_leave_days=0):
+        """
+        حساب توزيع الراتب مع دعم الإجازات المدفوعة
+        """
+        MONTHLY_DAYS = 30
+        BASE_WORKER = 60000
+        DAILY_RATE = BASE_WORKER / MONTHLY_DAYS
+        DAILY_RESIDENT = 500
 
-    __table_args__ = (
-        db.UniqueConstraint('employee_id', 'month_year', name='unique_employee_month'),
-    )
+        MONTHLY_CLOTHING = 2033.33
+        MONTHLY_HEALTH = 1250.00
+        MONTHLY_INSURANCE = 10800.00
 
-    def calculate(self, attendance_days, daily_allowance, overtime, advance, deduction, penalty):
-        self.attendance_days = attendance_days
-        self.attendance_amount = (self.base_salary / 30) * attendance_days
-        self.daily_allowance_amount = daily_allowance * attendance_days if daily_allowance else 0
-        self.overtime_amount = overtime
-        self.advance_amount = advance
-        self.deduction_amount = deduction
-        self.penalty_amount = penalty
-        self.total_salary = (
-                self.attendance_amount +
-                self.daily_allowance_amount +
-                self.overtime_amount -
-                self.advance_amount -
-                self.deduction_amount -
-                self.penalty_amount
+        # إجمالي أيام الدفع (حضور + إجازة مدفوعة)
+        total_paid_days = attendance_days + paid_leave_days
+
+        ratio = total_paid_days / MONTHLY_DAYS if total_paid_days > 0 else 0
+
+        basic_payout = DAILY_RATE * total_paid_days
+        resident_payout = DAILY_RESIDENT * total_paid_days
+        cash_payout = basic_payout + resident_payout
+
+        clothing_payout = MONTHLY_CLOTHING * ratio
+        health_payout = MONTHLY_HEALTH * ratio
+        insurance_payout = MONTHLY_INSURANCE * ratio
+
+        difference = self.salary - BASE_WORKER
+        contractor_profit = (difference * ratio) - (clothing_payout + health_payout + insurance_payout)
+
+        return {
+            'attendance_days': attendance_days,
+            'paid_leave_days': paid_leave_days,
+            'total_paid_days': total_paid_days,
+            'ratio': ratio,
+            'company_payment': self.salary * ratio,
+            'cash_payout': cash_payout,
+            'basic_salary': basic_payout,
+            'resident_allowance': resident_payout,
+            'clothing_allowance': clothing_payout,
+            'health_card': health_payout,
+            'insurance': insurance_payout,
+            'contractor_profit': contractor_profit
+        }
+
+    # ========== دوال مساعدة ==========
+    def get_attendance_count(self, start_date, end_date):
+        from models import Attendance
+        return Attendance.query.filter(
+            Attendance.employee_id == self.id,
+            Attendance.date >= start_date,
+            Attendance.date <= end_date,
+            Attendance.attendance_status == 'present'
+        ).count()
+
+    def get_transactions_sum(self, transaction_type, start_date=None, end_date=None, include_settled=False):
+        from models import FinancialTransaction
+        query = FinancialTransaction.query.filter(
+            FinancialTransaction.employee_id == self.id,
+            FinancialTransaction.transaction_type == transaction_type
         )
-        return self.total_salary
+        if not include_settled:
+            query = query.filter(FinancialTransaction.is_settled == False)
+        if start_date and end_date:
+            query = query.filter(
+                FinancialTransaction.date >= start_date,
+                FinancialTransaction.date <= end_date
+            )
+        return sum(t.amount for t in query.all()) or 0
+
+    @property
+    def is_worker(self):
+        return self.employee_type == 'worker'
+
+    @property
+    def company_name(self):
+        return self.company.name if self.company else None
 
     def to_dict(self):
         return {
-            'id': self.id,
-            'employee_id': self.employee_id,
-            'month_year': self.month_year,
-            'base_salary': self.base_salary,
-            'attendance_days': self.attendance_days,
-            'attendance_amount': self.attendance_amount,
-            'daily_allowance_amount': self.daily_allowance_amount,
-            'overtime_amount': self.overtime_amount,
-            'advance_amount': self.advance_amount,
-            'deduction_amount': self.deduction_amount,
-            'penalty_amount': self.penalty_amount,
-            'total_salary': self.total_salary,
-            'is_paid': self.is_paid
+            'id': self.id, 'name': self.name, 'card_number': self.card_number,
+            'code': self.code, 'job_title': self.job_title, 'region': self.region,
+            'is_resident': self.is_resident, 'phone': self.phone, 'salary': self.salary,
+            'is_active': self.is_active, 'employee_type': self.employee_type,
+            'company_id': self.company_id, 'company_name': self.company_name,
+            'supervisor_id': self.supervisor_id
         }
-
-    def can_delete(self):
-        """التحقق من إمكانية حذف الراتب"""
-        # لا يمكن حذف الراتب إذا كان مدفوعاً أو له قيد محاسبي
-        return not self.is_paid
-
-    def has_financial_impact(self):
-        """التحقق من وجود تأثير مالي"""
-        return self.is_paid or self.total_salary != 0
 
 # ==================== Evaluation Model ====================
 class Evaluation(db.Model):
@@ -380,195 +427,233 @@ class Location(db.Model):
         }
 
 
-# ==================== Employee Model (معدل) ====================
-class Employee(db.Model):
-    """نموذج الموظفين (العمال)"""
-    __tablename__ = 'employees'
+# ==================== Salary Model ====================
+class Salary(db.Model):
+    __tablename__ = 'salaries'
 
     id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(100), nullable=False)
-    card_number = db.Column(db.String(20), unique=True, nullable=False)
-    code = db.Column(db.String(20), unique=True, nullable=False)
-    job_title = db.Column(db.String(100))
-    region = db.Column(db.String(100))
-    is_resident = db.Column(db.Boolean, default=False)
-    phone = db.Column(db.String(20))
-    salary = db.Column(db.Float, default=60000)
-    daily_allowance = db.Column(db.Float, default=500)
-    is_active = db.Column(db.Boolean, default=True)
+    employee_id = db.Column(db.Integer, db.ForeignKey('employees.id'), nullable=False)
+    month_year = db.Column(db.String(10), nullable=False)
+    base_salary = db.Column(db.Float, default=0)
+    attendance_days = db.Column(db.Integer, default=0)
+    attendance_amount = db.Column(db.Float, default=0)
+    daily_allowance_amount = db.Column(db.Float, default=0)
+    overtime_amount = db.Column(db.Float, default=0)
+    advance_amount = db.Column(db.Float, default=0)
+    deduction_amount = db.Column(db.Float, default=0)
+    penalty_amount = db.Column(db.Float, default=0)
+    total_salary = db.Column(db.Float, default=0)
+    is_paid = db.Column(db.Boolean, default=False)
+    paid_date = db.Column(db.Date)
+    payment_method = db.Column(db.String(50))
+    payment_reference = db.Column(db.String(100))
+    notes = db.Column(db.Text)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
-    # نوع الموظف: worker, supervisor, admin
-    employee_type = db.Column(db.String(20), default='worker')
+    # حقول التوزيع التفصيلية
+    basic_salary_amount = db.Column(db.Float, default=0)
+    resident_allowance_amount = db.Column(db.Float, default=0)
+    clothing_allowance_amount = db.Column(db.Float, default=0)
+    health_card_amount = db.Column(db.Float, default=0)
+    insurance_amount = db.Column(db.Float, default=0)
+    contractor_profit = db.Column(db.Float, default=0)
 
-    # المشرف المسؤول (للعمال فقط)
-    supervisor_id = db.Column(db.Integer, db.ForeignKey('employees.id'), nullable=True)
-    supervised_workers = db.relationship('Employee',
-                                         backref=db.backref('supervisor', remote_side=[id]),
-                                         lazy=True)
+    employee = db.relationship('Employee', backref='salaries')
 
-    # العلاقة مع الشركة
-    company_id = db.Column(db.Integer, db.ForeignKey('companies.id'))
+    __table_args__ = (db.UniqueConstraint('employee_id', 'month_year', name='unique_employee_month'),)
 
-    # العلاقة مع المستخدم (للمشرفين والإداريين فقط)
-    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=True)
-    user = db.relationship('User', backref='employee_profile')
-
-    def get_attendance_count(self, start_date, end_date):
-        from models import Attendance
-        return Attendance.query.filter(
-            Attendance.employee_id == self.id,
-            Attendance.date >= start_date,
-            Attendance.date <= end_date,
-            Attendance.attendance_status == 'present'
-        ).count()
-
-    def get_transactions_sum(self, transaction_type, start_date=None, end_date=None, include_settled=False):
-        """
-        الحصول على إجمالي المعاملات المالية للموظف
-
-        Args:
-            transaction_type: نوع المعاملة (advance, overtime, deduction, penalty)
-            start_date: تاريخ البداية (اختياري)
-            end_date: تاريخ النهاية (اختياري)
-            include_settled: هل تشمل المعاملات المسواة؟ (افتراضي: False)
-
-        Returns:
-            float: إجمالي المبالغ
-        """
-        from models import FinancialTransaction
-        query = FinancialTransaction.query.filter(
-            FinancialTransaction.employee_id == self.id,
-            FinancialTransaction.transaction_type == transaction_type
-        )
-
-        # فلترة حسب حالة التسوية
-        if not include_settled:
-            query = query.filter(FinancialTransaction.is_settled == False)
-
-        # فلترة حسب التاريخ
-        if start_date and end_date:
-            query = query.filter(
-                FinancialTransaction.date >= start_date,
-                FinancialTransaction.date <= end_date
-            )
-
-        return sum(t.amount for t in query.all()) or 0
-
-    def get_transactions_by_period(self, start_date, end_date, include_settled=False):
-        """
-        الحصول على جميع معاملات الموظف في فترة محددة
-
-        Args:
-            start_date: تاريخ البداية
-            end_date: تاريخ النهاية
-            include_settled: هل تشمل المعاملات المسواة؟
-
-        Returns:
-            list: قائمة المعاملات في الفترة
-        """
-        from models import FinancialTransaction
-        query = FinancialTransaction.query.filter(
-            FinancialTransaction.employee_id == self.id,
-            FinancialTransaction.date >= start_date,
-            FinancialTransaction.date <= end_date
-        )
-
-        if not include_settled:
-            query = query.filter(FinancialTransaction.is_settled == False)
-
-        return query.all()
-
-    def get_transactions_summary(self, start_date=None, end_date=None):
-        """
-        الحصول على ملخص المعاملات المالية للموظف
-
-        Returns:
-            dict: ملخص المعاملات حسب النوع
-        """
-        summary = {
-            'advance': 0,
-            'overtime': 0,
-            'deduction': 0,
-            'penalty': 0,
-            'total_advance': 0,
-            'total_overtime': 0,
-            'total_deduction': 0,
-            'total_penalty': 0
+    def get_breakdown(self):
+        return {
+            'employee_payout': {
+                'basic_salary': self.basic_salary_amount,
+                'resident_allowance': self.resident_allowance_amount,
+                'total': self.basic_salary_amount + self.resident_allowance_amount
+            },
+            'contractor_costs': {
+                'clothing': self.clothing_allowance_amount,
+                'health_card': self.health_card_amount,
+                'insurance': self.insurance_amount,
+                'total': self.clothing_allowance_amount + self.health_card_amount + self.insurance_amount
+            },
+            'final_salary': self.total_salary,
+            'contractor_profit': self.contractor_profit
         }
-
-        for trans_type in ['advance', 'overtime', 'deduction', 'penalty']:
-            total = self.get_transactions_sum(trans_type, start_date, end_date)
-            summary[trans_type] = total
-            summary[f'total_{trans_type}'] = total
-
-        # صافي التأثير على الراتب (الإضافات - الخصومات)
-        summary['net_effect'] = (summary['overtime'] - summary['advance'] - summary['deduction'] - summary['penalty'])
-
-        return summary
-
-    def get_unsettled_transactions_count(self):
-        """الحصول على عدد المعاملات غير المسواة"""
-        from models import FinancialTransaction
-        return FinancialTransaction.query.filter(
-            FinancialTransaction.employee_id == self.id,
-            FinancialTransaction.is_settled == False
-        ).count()
-
-    def get_settled_transactions_total(self, start_date=None, end_date=None):
-        """الحصول على إجمالي المعاملات المسواة في فترة"""
-        from models import FinancialTransaction
-        query = FinancialTransaction.query.filter(
-            FinancialTransaction.employee_id == self.id,
-            FinancialTransaction.is_settled == True
-        )
-
-        if start_date and end_date:
-            query = query.filter(
-                FinancialTransaction.date >= start_date,
-                FinancialTransaction.date <= end_date
-            )
-
-        return sum(t.amount for t in query.all()) or 0
-
-    @property
-    def is_worker(self):
-        return self.employee_type == 'worker'
-
-    @property
-    def is_supervisor(self):
-        return self.employee_type == 'supervisor'
-
-    @property
-    def is_admin(self):
-        return self.employee_type == 'admin'
-
-    @property
-    def company_name(self):
-        return self.company.name if self.company else None
-
-    @property
-    def supervisor_name(self):
-        return self.supervisor.name if self.supervisor else None
 
     def to_dict(self):
         return {
-            'id': self.id,
-            'name': self.name,
-            'card_number': self.card_number,
-            'code': self.code,
-            'job_title': self.job_title,
-            'region': self.region,
-            'is_resident': self.is_resident,
-            'phone': self.phone,
-            'salary': self.salary,
-            'is_active': self.is_active,
-            'employee_type': self.employee_type,
-            'company_id': self.company_id,
-            'company_name': self.company_name,
-            'supervisor_id': self.supervisor_id,
-            'supervisor_name': self.supervisor_name
+            'id': self.id, 'employee_name': self.employee.name if self.employee else None,
+            'month_year': self.month_year, 'attendance_days': self.attendance_days,
+            'basic_salary': self.basic_salary_amount, 'resident_allowance': self.resident_allowance_amount,
+            'cash_payout': self.basic_salary_amount + self.resident_allowance_amount,
+            'clothing': self.clothing_allowance_amount, 'health_card': self.health_card_amount,
+            'insurance': self.insurance_amount, 'contractor_profit': self.contractor_profit,
+            'total_salary': self.total_salary, 'is_paid': self.is_paid
         }
+
+    def calculate_from_preparation_detail(self, preparation_detail):
+        """حساب الراتب من تفاصيل تحضير الدوام"""
+        from models import Employee
+
+        employee = Employee.query.get(self.employee_id)
+        if employee and employee.employee_type == 'worker':
+            breakdown = employee.calculate_salary_breakdown(preparation_detail.attendance_days)
+
+            self.basic_salary_amount = breakdown['basic_salary']
+            self.resident_allowance_amount = breakdown['resident_allowance']
+            self.clothing_allowance_amount = breakdown['clothing_allowance']
+            self.health_card_amount = breakdown['health_card']
+            self.insurance_amount = breakdown['insurance']
+            self.contractor_profit = breakdown['contractor_profit']
+            self.attendance_days = preparation_detail.attendance_days
+            self.attendance_amount = breakdown['cash_payout']
+            self.total_salary = breakdown['cash_payout']
+        else:
+            # للمشرفين والإداريين
+            self.attendance_days = preparation_detail.attendance_days
+            daily_rate = self.base_salary / 30
+            self.attendance_amount = daily_rate * preparation_detail.attendance_days
+            self.daily_allowance_amount = preparation_detail.daily_allowance
+            self.total_salary = self.attendance_amount + self.daily_allowance_amount
+
+        return self.total_salary
+
+# ==================== نموذج تكاليف العمال الشهرية ====================
+
+class LaborMonthlyCost(db.Model):
+    """نموذج التكاليف الشهرية للعمال (بالإضافة للرواتب)"""
+    __tablename__ = 'labor_monthly_costs'
+
+    id = db.Column(db.Integer, primary_key=True)
+    employee_id = db.Column(db.Integer, db.ForeignKey('employees.id'), nullable=False)
+    month_year = db.Column(db.String(10), nullable=False)  # MM-YYYY
+
+    # التكاليف الأساسية
+    basic_salary_cost = db.Column(db.Float, default=0)  # الراتب الأساسي
+    resident_allowance_cost = db.Column(db.Float, default=0)  # بدل السكن
+
+    # التكاليف الإضافية
+    insurance_cost = db.Column(db.Float, default=0)  # التأمين الشهري
+    clothing_allowance_cost = db.Column(db.Float, default=0)  # بدل الملابس (تقسيط سنوي)
+    health_card_cost = db.Column(db.Float, default=0)  # البطائق الصحية (تقسيط سنوي)
+
+    # إجمالي تكلفة العامل
+    total_cost = db.Column(db.Float, default=0)
+
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    # العلاقات
+    employee = db.relationship('Employee', backref='monthly_costs')
+
+    __table_args__ = (db.UniqueConstraint('employee_id', 'month_year', name='unique_employee_month_cost'),)
+
+    def calculate_total_cost(self):
+        """حساب إجمالي التكلفة الشهرية"""
+        self.total_cost = (
+            self.basic_salary_cost +
+            self.resident_allowance_cost +
+            self.insurance_cost +
+            self.clothing_allowance_cost +
+            self.health_card_cost
+        )
+        return self.total_cost
+
+    # إضافة دوال مساعدة لنموذج Employee
+    def get_transactions_summary(self, start_date=None, end_date=None):
+        from models import FinancialTransaction
+        query = FinancialTransaction.query.filter(
+            FinancialTransaction.employee_id == self.id,
+            FinancialTransaction.is_settled == False
+        )
+        if start_date and end_date:
+            query = query.filter(
+                FinancialTransaction.date >= start_date,
+                FinancialTransaction.date <= end_date
+            )
+        transactions = query.all()
+        summary = {'advance': 0, 'overtime': 0, 'deduction': 0, 'penalty': 0}
+        for t in transactions:
+            if t.transaction_type in summary:
+                summary[t.transaction_type] += t.amount
+        return summary
+
+    # ربط الدالة
+    Employee.get_transactions_summary = get_transactions_summary
+
+class ContractorAnnualCost(db.Model):
+    """نموذج التكاليف السنوية للمتعهدين"""
+    __tablename__ = 'contractor_annual_costs'
+
+    id = db.Column(db.Integer, primary_key=True)
+    year = db.Column(db.Integer, nullable=False)
+    company_id = db.Column(db.Integer, db.ForeignKey('companies.id'), nullable=True)
+
+    # التكاليف السنوية للمتعهد
+    tax_amount = db.Column(db.Float, default=500000)  # ضريبة سنوية
+    zakat_amount = db.Column(db.Float, default=75000)  # زكاة سنوية
+
+    # الحالة
+    is_paid = db.Column(db.Boolean, default=False)
+    paid_date = db.Column(db.Date)
+    payment_reference = db.Column(db.String(100))
+
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    company = db.relationship('Company', backref='contractor_costs')
+
+    __table_args__ = (db.UniqueConstraint('year', 'company_id', name='unique_year_company'),)
+
+
+# ==================== حسابات المحاسبة الجديدة ====================
+
+def create_labor_accounts():
+    """إنشاء الحسابات المحاسبية لرواتب العمال"""
+    from models import Account, db
+
+    labor_accounts = [
+        # مصروفات الرواتب
+        ('511001', 'Labor Basic Salary', 'رواتب العمال الأساسية', 'expense', 'debit'),
+        ('511002', 'Labor Resident Allowance', 'بدل سكن العمال', 'expense', 'debit'),
+        ('511003', 'Labor Insurance', 'تأمين العمال', 'expense', 'debit'),
+        ('511004', 'Labor Clothing Allowance', 'بدل ملابس العمال', 'expense', 'debit'),
+        ('511005', 'Labor Health Cards', 'بطائق صحية للعمال', 'expense', 'debit'),
+
+        # مخصصات وخصوم
+        ('211001', 'Labor Salaries Payable', 'رواتب العمال المستحقة', 'liability', 'credit'),
+        ('211002', 'Labor Allowances Payable', 'بدلات العمال المستحقة', 'liability', 'credit'),
+        ('211003', 'Insurance Payable', 'تأمينات مستحقة', 'liability', 'credit'),
+
+        # مصروفات المتعهدين
+        ('521001', 'Contractor Tax', 'ضريبة المتعهدين', 'expense', 'debit'),
+        ('521002', 'Contractor Zakat', 'زكاة المتعهدين', 'expense', 'debit'),
+
+        # التزامات تجاه الجهات الخارجية
+        ('221001', 'Tax Authority Payable', 'ضريبة مستحقة للجهات الضريبية', 'liability', 'credit'),
+        ('221002', 'Zakat Authority Payable', 'زكاة مستحقة', 'liability', 'credit'),
+        ('221003', 'Insurance Company Payable', 'مستحقات شركات التأمين', 'liability', 'credit'),
+    ]
+
+    created_count = 0
+    for code, name, name_ar, account_type, nature in labor_accounts:
+        existing = Account.query.filter_by(code=code).first()
+        if not existing:
+            account = Account(
+                code=code,
+                name=name,
+                name_ar=name_ar,
+                account_type=account_type,
+                nature=nature,
+                opening_balance=0,
+                is_active=True
+            )
+            db.session.add(account)
+            created_count += 1
+
+    if created_count > 0:
+        db.session.commit()
+        print(f"✅ تم إنشاء {created_count} حساب محاسبي لرواتب العمال")
+
+    return created_count
 
 class Contract(db.Model):
     """نموذج العقود"""
@@ -769,76 +854,287 @@ class AttendancePreparationDetail(db.Model):
             'notes': self.notes
         }
 
+# ==================== نظام ترحيل فترات الرواتب المفصول ====================
 
 class AttendancePeriodTransfer(db.Model):
-    """نموذج ترحيل فترة دوام كاملة إلى الرواتب"""
+    """نموذج ترحيل فترة دوام كاملة إلى الرواتب (مفصل حسب النوع)"""
     __tablename__ = 'attendance_period_transfers'
+
+    PAYROLL_TYPES = {
+        'admin': 'رواتب الإدارة',
+        'labor': 'رواتب العمال'
+    }
 
     id = db.Column(db.Integer, primary_key=True)
     period_name = db.Column(db.String(100), nullable=False)
+    payroll_type = db.Column(db.String(20), nullable=False, default='admin')  # admin, labor
     start_date = db.Column(db.Date, nullable=False)
     end_date = db.Column(db.Date, nullable=False)
     transfer_date = db.Column(db.Date, default=datetime.now().date)
     is_transferred = db.Column(db.Boolean, default=False)
     transferred_by = db.Column(db.Integer, db.ForeignKey('users.id'))
 
-    # إضافة حقول الفلترة
+    # حقول الفلترة
     company_id = db.Column(db.Integer, db.ForeignKey('companies.id'), nullable=True)
     region = db.Column(db.String(100), nullable=True)
+
+    # إحصائيات الترحيل
+    total_employees = db.Column(db.Integer, default=0)
+    total_attendance_days = db.Column(db.Integer, default=0)
+    total_salaries = db.Column(db.Float, default=0)
+    total_deductions = db.Column(db.Float, default=0)
+    total_net = db.Column(db.Float, default=0)
 
     notes = db.Column(db.Text)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
     # العلاقات
     transfers_details = db.relationship('AttendancePeriodTransferDetail', backref='transfer',
-                                        cascade='all, delete-orphan')
+                                        cascade='all, delete-orphan', lazy=True)
     transferred_user = db.relationship('User', foreign_keys=[transferred_by])
     company = db.relationship('Company', foreign_keys=[company_id])
 
-    def __repr__(self):
-        return f'<AttendancePeriodTransfer {self.period_name} ({self.start_date} to {self.end_date})>'
+    __table_args__ = (
+        db.UniqueConstraint('payroll_type', 'company_id', 'region', 'start_date', 'end_date',
+                            name='unique_transfer_period'),
+    )
 
-    def check_overlap(self, start_date, end_date, company_id=None, region=None):
-        """التحقق من وجود تداخل مع فترة أخرى"""
+    def get_payroll_type_name(self):
+        """الحصول على اسم نوع الراتب"""
+        return self.PAYROLL_TYPES.get(self.payroll_type, self.payroll_type)
+
+    def check_overlap(self):
+        """التحقق من وجود ترحيل مسبق لنفس الفترة والنوع"""
         query = AttendancePeriodTransfer.query.filter(
-            AttendancePeriodTransfer.start_date <= end_date,
-            AttendancePeriodTransfer.end_date >= start_date,
+            AttendancePeriodTransfer.payroll_type == self.payroll_type,
+            AttendancePeriodTransfer.start_date <= self.end_date,
+            AttendancePeriodTransfer.end_date >= self.start_date,
             AttendancePeriodTransfer.id != self.id if self.id else True
         )
 
-        if company_id:
-            query = query.filter(AttendancePeriodTransfer.company_id == company_id)
-        elif region:
-            query = query.filter(AttendancePeriodTransfer.region == region)
+        # فلترة حسب الشركة أو المنطقة
+        if self.company_id:
+            query = query.filter(AttendancePeriodTransfer.company_id == self.company_id)
+        elif self.region:
+            query = query.filter(AttendancePeriodTransfer.region == self.region)
         else:
             query = query.filter(
-                AttendancePeriodTransfer.company_id == None,
-                AttendancePeriodTransfer.region == None
+                AttendancePeriodTransfer.company_id.is_(None),
+                AttendancePeriodTransfer.region.is_(None)
             )
 
         return query.first() is not None
 
+    def get_transfer_summary(self):
+        """الحصول على ملخص الترحيل"""
+        return {
+            'period_name': self.period_name,
+            'payroll_type': self.get_payroll_type_name(),
+            'start_date': self.start_date.strftime('%Y-%m-%d') if self.start_date else None,
+            'end_date': self.end_date.strftime('%Y-%m-%d') if self.end_date else None,
+            'total_employees': self.total_employees,
+            'total_attendance_days': self.total_attendance_days,
+            'total_salaries': self.total_salaries,
+            'total_deductions': self.total_deductions,
+            'total_net': self.total_net,
+            'is_transferred': self.is_transferred
+        }
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'period_name': self.period_name,
+            'payroll_type': self.payroll_type,
+            'payroll_type_name': self.get_payroll_type_name(),
+            'start_date': self.start_date.strftime('%Y-%m-%d') if self.start_date else None,
+            'end_date': self.end_date.strftime('%Y-%m-%d') if self.end_date else None,
+            'company_id': self.company_id,
+            'company_name': self.company.name if self.company else None,
+            'region': self.region,
+            'total_employees': self.total_employees,
+            'total_net': self.total_net,
+            'is_transferred': self.is_transferred,
+            'transfer_date': self.transfer_date.strftime('%Y-%m-%d') if self.transfer_date else None
+        }
+
+
 class AttendancePeriodTransferDetail(db.Model):
-    """تفاصيل ترحيل فترة دوام لكل موظف"""
+    """تفاصيل ترحيل فترة دوام لكل موظف (مفصل حسب نوع الموظف)"""
     __tablename__ = 'attendance_period_transfer_details'
 
     id = db.Column(db.Integer, primary_key=True)
     transfer_id = db.Column(db.Integer, db.ForeignKey('attendance_period_transfers.id'), nullable=False)
     employee_id = db.Column(db.Integer, db.ForeignKey('employees.id'), nullable=False)
+    salary_id = db.Column(db.Integer, db.ForeignKey('salaries.id'), nullable=True)  # الراتب المرتبط
 
-    # إحصائيات الدوام المستخرجة من Attendance
+    # إحصائيات الدوام المستخرجة
     attendance_days = db.Column(db.Integer, default=0)
     absent_days = db.Column(db.Integer, default=0)
     sick_days = db.Column(db.Integer, default=0)
     late_minutes_total = db.Column(db.Integer, default=0)
     overtime_hours = db.Column(db.Float, default=0)
+    daily_allowance = db.Column(db.Float, default=0)
+
+    # المبالغ المالية
+    base_salary = db.Column(db.Float, default=0)
+    attendance_amount = db.Column(db.Float, default=0)
+    overtime_amount = db.Column(db.Float, default=0)
+    daily_allowance_amount = db.Column(db.Float, default=0)
+
+    # الخصومات
+    advance_amount = db.Column(db.Float, default=0)
+    deduction_amount = db.Column(db.Float, default=0)
+    penalty_amount = db.Column(db.Float, default=0)
+    absence_deduction = db.Column(db.Float, default=0)
+
+    # الإجمالي
+    total_additions = db.Column(db.Float, default=0)
+    total_deductions = db.Column(db.Float, default=0)
+    final_amount = db.Column(db.Float, default=0)  # Admin: net_salary, Labor: net_amount
 
     # الحالة
-    is_processed = db.Column(db.Boolean, default=False)  # هل تم ترحيله للراتب؟
+    is_processed = db.Column(db.Boolean, default=False)
+    processed_at = db.Column(db.DateTime, nullable=True)
+    notes = db.Column(db.String(500))
 
-    employee = db.relationship('Employee')
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    # العلاقات
+    employee = db.relationship('Employee', foreign_keys=[employee_id])
+    salary = db.relationship('Salary', foreign_keys=[salary_id])
 
     __table_args__ = (db.UniqueConstraint('transfer_id', 'employee_id', name='unique_transfer_employee'),)
+
+    def calculate_admin_salary(self, employee):
+        """حساب راتب الإدارة"""
+        # الراتب الأساسي للموظف
+        self.base_salary = employee.salary or 0
+
+        # عدد أيام الشهر
+        days_in_month = 30
+
+        # قيمة اليوم الواحد
+        daily_rate = self.base_salary / days_in_month
+
+        # مبلغ الحضور (الأيام الفعلية)
+        self.attendance_amount = daily_rate * self.attendance_days
+
+        # بدل التنقل (للساكنين فقط - حسب سياسة الشركة)
+        if employee.is_resident:
+            self.daily_allowance_amount = (employee.daily_allowance or 0) * self.attendance_days
+
+        # ساعات الإضافي
+        hourly_rate = daily_rate / 8
+        self.overtime_amount = self.overtime_hours * (hourly_rate * 1.5)
+
+        # خصم الغياب (مع مراعاة الإجازات المرضية)
+        self.absence_deduction = daily_rate * self.absent_days
+
+        # إجمالي الإضافات
+        self.total_additions = self.attendance_amount + self.daily_allowance_amount + self.overtime_amount
+
+        # إجمالي الخصومات
+        self.total_deductions = self.absence_deduction + self.advance_amount + self.deduction_amount + self.penalty_amount
+
+        # الراتب النهائي
+        self.final_amount = self.total_additions - self.total_deductions
+
+        return self.final_amount
+
+    def calculate_labor_salary(self, employee):
+        """حساب راتب العمال"""
+        # نظام العمل (يومي/ساعي/قطاعي)
+        work_type = getattr(employee, 'work_type', 'daily')
+
+        if work_type == 'daily':
+            # نظام يومي
+            daily_wage = getattr(employee, 'daily_wage', 50)
+            self.base_salary = daily_wage * self.attendance_days
+            self.attendance_amount = self.base_salary
+
+            # ساعات إضافية (بأجر يومي)
+            hourly_rate = daily_wage / 8
+            self.overtime_amount = self.overtime_hours * (hourly_rate * 1.5)
+
+            # إضافة بدل تنقل للعمال (اختياري)
+            self.daily_allowance_amount = getattr(employee, 'transportation_allowance', 0) * self.attendance_days
+
+        elif work_type == 'hourly':
+            # نظام ساعي
+            hourly_rate = getattr(employee, 'hourly_rate', 10)
+            self.attendance_amount = hourly_rate * (self.attendance_days * 8)  # 8 ساعات يومياً
+            self.base_salary = self.attendance_amount
+            self.overtime_amount = self.overtime_hours * (hourly_rate * 1.5)
+
+        else:  # piece - نظام قطاعي
+            piece_rate = getattr(employee, 'piece_rate', 0)
+            pieces_count = getattr(employee, 'pieces_count', 0)
+            self.attendance_amount = piece_rate * pieces_count
+            self.base_salary = self.attendance_amount
+            self.overtime_amount = 0
+
+        # خصم الغياب
+        daily_rate = (employee.daily_wage or 50) if hasattr(employee, 'daily_wage') else 50
+        self.absence_deduction = daily_rate * self.absent_days
+
+        # إجمالي الإضافات
+        self.total_additions = self.attendance_amount + self.overtime_amount + self.daily_allowance_amount
+
+        # إجمالي الخصومات
+        self.total_deductions = self.absence_deduction + self.advance_amount + self.deduction_amount + self.penalty_amount
+
+        # الراتب النهائي
+        self.final_amount = self.total_additions - self.total_deductions
+
+        return self.final_amount
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'employee_id': self.employee_id,
+            'employee_name': self.employee.name if self.employee else None,
+            'employee_code': self.employee.code if self.employee else None,
+            'attendance_days': self.attendance_days,
+            'absent_days': self.absent_days,
+            'overtime_hours': self.overtime_hours,
+            'base_salary': self.base_salary,
+            'attendance_amount': self.attendance_amount,
+            'overtime_amount': self.overtime_amount,
+            'daily_allowance_amount': self.daily_allowance_amount,
+            'advance_amount': self.advance_amount,
+            'deduction_amount': self.deduction_amount,
+            'penalty_amount': self.penalty_amount,
+            'absence_deduction': self.absence_deduction,
+            'final_amount': self.final_amount,
+            'is_processed': self.is_processed
+        }
+
+
+
+# ==================== تحديث نموذج FinancialTransaction بإضافة الدوال ====================
+
+def mark_as_settled(self, settlement_date=None):
+    """تحديد المعاملة كمسواة (مرحلة إلى الراتب)"""
+    self.is_settled = True
+    self.settled_date = settlement_date or datetime.now().date()
+
+
+def mark_as_unsettled(self):
+    """إلغاء تسوية المعاملة"""
+    self.is_settled = False
+    self.settled_date = None
+
+
+def can_be_settled(self):
+    """التحقق من إمكانية تسوية المعاملة"""
+    # يمكن تسوية المعاملة إذا لم تكن مسواة بالفعل
+    return not self.is_settled
+
+
+# إضافة الدوال إلى FinancialTransaction
+FinancialTransaction.mark_as_settled = mark_as_settled
+FinancialTransaction.mark_as_unsettled = mark_as_unsettled
+FinancialTransaction.can_be_settled = can_be_settled
 
 # ==================== إضافة دوال جديدة لنموذج Employee ====================
 

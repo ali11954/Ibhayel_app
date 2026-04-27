@@ -109,30 +109,42 @@
         color: #0c5460;
     }
 
-    .status-option.selected-annual_leave {
+    .status-option.selected-annual_leave_paid {
+        background-color: #c8e6e9;
+        border-color: #009688;
+        color: #004d40;
+    }
+
+    .status-option.selected-annual_leave_unpaid {
         background-color: #e8d5f5;
         border-color: #9b59b6;
         color: #6c3483;
     }
 
-    .save-all-btn {
-        position: sticky;
-        bottom: 20px;
-        z-index: 1000;
-        box-shadow: 0 5px 20px rgba(0,0,0,0.2);
-        border-radius: 50px;
-        padding: 12px 25px;
+    .annual-fields {
+        background: #f5f0fa;
+        border-radius: 10px;
+        padding: 0.8rem;
+        margin-top: 0.5rem;
+        border: 1px solid #e8d5f5;
     }
 
-    @keyframes fadeInUp {
-        from {
-            opacity: 0;
-            transform: translateY(20px);
-        }
-        to {
-            opacity: 1;
-            transform: translateY(0);
-        }
+    .paid-fields {
+        background: #e0f2f1;
+        border-radius: 10px;
+        padding: 0.8rem;
+        margin-top: 0.5rem;
+        border: 1px solid #b2dfdb;
+    }
+
+    .leave-balance {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        border-radius: 12px;
+        padding: 8px 12px;
+        margin-bottom: 10px;
+        color: white;
+        font-size: 0.8rem;
+        text-align: center;
     }
 
     .filter-section {
@@ -195,12 +207,15 @@
         gap: 5px;
     }
 
-    .annual-fields {
-        background: #f5f0fa;
-        border-radius: 10px;
-        padding: 0.8rem;
-        margin-top: 0.5rem;
-        border: 1px solid #e8d5f5;
+    @keyframes fadeInUp {
+        from {
+            opacity: 0;
+            transform: translateY(20px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
     }
 </style>
 {% endblock %}
@@ -213,7 +228,7 @@
                 <i class="fas fa-calendar-check me-2"></i>
                 التحضير اليومي
             </h2>
-            <p class="mb-0 opacity-75">تسجيل حضور وانصراف العمال</p>
+            <p class="mb-0 opacity-75">تسجيل حضور وانصراف العمال والإجازات</p>
         </div>
         <div class="col-md-4 text-center">
             <div class="employee-icon-large mx-auto">
@@ -228,9 +243,6 @@
     <div class="btn-group">
         <a href="{{ url_for('attendance_report') }}" class="btn btn-info">
             <i class="fas fa-chart-line"></i> تقرير الحضور
-        </a>
-        <a href="{{ url_for('financial_monthly_report') }}" class="btn btn-success">
-            <i class="fas fa-file-invoice-dollar"></i> التقرير المالي
         </a>
         <a href="{{ url_for('period_transfer_list') }}" class="btn btn-warning">
             <i class="fas fa-exchange-alt"></i> ترحيل فترة دوام
@@ -281,7 +293,7 @@
 <!-- شريط الفلترة -->
 <div class="filter-section">
     <div class="row align-items-center">
-        <div class="col-md-4 mb-3 mb-md-0">
+        <div class="col-md-3 mb-3 mb-md-0">
             <div class="input-group">
                 <span class="input-group-text bg-white border-end-0">
                     <i class="fas fa-search text-muted"></i>
@@ -290,7 +302,7 @@
                        placeholder="بحث باسم الموظف...">
             </div>
         </div>
-        <div class="col-md-4 mb-3 mb-md-0">
+        <div class="col-md-3 mb-3 mb-md-0">
             <select id="companyFilter" class="form-select">
                 <option value="">جميع الشركات</option>
                 {% for company in companies %}
@@ -298,15 +310,21 @@
                 {% endfor %}
             </select>
         </div>
-        <div class="col-md-4">
+        <div class="col-md-3 mb-3 mb-md-0">
             <select id="statusFilter" class="form-select">
                 <option value="">جميع الحالات</option>
                 <option value="present">حاضر</option>
                 <option value="absent">غائب</option>
                 <option value="late">متأخر</option>
                 <option value="sick">إجازة مرضية</option>
-                <option value="annual_leave">إجازة سنوية</option>
+                <option value="annual_leave_paid">إجازة سنوية (مدفوعة)</option>
+                <option value="annual_leave_unpaid">إجازة سنوية (بدون أجر)</option>
             </select>
+        </div>
+        <div class="col-md-3">
+            <div class="form-text text-muted">
+                <i class="fas fa-info-circle"></i> 30 يوم إجازة سنوية مدفوعة
+            </div>
         </div>
     </div>
 </div>
@@ -357,7 +375,14 @@
                         </div>
                     </div>
 
-                    <!-- خيارات الحضور (5 خيارات) -->
+                    <!-- رصيد الإجازات (للموظف) -->
+                    <div class="leave-balance">
+                        <i class="fas fa-calendar-alt me-1"></i>
+                        رصيد الإجازة السنوية المتبقي:
+                        <strong id="leaveBalance_{{ emp.id }}">{{ emp.remaining_annual_leave|default(30) }}</strong> / 30 يوم
+                    </div>
+
+                    <!-- خيارات الحضور (6 خيارات) -->
                     <div class="row g-2">
                         <div class="col-6">
                             <div class="status-option p-2 text-center rounded border
@@ -391,11 +416,19 @@
                                 <div>إجازة مرضية</div>
                             </div>
                         </div>
-                        <div class="col-12 mt-2">
+                        <div class="col-6">
                             <div class="status-option p-2 text-center rounded border
-                                        {% if current_status == 'annual_leave' %}selected-annual_leave bg-purple bg-opacity-10 border-purple{% endif %}"
-                                 onclick="selectStatus({{ emp.id }}, 'annual_leave')">
-                                <i class="fas fa-umbrella-beach text-purple"></i>
+                                        {% if current_status == 'annual_leave' %}selected-annual_leave_paid bg-teal bg-opacity-10 border-teal{% endif %}"
+                                 onclick="selectStatus({{ emp.id }}, 'annual_leave_paid')">
+                                <i class="fas fa-umbrella-beach text-teal"></i>
+                                <div>إجازة سنوية (مدفوعة)</div>
+                            </div>
+                        </div>
+                        <div class="col-6">
+                            <div class="status-option p-2 text-center rounded border
+                                        {% if current_status == 'annual_leave_unpaid' %}selected-annual_leave_unpaid bg-purple bg-opacity-10 border-purple{% endif %}"
+                                 onclick="selectStatus({{ emp.id }}, 'annual_leave_unpaid')">
+                                <i class="fas fa-ban text-purple"></i>
                                 <div>إجازة سنوية (بدون أجر)</div>
                             </div>
                         </div>
@@ -426,15 +459,32 @@
                             </div>
                         </div>
 
-                        <!-- حقل الإجازة السنوية -->
-                        <div id="annualFields_{{ emp.id }}" class="annual-fields" style="display: none;">
+                        <!-- حقل الإجازة السنوية المدفوعة -->
+                        <div id="annualPaidFields_{{ emp.id }}" class="paid-fields" style="display: none;">
                             <div class="mb-2">
-                                <label class="small fw-bold">
-                                    <i class="fas fa-calendar-week text-purple"></i> عدد أيام الإجازة السنوية
+                                <label class="small fw-bold text-teal">
+                                    <i class="fas fa-calendar-check"></i> عدد أيام الإجازة السنوية (مدفوعة)
                                 </label>
                                 <input type="number" name="annual_leave_days_{{ emp.id }}" class="form-control form-control-sm"
-                                       value="{{ attendance.annual_leave_days if attendance and attendance.attendance_status == 'annual_leave' else 1 }}" min="1">
-                                <small class="text-muted">إجازة سنوية بدون أجر</small>
+                                       id="annualDays_{{ emp.id }}"
+                                       value="{{ attendance.annual_leave_days if attendance and attendance.attendance_status == 'annual_leave' else 1 }}"
+                                       min="1" max="30" onchange="checkAnnualBalance({{ emp.id }})">
+                                <small class="text-muted">إجازة مدفوعة الأجر - تُحتسب في الراتب</small>
+                                <div id="balanceWarning_{{ emp.id }}" class="text-danger small mt-1" style="display: none;">
+                                    ⚠️ رصيد الإجازات المتبقي غير كافٍ! الرصيد المتبقي: <span id="remaining_{{ emp.id }}"></span> يوم
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- حقل الإجازة السنوية بدون أجر -->
+                        <div id="annualUnpaidFields_{{ emp.id }}" class="annual-fields" style="display: none;">
+                            <div class="mb-2">
+                                <label class="small fw-bold text-purple">
+                                    <i class="fas fa-calendar-times"></i> عدد أيام الإجازة السنوية (بدون أجر)
+                                </label>
+                                <input type="number" name="annual_leave_unpaid_days_{{ emp.id }}" class="form-control form-control-sm"
+                                       value="{{ attendance.annual_leave_days if attendance and attendance.attendance_status == 'annual_leave_unpaid' else 1 }}" min="1">
+                                <small class="text-muted">إجازة بدون أجر - لا تُحتسب في الراتب</small>
                             </div>
                         </div>
 
@@ -476,13 +526,35 @@
     <div class="text-center mt-4 pb-4">
         <button type="submit" class="btn btn-success btn-lg save-all-btn">
             <i class="fas fa-save me-2"></i>
-            حفظ جميع حالات الحضور
+            حفظ جميع حالات الحضور والإجازات
         </button>
     </div>
     {% endif %}
 </form>
 
 <script>
+    // تخزين رصيد الإجازات (سيتم جلبه من قاعدة البيانات)
+    let employeeLeaveBalance = {};
+
+    function checkAnnualBalance(employeeId) {
+        const daysInput = document.getElementById(`annualDays_${employeeId}`);
+        const requestedDays = parseInt(daysInput.value) || 0;
+        const balance = employeeLeaveBalance[employeeId] || 30;
+        const remaining = balance - requestedDays;
+        const warningSpan = document.getElementById(`balanceWarning_${employeeId}`);
+        const remainingSpan = document.getElementById(`remaining_${employeeId}`);
+
+        if (remainingSpan) remainingSpan.innerText = remaining;
+
+        if (requestedDays > balance) {
+            warningSpan.style.display = 'block';
+            daysInput.classList.add('is-invalid');
+        } else {
+            warningSpan.style.display = 'none';
+            daysInput.classList.remove('is-invalid');
+        }
+    }
+
     function selectStatus(employeeId, status) {
         // تحديث الحقل المخفي
         document.getElementById(`status_${employeeId}`).value = status;
@@ -493,8 +565,8 @@
 
         // إزالة التحديد من جميع خيارات الحالة لهذا الموظف
         options.forEach(opt => {
-            opt.classList.remove('selected-present', 'selected-absent', 'selected-late', 'selected-sick', 'selected-annual_leave');
-            opt.classList.remove('bg-success', 'bg-danger', 'bg-warning', 'bg-info', 'bg-purple', 'bg-opacity-10');
+            opt.classList.remove('selected-present', 'selected-absent', 'selected-late', 'selected-sick', 'selected-annual_leave_paid', 'selected-annual_leave_unpaid');
+            opt.classList.remove('bg-success', 'bg-danger', 'bg-warning', 'bg-info', 'bg-teal', 'bg-purple', 'bg-opacity-10');
         });
 
         // إضافة التحديد للخيار المختار
@@ -503,7 +575,8 @@
             'absent': 1,
             'late': 2,
             'sick': 3,
-            'annual_leave': 4
+            'annual_leave_paid': 4,
+            'annual_leave_unpaid': 5
         };
         const selectedOption = options[statusMap[status]];
         if (selectedOption) {
@@ -515,8 +588,10 @@
                 selectedOption.classList.add('selected-late', 'bg-warning', 'bg-opacity-10');
             } else if (status === 'sick') {
                 selectedOption.classList.add('selected-sick', 'bg-info', 'bg-opacity-10');
-            } else if (status === 'annual_leave') {
-                selectedOption.classList.add('selected-annual_leave', 'bg-purple', 'bg-opacity-10');
+            } else if (status === 'annual_leave_paid') {
+                selectedOption.classList.add('selected-annual_leave_paid', 'bg-teal', 'bg-opacity-10');
+            } else if (status === 'annual_leave_unpaid') {
+                selectedOption.classList.add('selected-annual_leave_unpaid', 'bg-purple', 'bg-opacity-10');
             }
         }
 
@@ -524,22 +599,27 @@
         const extraFields = document.getElementById(`extraFields_${employeeId}`);
         const lateFields = document.getElementById(`lateFields_${employeeId}`);
         const sickFields = document.getElementById(`sickFields_${employeeId}`);
-        const annualFields = document.getElementById(`annualFields_${employeeId}`);
+        const annualPaidFields = document.getElementById(`annualPaidFields_${employeeId}`);
+        const annualUnpaidFields = document.getElementById(`annualUnpaidFields_${employeeId}`);
+
+        extraFields.style.display = 'none';
+        lateFields.style.display = 'none';
+        sickFields.style.display = 'none';
+        annualPaidFields.style.display = 'none';
+        annualUnpaidFields.style.display = 'none';
 
         if (status === 'present' || status === 'absent') {
-            extraFields.style.display = 'none';
+            // لا شيء
         } else {
             extraFields.style.display = 'block';
-            lateFields.style.display = 'none';
-            sickFields.style.display = 'none';
-            annualFields.style.display = 'none';
-
             if (status === 'late') {
                 lateFields.style.display = 'block';
             } else if (status === 'sick') {
                 sickFields.style.display = 'block';
-            } else if (status === 'annual_leave') {
-                annualFields.style.display = 'block';
+            } else if (status === 'annual_leave_paid') {
+                annualPaidFields.style.display = 'block';
+            } else if (status === 'annual_leave_unpaid') {
+                annualUnpaidFields.style.display = 'block';
             }
         }
 
@@ -585,12 +665,14 @@
             });
         });
 
-        // عرض الحقول الإضافية للموظفين الذين لديهم حالة غير حاضر/غائب
+        // عرض الحقول الإضافية للموظفين الذين لديهم حالة خاصة
         {% for emp in employees %}
             {% set attendance = attendance_dict.get(emp.id) %}
-            {% if attendance and attendance.attendance_status != 'present' and attendance.attendance_status != 'absent' %}
+            {% if attendance and attendance.attendance_status %}
                 selectStatus({{ emp.id }}, '{{ attendance.attendance_status }}');
             {% endif %}
+            // تهيئة رصيد الإجازات (سيتم جلبه من قاعدة البيانات)
+            employeeLeaveBalance[{{ emp.id }}] = {{ emp.remaining_annual_leave|default(30) }};
         {% endfor %}
     });
 </script>

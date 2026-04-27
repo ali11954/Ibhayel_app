@@ -3,19 +3,36 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>تعديل سجل الحضور - طلعت هائل</title>
+    <title>تعديل سجل الحضور - طلعت هائل للاستشارات والخدمات الزراعية</title>
 
+    <!-- Bootstrap 5 RTL CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.rtl.min.css" rel="stylesheet">
+    <!-- Font Awesome 6 -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <!-- jQuery -->
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 
     <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
         body {
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             min-height: 100vh;
-            padding: 2rem 0;
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            padding: 2rem;
+            font-family: 'Tahoma', 'Segoe UI', Arial, sans-serif;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
         }
 
         .edit-card {
-            border: none;
+            background: white;
             border-radius: 20px;
             box-shadow: 0 20px 60px rgba(0,0,0,0.3);
             overflow: hidden;
@@ -40,13 +57,19 @@
         }
 
         .edit-header h4 {
-            margin: 0;
+            margin: 0 0 0.5rem 0;
             font-weight: 700;
             font-size: 1.8rem;
         }
 
-        .edit-header i {
+        .edit-header h4 i {
             margin-left: 10px;
+        }
+
+        .edit-header p {
+            margin: 0;
+            opacity: 0.9;
+            font-size: 0.95rem;
         }
 
         .form-section {
@@ -58,7 +81,7 @@
         }
 
         .form-section:hover {
-            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.08);
         }
 
         .form-section-title {
@@ -72,7 +95,8 @@
         }
 
         .info-badge {
-            background: #e9ecef;
+            background: white;
+            border: 1px solid #dee2e6;
             padding: 0.5rem 1rem;
             border-radius: 25px;
             font-size: 0.9rem;
@@ -82,18 +106,25 @@
             font-weight: 500;
         }
 
-        .employee-avatar-lg {
-            width: 70px;
-            height: 70px;
-            border-radius: 20px;
-            background: rgba(255,255,255,0.2);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: white;
-            font-size: 2rem;
-            font-weight: bold;
-            backdrop-filter: blur(10px);
+        .form-label {
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+            color: #495057;
+            display: block;
+        }
+
+        .form-control, .form-select {
+            border-radius: 12px;
+            border: 2px solid #e9ecef;
+            padding: 0.75rem;
+            transition: all 0.3s;
+            width: 100%;
+        }
+
+        .form-control:focus, .form-select:focus {
+            border-color: #17a2b8;
+            box-shadow: 0 0 0 0.2rem rgba(23, 162, 184, 0.25);
+            outline: none;
         }
 
         .btn-save {
@@ -104,12 +135,13 @@
             border-radius: 50px;
             transition: all 0.3s;
             font-size: 1rem;
+            color: white;
+            cursor: pointer;
         }
 
         .btn-save:hover {
             transform: translateY(-2px);
             box-shadow: 0 5px 20px rgba(40,167,69,0.4);
-            color: white;
         }
 
         .btn-cancel {
@@ -132,30 +164,24 @@
             color: white;
         }
 
-        .form-control, .form-select {
-            border-radius: 12px;
-            border: 2px solid #e9ecef;
-            padding: 0.75rem;
-            transition: all 0.3s;
+        .text-muted {
+            color: #6c757d !important;
         }
 
-        .form-control:focus, .form-select:focus {
-            border-color: #17a2b8;
-            box-shadow: 0 0 0 0.2rem rgba(23, 162, 184, 0.25);
-        }
+        .mt-3 { margin-top: 1rem; }
+        .mt-4 { margin-top: 1.5rem; }
+        .mb-3 { margin-bottom: 1rem; }
+        .me-2 { margin-right: 0.5rem; }
+        .mx-1 { margin-left: 0.25rem; margin-right: 0.25rem; }
+        .d-flex { display: flex; }
+        .justify-content-between { justify-content: space-between; }
+        .align-items-center { align-items: center; }
+        .gap-3 { gap: 1rem; }
 
-        .form-label {
-            font-weight: 600;
-            margin-bottom: 0.5rem;
-            color: #495057;
-        }
-
-        .status-badge-select {
-            display: inline-block;
-            padding: 0.4rem 1rem;
-            border-radius: 25px;
-            font-size: 0.8rem;
-            font-weight: 600;
+        @media (max-width: 768px) {
+            body { padding: 1rem; }
+            .edit-header h4 { font-size: 1.3rem; }
+            .btn-save, .btn-cancel { padding: 0.5rem 1.5rem; }
         }
 
         /* أنيميشن للحقول الإضافية */
@@ -174,7 +200,7 @@
             }
         }
 
-        /* رسائل التأكيد */
+        /* رسالة التأكيد */
         .toast-notification {
             position: fixed;
             top: 20px;
@@ -197,41 +223,6 @@
                 opacity: 1;
             }
         }
-
-        /* تنسيق Responsive */
-        @media (max-width: 768px) {
-            body {
-                padding: 1rem;
-            }
-
-            .edit-header h4 {
-                font-size: 1.3rem;
-            }
-
-            .btn-save, .btn-cancel {
-                padding: 0.5rem 1.5rem;
-                font-size: 0.9rem;
-            }
-        }
-
-        /* Custom scrollbar */
-        ::-webkit-scrollbar {
-            width: 10px;
-        }
-
-        ::-webkit-scrollbar-track {
-            background: #f1f1f1;
-            border-radius: 10px;
-        }
-
-        ::-webkit-scrollbar-thumb {
-            background: #17a2b8;
-            border-radius: 10px;
-        }
-
-        ::-webkit-scrollbar-thumb:hover {
-            background: #0dcaf0;
-        }
     </style>
 </head>
 <body>
@@ -240,21 +231,16 @@
             <div class="col-lg-8 offset-lg-2">
                 <div class="edit-card">
                     <div class="edit-header">
-                        <div class="d-flex justify-content-between align-items-center">
-                            <div>
-                                <h4>
-                                    <i class="fas fa-edit"></i>
-                                    تعديل سجل الحضور
-                                </h4>
-                                <p class="mb-0 opacity-75 mt-2">قم بتعديل بيانات حضور وانصراف الموظف</p>
-                            </div>
-                            <div class="employee-avatar-lg">
-                                <i class="fas fa-user-check"></i>
-                            </div>
-                        </div>
+                        <h4>
+                            <i class="fas fa-edit"></i> تعديل سجل الحضور
+                        </h4>
+                        <p>
+                            <i class="fas fa-user-check me-2"></i>
+                            قم بتعديل بيانات حضور وانصراف الموظف
+                        </p>
                     </div>
 
-                    <div class="card-body p-4 p-lg-5">
+                    <div class="card-body" style="padding: 2rem;">
                         <form method="POST" action="{{ url_for('edit_attendance_record', attendance_id=attendance.id) }}" id="editForm">
                             <input type="hidden" name="start_date" value="{{ start_date }}">
                             <input type="hidden" name="end_date" value="{{ end_date }}">
@@ -283,48 +269,51 @@
                                         </label>
                                         <div class="info-badge">
                                             <i class="fas fa-calendar-day"></i>
-                                            <strong>{{ attendance.date.strftime('%Y-%m-%d') }}</strong>
+                                            <strong>{{ attendance.date.strftime('%Y-%m-%d') if attendance.date else '-' }}</strong>
                                             <span class="text-muted mx-1">|</span>
-                                            <small>{{ attendance.date.strftime('%A') }}</small>
+                                            <small>{{ attendance.date.strftime('%A') if attendance.date else '-' }}</small>
                                         </div>
                                     </div>
                                 </div>
                             </div>
 
-                            <!-- نوع الحضور والحالة -->
+                            <!-- نوع الحضور -->
                             <div class="form-section">
                                 <div class="form-section-title">
-                                    <i class="fas fa-clipboard-list"></i> بيانات الحضور
+                                    <i class="fas fa-tag"></i> نوع الحضور
                                 </div>
                                 <div class="row mt-3">
-                                    <div class="col-md-6 mb-3">
-                                        <label class="form-label">
-                                            <i class="fas fa-tag text-primary"></i> نوع الحضور
-                                        </label>
+                                    <div class="col-md-12">
                                         <select name="attendance_type" class="form-select">
-                                            <option value="individual" {% if attendance.attendance_type =='individual' %}selected{% endif %}>
+                                            <option value="individual" {% if attendance.attendance_type == 'individual' %}selected{% endif %}>
                                                 👤 فردي
                                             </option>
-                                            <option value="group" {% if attendance.attendance_type =='group' %}selected{% endif %}>
+                                            <option value="group" {% if attendance.attendance_type == 'group' %}selected{% endif %}>
                                                 👥 جماعي
                                             </option>
                                         </select>
                                     </div>
-                                    <div class="col-md-6 mb-3">
-                                        <label class="form-label">
-                                            <i class="fas fa-chart-simple text-primary"></i> الحالة
-                                        </label>
+                                </div>
+                            </div>
+
+                            <!-- حالة الحضور -->
+                            <div class="form-section">
+                                <div class="form-section-title">
+                                    <i class="fas fa-chart-simple"></i> حالة الحضور
+                                </div>
+                                <div class="row mt-3">
+                                    <div class="col-md-12">
                                         <select name="attendance_status" class="form-select" id="attendance_status" onchange="toggleExtraFields()">
-                                            <option value="present" {% if attendance.attendance_status =='present' %}selected{% endif %}>
+                                            <option value="present" {% if attendance.attendance_status == 'present' %}selected{% endif %}>
                                                 ✅ حاضر
                                             </option>
-                                            <option value="absent" {% if attendance.attendance_status =='absent' %}selected{% endif %}>
+                                            <option value="absent" {% if attendance.attendance_status == 'absent' %}selected{% endif %}>
                                                 ❌ غائب
                                             </option>
-                                            <option value="late" {% if attendance.attendance_status =='late' %}selected{% endif %}>
+                                            <option value="late" {% if attendance.attendance_status == 'late' %}selected{% endif %}>
                                                 ⏰ متأخر
                                             </option>
-                                            <option value="sick" {% if attendance.attendance_status =='sick' %}selected{% endif %}>
+                                            <option value="sick" {% if attendance.attendance_status == 'sick' %}selected{% endif %}>
                                                 🤒 إجازة مرضية
                                             </option>
                                         </select>
@@ -332,44 +321,49 @@
                                 </div>
                             </div>
 
-                            <!-- حقول إضافية ديناميكية -->
+                            <!-- حقول التأخير -->
                             <div id="late_fields" style="display: {% if attendance.attendance_status == 'late' %}block{% else %}none{% endif %};">
                                 <div class="form-section">
                                     <div class="form-section-title">
                                         <i class="fas fa-clock"></i> بيانات التأخير
                                     </div>
                                     <div class="row mt-3">
-                                        <div class="col-md-12 mb-3">
+                                        <div class="col-md-12">
                                             <label class="form-label">
                                                 <i class="fas fa-hourglass-half text-warning"></i> دقائق التأخير
                                             </label>
                                             <input type="number" name="late_minutes" class="form-control"
                                                    value="{{ attendance.late_minutes or 0 }}" min="0" step="5">
-                                            <small class="text-muted mt-1 d-block">📌 كل 5 دقائق تأخير يتم تسجيلها</small>
+                                            <small class="text-muted" style="display: block; margin-top: 0.5rem;">
+                                                📌 كل 5 دقائق تأخير يتم تسجيلها
+                                            </small>
                                         </div>
                                     </div>
                                 </div>
                             </div>
 
+                            <!-- حقول الإجازة المرضية -->
                             <div id="sick_fields" style="display: {% if attendance.attendance_status == 'sick' %}block{% else %}none{% endif %};">
                                 <div class="form-section">
                                     <div class="form-section-title">
                                         <i class="fas fa-thermometer-half"></i> بيانات الإجازة المرضية
                                     </div>
                                     <div class="row mt-3">
-                                        <div class="col-md-12 mb-3">
+                                        <div class="col-md-12">
                                             <label class="form-label">
                                                 <i class="fas fa-calendar-week text-info"></i> عدد أيام الإجازة
                                             </label>
                                             <input type="number" name="sick_leave_days" class="form-control"
                                                    value="{{ attendance.sick_leave_days or 1 }}" min="1" max="30">
-                                            <small class="text-muted mt-1 d-block">📅 الحد الأقصى 30 يوم</small>
+                                            <small class="text-muted" style="display: block; margin-top: 0.5rem;">
+                                                📅 الحد الأقصى 30 يوم
+                                            </small>
                                         </div>
                                     </div>
                                 </div>
                             </div>
 
-                            <!-- وقت الدخول والخروج -->
+                            <!-- أوقات الدخول والخروج -->
                             <div class="form-section">
                                 <div class="form-section-title">
                                     <i class="fas fa-clock"></i> أوقات الدوام
@@ -405,8 +399,8 @@
                                 </div>
                             </div>
 
-                            <!-- أزرار الإجراءات -->
-                            <div class="d-flex justify-content-between gap-3 mt-4">
+                            <!-- أزرار التحكم -->
+                            <div class="d-flex justify-content-between align-items-center gap-3 mt-4">
                                 <a href="{{ url_for('attendance_report', start_date=start_date, end_date=end_date, employee_id=employee_id) }}"
                                    class="btn-cancel">
                                     <i class="fas fa-times"></i> إلغاء
@@ -428,49 +422,42 @@
             var lateFields = document.getElementById('late_fields');
             var sickFields = document.getElementById('sick_fields');
 
-            // إخفاء الكل أولاً
-            lateFields.style.display = 'none';
-            sickFields.style.display = 'none';
+            if (lateFields) lateFields.style.display = 'none';
+            if (sickFields) sickFields.style.display = 'none';
 
-            // إظهار الحقول المناسبة حسب الحالة
-            if (status === 'late') {
+            if (status === 'late' && lateFields) {
                 lateFields.style.display = 'block';
-            } else if (status === 'sick') {
+            } else if (status === 'sick' && sickFields) {
                 sickFields.style.display = 'block';
             }
         }
 
-        // عرض رسالة تأكيد
-        function showNotification(message, type = 'success') {
-            const colors = {
+        function showNotification(message, type) {
+            var colors = {
                 success: '#28a745',
                 error: '#dc3545',
                 warning: '#ffc107'
             };
 
-            const notification = document.createElement('div');
+            var notification = document.createElement('div');
             notification.className = 'toast-notification';
-            notification.style.background = colors[type];
-            notification.innerHTML = `
-                <i class="fas ${type === 'success' ? 'fa-check-circle' : type === 'error' ? 'fa-exclamation-circle' : 'fa-warning'} me-2"></i>
-                ${message}
-            `;
+            notification.style.background = colors[type] || colors.success;
+            notification.innerHTML = '<i class="fas fa-check-circle me-2"></i>' + message;
 
             document.body.appendChild(notification);
 
-            setTimeout(() => {
+            setTimeout(function() {
                 notification.remove();
             }, 3000);
         }
 
-        // تحقق من صحة النموذج قبل الإرسال
         document.getElementById('editForm')?.addEventListener('submit', function(e) {
-            const status = document.getElementById('attendance_status').value;
+            var status = document.getElementById('attendance_status').value;
 
             if (status === 'late') {
-                const minutes = document.querySelector('input[name="late_minutes"]').value;
-                if (minutes && parseInt(minutes) > 0) {
-                    if (!confirm('⚠️ هل أنت متأكد من تسجيل تأخير ' + minutes + ' دقيقة؟')) {
+                var minutes = document.querySelector('input[name="late_minutes"]');
+                if (minutes && minutes.value && parseInt(minutes.value) > 0) {
+                    if (!confirm('⚠️ هل أنت متأكد من تسجيل تأخير ' + minutes.value + ' دقيقة؟')) {
                         e.preventDefault();
                         return false;
                     }
@@ -478,30 +465,24 @@
             }
 
             if (status === 'sick') {
-                const days = document.querySelector('input[name="sick_leave_days"]').value;
-                if (days && parseInt(days) > 30) {
+                var days = document.querySelector('input[name="sick_leave_days"]');
+                if (days && parseInt(days.value) > 30) {
                     alert('⚠️ لا يمكن أن تتجاوز أيام الإجازة المرضية 30 يوم');
                     e.preventDefault();
                     return false;
                 }
             }
 
-            // إظهار رسالة جاري الحفظ
-            const saveBtn = document.getElementById('saveBtn');
-            const originalText = saveBtn.innerHTML;
-            saveBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> جاري الحفظ...';
-            saveBtn.disabled = true;
-
-            // سيتم إعادة تفعيل الزر بعد الإرسال
-            setTimeout(() => {
-                saveBtn.innerHTML = originalText;
-                saveBtn.disabled = false;
-            }, 3000);
+            var saveBtn = document.getElementById('saveBtn');
+            if (saveBtn) {
+                var originalText = saveBtn.innerHTML;
+                saveBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> جاري الحفظ...';
+                saveBtn.disabled = true;
+            }
 
             return true;
         });
 
-        // إضافة تأثيرات على الحقول
         $(document).ready(function() {
             $('input, select, textarea').on('focus', function() {
                 $(this).css({
@@ -514,20 +495,7 @@
                     'box-shadow': 'none'
                 });
             });
-
-            // تأثير hover على البطاقة
-            $('.edit-card').hover(function() {
-                $(this).css('transform', 'translateY(-5px)');
-                $(this).css('transition', 'all 0.3s ease');
-            }, function() {
-                $(this).css('transform', 'translateY(0)');
-            });
         });
-
-        // منع إعادة إرسال النموذج
-        if (window.history.replaceState) {
-            window.history.replaceState(null, null, window.location.href);
-        }
     </script>
 </body>
 </html>
