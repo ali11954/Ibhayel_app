@@ -33,8 +33,15 @@ def fix_salary(salary):
         ratio = days / MONTHLY_DAYS
 
         # حساب التوزيع
+
         basic = DAILY_RATE * days  # الراتب الأساسي
-        resident = DAILY_RESIDENT * days  # بدل السكن
+        # ✅ فقط للساكنين - التعديل هنا!
+        if emp.is_resident:
+            resident = DAILY_RESIDENT * days  # بدل السكن
+        else:
+            resident = 0  # غير الساكنين لا يستحقون بدل سكن
+
+
         cash = basic + resident  # المبلغ النقدي للعامل
 
         clothing = CLOTHING_MONTHLY * ratio  # بدل الملابس
