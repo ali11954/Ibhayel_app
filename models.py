@@ -433,7 +433,7 @@ class Salary(db.Model):
 
     id = db.Column(db.Integer, primary_key=True)
     employee_id = db.Column(db.Integer, db.ForeignKey('employees.id'), nullable=False)
-    month_year = db.Column(db.String(10), nullable=False)
+    month_year = db.Column(db.String(20), nullable=False)
     base_salary = db.Column(db.Float, default=0)
     attendance_days = db.Column(db.Integer, default=0)
     attendance_amount = db.Column(db.Float, default=0)
@@ -525,7 +525,7 @@ class LaborMonthlyCost(db.Model):
 
     id = db.Column(db.Integer, primary_key=True)
     employee_id = db.Column(db.Integer, db.ForeignKey('employees.id'), nullable=False)
-    month_year = db.Column(db.String(10), nullable=False)  # MM-YYYY
+    month_year = db.Column(db.String(20), nullable=False)  # MM-YYYY
 
     # التكاليف الأساسية
     basic_salary_cost = db.Column(db.Float, default=0)  # الراتب الأساسي

@@ -45,9 +45,16 @@
         border-color: #17a2b8;
     }
 
+    .quick-filter-btn.active {
+        background: #17a2b8;
+        color: white;
+        border-color: #17a2b8;
+    }
+
     .export-buttons {
         display: flex;
         gap: 10px;
+        margin-left: auto;
     }
 
     .btn-export-excel {
@@ -57,6 +64,7 @@
         padding: 10px 20px;
         border-radius: 10px;
         cursor: pointer;
+        transition: all 0.3s ease;
     }
 
     .btn-export-pdf {
@@ -66,10 +74,12 @@
         padding: 10px 20px;
         border-radius: 10px;
         cursor: pointer;
+        transition: all 0.3s ease;
     }
 
     .btn-export-excel:hover, .btn-export-pdf:hover {
         transform: translateY(-2px);
+        filter: brightness(1.05);
         color: white;
     }
 
@@ -136,23 +146,81 @@
         padding: 3rem;
     }
 
+    .mode-badge {
+        font-size: 0.8rem;
+        padding: 5px 12px;
+        border-radius: 20px;
+    }
+
+    .filter-row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 15px;
+        align-items: flex-end;
+    }
+
+    .filter-group {
+        flex: 1;
+        min-width: 150px;
+    }
+
+    .filter-group label {
+        display: block;
+        margin-bottom: 5px;
+        font-weight: bold;
+        font-size: 0.85rem;
+        color: #495057;
+    }
+
+    .filter-group select, .filter-group input {
+        width: 100%;
+        padding: 8px 12px;
+        border: 1px solid #ced4da;
+        border-radius: 8px;
+    }
+
+    /* ===== إصلاح عرض أزرار الإجراءات ===== */
+    .table-responsive {
+        overflow-x: auto;
+    }
+
+    .table-report {
+        min-width: 1000px;
+        width: 100%;
+    }
+
+    .table-report th:last-child,
+    .table-report td:last-child {
+        min-width: 90px;
+        width: 90px;
+        text-align: center;
+        white-space: nowrap;
+    }
+
     .action-buttons {
         display: flex;
-        gap: 5px;
+        gap: 8px;
         justify-content: center;
+        align-items: center;
+        flex-wrap: nowrap;
     }
 
     .action-buttons .btn-action {
         width: 32px;
         height: 32px;
-        border-radius: 8px;
+        border-radius: 6px;
         display: inline-flex;
         align-items: center;
         justify-content: center;
-        transition: all 0.2s ease;
+        text-decoration: none;
         cursor: pointer;
         border: none;
-        text-decoration: none;
+        flex-shrink: 0;
+    }
+
+    .action-buttons .btn-action i {
+        margin: 0;
+        font-size: 14px;
     }
 
     .action-buttons .btn-edit {
@@ -167,6 +235,27 @@
 
     .action-buttons .btn-action:hover {
         transform: scale(1.1);
+    }
+
+    @media (max-width: 768px) {
+        .table-report th:last-child,
+        .table-report td:last-child {
+            min-width: 70px;
+            width: 70px;
+        }
+
+        .action-buttons {
+            gap: 4px;
+        }
+
+        .action-buttons .btn-action {
+            width: 28px;
+            height: 28px;
+        }
+
+        .action-buttons .btn-action i {
+            font-size: 12px;
+        }
     }
 
     @media print {
@@ -219,60 +308,99 @@
     </div>
 
     <form method="GET" class="row g-3" id="filterForm" action="{{ url_for('attendance_report') }}">
-        <div class="col-md-3">
+        <div class="col-md-2">
             <label class="form-label fw-bold">
                 <i class="fas fa-calendar-alt text-info"></i> من تاريخ
             </label>
-            <input type="date" class="form-control" id="start_date" name="start_date" value="{{ request.args.get('start_date', '') }}">
+            <input type="date" class="form-control" name="start_date" id="start_date" value="{{ start_date or '' }}">
         </div>
-        <div class="col-md-3">
+        <div class="col-md-2">
             <label class="form-label fw-bold">
                 <i class="fas fa-calendar-check text-info"></i> إلى تاريخ
             </label>
-            <input type="date" class="form-control" id="end_date" name="end_date" value="{{ request.args.get('end_date', '') }}">
+            <input type="date" class="form-control" name="end_date" id="end_date" value="{{ end_date or '' }}">
         </div>
-        <div class="col-md-3">
+        <div class="col-md-2">
             <label class="form-label fw-bold">
                 <i class="fas fa-user text-info"></i> الموظف
             </label>
-            <select class="form-select" id="employee_id" name="employee_id">
+            <select class="form-select" name="employee_id">
                 <option value="">جميع الموظفين</option>
                 {% for emp in employees %}
-                <option value="{{ emp.id }}" {% if request.args.get('employee_id')|int == emp.id %}selected{% endif %}>
+                <option value="{{ emp.id }}" {% if selected_employee == emp.id %}selected{% endif %}>
                     {{ emp.name }}
                 </option>
                 {% endfor %}
             </select>
         </div>
-        <div class="col-md-3">
+        <div class="col-md-2">
             <label class="form-label fw-bold">
                 <i class="fas fa-tag text-info"></i> نوع الحضور
             </label>
-            <select class="form-select" id="attendance_type" name="attendance_type">
-                <option value="">الكل</option>
-                <option value="individual" {% if request.args.get('attendance_type') == 'individual' %}selected{% endif %}>فردي</option>
-                <option value="group" {% if request.args.get('attendance_type') == 'group' %}selected{% endif %}>جماعي</option>
+            <select class="form-select" name="attendance_type">
+                <option value="all" {% if selected_type == 'all' %}selected{% endif %}>الكل</option>
+                <option value="individual" {% if selected_type == 'individual' %}selected{% endif %}>فردي</option>
+                <option value="group" {% if selected_type == 'group' %}selected{% endif %}>جماعي</option>
             </select>
         </div>
-        <div class="col-md-12 d-flex justify-content-between align-items-end">
-            <div class="d-flex gap-2">
-                <button type="submit" class="btn btn-info">
-                    <i class="fas fa-search me-2"></i> عرض التقرير
-                </button>
-                <button type="button" class="btn btn-secondary" onclick="resetFilters()">
-                    <i class="fas fa-undo-alt me-2"></i> إعادة تعيين
-                </button>
-            </div>
-            <div class="export-buttons">
-                <button type="button" class="btn-export-excel" onclick="exportToExcel()">
+        <div class="col-md-2">
+            <label class="form-label fw-bold">
+                <i class="fas fa-eye text-info"></i> وضع العرض
+            </label>
+            <select class="form-select" name="show_all">
+                <option value="false" {% if show_all != 'true' %}selected{% endif %}>آخر يوم فقط</option>
+                <option value="true" {% if show_all == 'true' %}selected{% endif %}>جميع الأيام</option>
+            </select>
+        </div>
+        <div class="col-md-2">
+            <button type="submit" class="btn btn-info w-100" style="padding: 8px 12px;">
+                <i class="fas fa-search me-2"></i> عرض التقرير
+            </button>
+        </div>
+    </form>
+
+    <!-- أزرار التصدير -->
+    <div class="row mt-3">
+        <div class="col-12">
+            <div class="d-flex justify-content-end gap-2">
+                <button type="button" class="btn-export-excel" onclick="exportToExcel(event)">
                     <i class="fas fa-file-excel me-2"></i> تصدير Excel
                 </button>
-                <button type="button" class="btn-export-pdf" onclick="exportToPDF()">
+                <button type="button" class="btn-export-pdf" onclick="exportToPDF(event)">
                     <i class="fas fa-file-pdf me-2"></i> تصدير PDF
                 </button>
             </div>
         </div>
-    </form>
+    </div>
+</div>
+
+<!-- إشعار وضع العرض -->
+<div class="alert alert-info d-flex justify-content-between align-items-center mb-3">
+    <div>
+        <i class="fas fa-info-circle me-2"></i>
+        <strong>ملاحظة:</strong>
+        {% if show_all != 'true' %}
+        يتم عرض آخر يوم تحضير فقط
+        <span class="badge bg-primary ms-2 mode-badge">وضع التقليل</span>
+        {% if last_prep_date %}
+        ({{ last_prep_date.strftime('%Y-%m-%d') if last_prep_date else 'لا يوجد' }})
+        {% endif %}
+        {% else %}
+        يتم عرض جميع أيام الحضور
+        <span class="badge bg-secondary ms-2 mode-badge">وضع العرض الكامل</span>
+        {% endif %}
+    </div>
+    <div>
+        {% if show_all != 'true' %}
+        <a href="{{ url_for('attendance_report', show_all='true', start_date=start_date, end_date=end_date, employee_id=selected_employee, attendance_type=selected_type) }}" class="btn btn-sm btn-light">
+            <i class="fas fa-list"></i> عرض جميع الأيام
+        </a>
+        {% else %}
+        <a href="{{ url_for('attendance_report', show_all='false', start_date=start_date, end_date=end_date, employee_id=selected_employee, attendance_type=selected_type) }}" class="btn btn-sm btn-light">
+            <i class="fas fa-calendar-day"></i> عرض آخر يوم فقط
+        </a>
+        {% endif %}
+    </div>
 </div>
 
 {% if attendances %}
@@ -303,6 +431,32 @@
             </div>
         </div>
     </div>
+    <div class="row mt-2">
+        <div class="col-md-3 col-6">
+            <div class="summary-item">
+                <div class="summary-number">{{ attendances|map(attribute='date')|unique|list|length }}</div>
+                <div class="summary-label">عدد الأيام</div>
+            </div>
+        </div>
+        <div class="col-md-3 col-6">
+            <div class="summary-item">
+                <div class="summary-number">{{ attendances|selectattr('attendance_status', 'equalto', 'present')|list|length }}</div>
+                <div class="summary-label">حاضرون</div>
+            </div>
+        </div>
+        <div class="col-md-3 col-6">
+            <div class="summary-item">
+                <div class="summary-number">{{ attendances|selectattr('attendance_status', 'equalto', 'late')|list|length }}</div>
+                <div class="summary-label">متأخرون</div>
+            </div>
+        </div>
+        <div class="col-md-3 col-6">
+            <div class="summary-item">
+                <div class="summary-number">{{ attendances|selectattr('attendance_status', 'equalto', 'absent')|list|length }}</div>
+                <div class="summary-label">غائبون</div>
+            </div>
+        </div>
+    </div>
 </div>
 {% endif %}
 
@@ -312,22 +466,27 @@
             <i class="fas fa-table text-info me-2"></i>
             نتائج التقرير
         </h5>
+        {% if pagination and pagination.pages > 1 %}
+        <div class="text-muted">
+            صفحة {{ pagination.page }} من {{ pagination.pages }}
+        </div>
+        {% endif %}
     </div>
     <div class="card-body p-0">
-        <div class="table-responsive">
+        <div class="table-responsive" style="overflow-x: auto; -webkit-overflow-scrolling: touch;">
             <table class="table table-report" id="attendanceTable">
                 <thead>
                     <tr>
-                        <th>#</th>
-                        <th>الموظف</th>
-                        <th>التاريخ</th>
-                        <th>اليوم</th>
-                        <th>نوع الحضور</th>
-                        <th>الحالة</th>
-                        <th>وقت الدخول</th>
-                        <th>وقت الخروج</th>
-                        <th>ملاحظات</th>
-                        <th>الإجراءات</th>
+                        <th style="width: 5%">#</th>
+                        <th style="width: 18%">الموظف</th>
+                        <th style="width: 10%">التاريخ</th>
+                        <th style="width: 10%">اليوم</th>
+                        <th style="width: 10%">نوع الحضور</th>
+                        <th style="width: 10%">الحالة</th>
+                        <th style="width: 8%">وقت الدخول</th>
+                        <th style="width: 8%">وقت الخروج</th>
+                        <th style="width: 15%">ملاحظات</th>
+                        <th style="width: 8%">الإجراءات</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -409,6 +568,46 @@
             </table>
         </div>
     </div>
+    {% if pagination and pagination.pages > 1 %}
+    <div class="card-footer bg-white">
+        <nav aria-label="Page navigation">
+            <ul class="pagination justify-content-center mb-0">
+                {% if pagination.has_prev %}
+                <li class="page-item">
+                    <a class="page-link" href="{{ url_for('attendance_report', page=pagination.prev_num, show_all=request.args.get('show_all'), start_date=request.args.get('start_date'), end_date=request.args.get('end_date'), employee_id=request.args.get('employee_id'), attendance_type=request.args.get('attendance_type')) }}">
+                        <i class="fas fa-chevron-right"></i> السابق
+                    </a>
+                </li>
+                {% endif %}
+
+                {% for page_num in pagination.iter_pages(left_edge=2, left_current=2, right_current=2, right_edge=2) %}
+                    {% if page_num %}
+                        {% if page_num == pagination.page %}
+                        <li class="page-item active"><span class="page-link">{{ page_num }}</span></li>
+                        {% else %}
+                        <li class="page-item">
+                            <a class="page-link" href="{{ url_for('attendance_report', page=page_num, show_all=request.args.get('show_all'), start_date=request.args.get('start_date'), end_date=request.args.get('end_date'), employee_id=request.args.get('employee_id'), attendance_type=request.args.get('attendance_type')) }}">{{ page_num }}</a>
+                        </li>
+                        {% endif %}
+                    {% else %}
+                        <li class="page-item disabled"><span class="page-link">...</span></li>
+                    {% endif %}
+                {% endfor %}
+
+                {% if pagination.has_next %}
+                <li class="page-item">
+                    <a class="page-link" href="{{ url_for('attendance_report', page=pagination.next_num, show_all=request.args.get('show_all'), start_date=request.args.get('start_date'), end_date=request.args.get('end_date'), employee_id=request.args.get('employee_id'), attendance_type=request.args.get('attendance_type')) }}">
+                        التالي <i class="fas fa-chevron-left"></i>
+                    </a>
+                </li>
+                {% endif %}
+            </ul>
+        </nav>
+        <div class="text-center text-muted mt-2 small">
+            عرض {{ attendances|length }} من {{ pagination.total }} سجل
+        </div>
+    </div>
+    {% endif %}
 </div>
 
 <script src="https://cdn.sheetjs.com/xlsx-0.20.2/package/dist/xlsx.full.min.js"></script>
@@ -439,7 +638,8 @@ function setQuickFilter(type) {
 
     switch(type) {
         case 'today':
-            // اليوم - نفس التاريخ
+            start = new Date(today);
+            end = new Date(today);
             break;
         case 'yesterday':
             start.setDate(today.getDate() - 1);
@@ -466,6 +666,8 @@ function setQuickFilter(type) {
             start = new Date(today.getFullYear(), 0, 1);
             end = new Date(today.getFullYear(), 11, 31);
             break;
+        default:
+            return;
     }
 
     document.getElementById('start_date').value = start.toISOString().split('T')[0];
@@ -479,19 +681,27 @@ function resetFilters() {
 }
 
 // تصدير إلى Excel
-function exportToExcel() {
+function exportToExcel(event) {
     const table = document.getElementById('attendanceTable');
     const ws = XLSX.utils.table_to_sheet(table, { raw: true });
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, 'تقرير الحضور');
     const fileName = `تقرير_الحضور_${new Date().toISOString().split('T')[0]}.xlsx`;
     XLSX.writeFile(wb, fileName);
-    alert('✅ تم تصدير التقرير بنجاح إلى Excel');
+
+    const btn = event.target.closest('.btn-export-excel');
+    const originalText = btn.innerHTML;
+    btn.innerHTML = '<i class="fas fa-check me-2"></i> تم التصدير';
+    setTimeout(() => { btn.innerHTML = originalText; }, 2000);
 }
 
 // تصدير إلى PDF
-function exportToPDF() {
+function exportToPDF(event) {
     const element = document.getElementById('attendanceTable');
+    const btn = event.target.closest('.btn-export-pdf');
+    const originalText = btn.innerHTML;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i> جاري التصدير...';
+
     const opt = {
         margin: [0.5, 0.5, 0.5, 0.5],
         filename: `تقرير_الحضور_${new Date().toISOString().split('T')[0]}.pdf`,
@@ -499,7 +709,11 @@ function exportToPDF() {
         html2canvas: { scale: 2 },
         jsPDF: { unit: 'in', format: 'a4', orientation: 'landscape' }
     };
-    html2pdf().set(opt).from(element).save();
+
+    html2pdf().set(opt).from(element).save().then(() => {
+        btn.innerHTML = '<i class="fas fa-file-pdf me-2"></i> تصدير PDF';
+        setTimeout(() => { btn.innerHTML = originalText; }, 2000);
+    });
 }
 
 // حذف سجل الحضور

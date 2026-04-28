@@ -653,25 +653,49 @@ def register_routes(app):
         prev_date = selected_date - timedelta(days=1)
         next_date = selected_date + timedelta(days=1)
 
-        # جلب بيانات الحضور
-        attendances = Attendance.query.filter_by(date=selected_date).all()
+        # ========== 1. تحسين جلب بيانات الحضور ==========
+        # استخدام load_only لجلب الأعمدة المطلوبة فقط
+        attendances = Attendance.query.options(
+            db.load_only(Attendance.employee_id, Attendance.attendance_status,
+                         Attendance.late_minutes, Attendance.check_in_time,
+                         Attendance.check_out_time, Attendance.notes,
+                         Attendance.sick_leave_days, Attendance.annual_leave_days)
+        ).filter_by(date=selected_date).all()
+
         attendance_dict = {a.employee_id: a for a in attendances}
 
-        # جلب الموظفين حسب صلاحية المستخدم
+        # ========== 2. تحسين جلب الموظفين ==========
+        # استخدام load_only لجلب الأعمدة المطلوبة فقط
+        employee_query = Employee.query.filter_by(is_active=True).options(
+            db.load_only(Employee.id, Employee.name, Employee.job_title,
+                         Employee.card_number, Employee.phone, Employee.company_id,
+                         Employee.region, Employee.is_resident, Employee.salary,
+                         Employee.employee_type)  # أزلت remaining_annual_leave
+        )
+
         if current_user.role == 'admin':
-            employees = Employee.query.filter_by(is_active=True).all()
+            employees = employee_query.all()
         elif current_user.role == 'supervisor':
-            # المشرف يرى فقط عمال شركته
             supervisor_employee = Employee.query.filter_by(user_id=current_user.id).first()
             if supervisor_employee:
-                employees = Employee.query.filter_by(is_active=True, company_id=supervisor_employee.company_id).all()
+                employees = employee_query.filter_by(company_id=supervisor_employee.company_id).all()
             else:
                 employees = []
         else:
             employees = []
 
+        # ========== 3. تحسين جلب المناطق والشركات ==========
+        # استخدام caching بسيط للمناطق والشركات (لأنها لا تتغير كثيراً)
         regions = get_regions()
-        companies = Company.query.all()
+        companies = Company.query.options(
+            db.load_only(Company.id, Company.name)
+        ).all()
+
+        # ========== 4. إضافة معلومات إضافية للموظف ==========
+        # حساب رصيد الإجازات لكل موظف (اختياري)
+        for emp in employees:
+            if not hasattr(emp, 'remaining_annual_leave'):
+                emp.remaining_annual_leave = 30
 
         return render_template('attendance/attendance.html',
                                attendance_dict=attendance_dict,
@@ -681,7 +705,8 @@ def register_routes(app):
                                next_date=next_date.strftime('%Y-%m-%d'),
                                today=today.strftime('%Y-%m-%d'),
                                regions=regions,
-                               companies=companies)
+                               companies=companies,
+                               now=datetime.now())
 
     # في routes.py، تأكد من وجود هذه الدوال
 
@@ -2185,22 +2210,67 @@ def register_routes(app):
         start_date = request.args.get('start_date')
         end_date = request.args.get('end_date')
         employee_id = request.args.get('employee_id', type=int)
+        attendance_type = request.args.get('attendance_type', 'all')
+        show_all = request.args.get('show_all', 'false')  # ✅ إضافة فلتر العرض
 
         query = Attendance.query
+
+        # تطبيق الفلاتر
         if start_date:
             query = query.filter(Attendance.date >= datetime.strptime(start_date, '%Y-%m-%d').date())
         if end_date:
             query = query.filter(Attendance.date <= datetime.strptime(end_date, '%Y-%m-%d').date())
         if employee_id:
             query = query.filter(Attendance.employee_id == employee_id)
+        if attendance_type and attendance_type != 'all':
+            query = query.filter(Attendance.attendance_type == attendance_type)
 
-        attendances = query.all()
+        # ✅ إذا لم يتم تحديد تواريخ ولم يتم طلب إظهار الكل، اعرض فقط آخر يوم
+        if not start_date and not end_date and show_all != 'true':
+            last_date = db.session.query(db.func.max(Attendance.date)).scalar()
+            if last_date:
+                query = query.filter(Attendance.date == last_date)
+
+        # استخدام paginate
+        page = request.args.get('page', 1, type=int)
+        per_page = request.args.get('per_page', 50, type=int)
+        paginated_attendances = query.order_by(Attendance.date.desc()).paginate(page=page, per_page=per_page,
+                                                                                error_out=False)
+
         employees = Employee.query.filter_by(is_active=True).all()
 
+        # الحصول على آخر تاريخ للتحضير
+        last_prep_date = db.session.query(db.func.max(Attendance.date)).scalar()
+
+        # إحصائيات (بناءً على الاستعلام المفلتر)
+        total_count = query.count()
+        individual_count = query.filter(Attendance.attendance_type == 'individual').count()
+        group_count = query.filter(Attendance.attendance_type == 'group').count()
+        present_count = query.filter(Attendance.attendance_status == 'present').count()
+        late_count = query.filter(Attendance.attendance_status == 'late').count()
+        absent_count = query.filter(Attendance.attendance_status == 'absent').count()
+        unique_days = query.with_entities(Attendance.date).distinct().count()
+
         return render_template('reports/attendance_report.html',
-                               attendances=attendances,
+                               attendances=paginated_attendances.items,
                                employees=employees,
+                               pagination=paginated_attendances,
+                               total_count=total_count,
+                               individual_count=individual_count,
+                               group_count=group_count,
+                               present_count=present_count,
+                               late_count=late_count,
+                               absent_count=absent_count,
+                               unique_days=unique_days,
+                               last_prep_date=last_prep_date,
+                               start_date=start_date,
+                               end_date=end_date,
+                               selected_employee=employee_id,
+                               selected_type=attendance_type,
+                               show_all=show_all,
+                               per_page=per_page,
                                now=datetime.now())
+
 
     # ==================== تعديل وحذف سجلات الحضور من التقرير ====================
 
@@ -2293,14 +2363,16 @@ def register_routes(app):
     @login_required
     @role_required('admin', 'finance')
     def financial_report():
-        """تقرير الرواتب - يعرض تفاصيل رواتب الموظفين"""
+        """تقرير الرواتب - يعرض تفاصيل رواتب الموظفين مع Pagination"""
 
         month_year = request.args.get('month_year', 'all')
+        page = request.args.get('page', 1, type=int)
+        per_page = request.args.get('per_page', 50, type=int)
 
-        # الحصول على قائمة الأشهر المتاحة من الرواتب
-        all_salaries_list = Salary.query.all()
-        available_months = list(set([s.month_year for s in all_salaries_list]))
-        available_months.sort(reverse=True)
+        # ========== 1. الحصول على قائمة الأشهر المتاحة (بدون تحميل جميع الرواتب) ==========
+        # استخدام distinct بدلاً من all()
+        available_months = db.session.query(Salary.month_year).distinct().order_by(Salary.month_year.desc()).all()
+        available_months = [m[0] for m in available_months if m[0]]
 
         # إضافة خيار 'all' إذا لم يكن موجوداً
         if 'all' not in available_months:
@@ -2308,27 +2380,20 @@ def register_routes(app):
 
         report = None
 
-        # عرض جميع الرواتب
+        # ========== 2. عرض جميع الرواتب مع Pagination ==========
         if month_year == 'all' or not month_year:
-            salaries = Salary.query.order_by(Salary.month_year.desc()).all()
+            # استخدام paginate بدلاً من all()
+            paginated_salaries = Salary.query.order_by(Salary.month_year.desc()).paginate(
+                page=page, per_page=per_page, error_out=False
+            )
+            salaries = paginated_salaries.items
 
             if salaries:
                 # تجهيز بيانات الرواتب للعرض
                 salaries_data = []
                 for salary in salaries:
-                    # تنسيق عرض الفترة
-                    period_display = salary.notes if salary.notes else salary.month_year
-                    if salary.notes and 'فترة من' in salary.notes:
-                        period_display = salary.notes
-                    elif '_' in salary.month_year:
-                        parts = salary.month_year.split('_')
-                        if len(parts) == 2:
-                            try:
-                                start = datetime.strptime(parts[0], '%Y%m%d').date()
-                                end = datetime.strptime(parts[1], '%Y%m%d').date()
-                                period_display = f"{start.strftime('%d/%m/%Y')} - {end.strftime('%d/%m/%Y')}"
-                            except:
-                                pass
+                    # تنسيق عرض الفترة (محسن بدون تكرار)
+                    period_display = _format_period_display(salary)
 
                     salaries_data.append({
                         'employee': salary.employee,
@@ -2342,35 +2407,51 @@ def register_routes(app):
                         'deduction_amount': salary.deduction_amount,
                         'penalty_amount': salary.penalty_amount,
                         'total_salary': salary.total_salary,
-                        'is_paid': salary.is_paid
+                        'is_paid': salary.is_paid,
+                        'basic_salary': salary.basic_salary_amount,
+                        'resident_allowance': salary.resident_allowance_amount,
+                        'clothing': salary.clothing_allowance_amount,
+                        'health_card': salary.health_card_amount,
+                        'insurance': salary.insurance_amount
                     })
+
+                # حساب الإحصائيات (استخدام aggregation بدلاً من حسابها في Python)
+                stats_query = Salary.query
+                total_employees = stats_query.count()
+                total_attendance_days = db.session.query(func.sum(Salary.attendance_days)).scalar() or 0
+                total_salaries = db.session.query(func.sum(Salary.total_salary)).scalar() or 0
+                paid_salaries = stats_query.filter(Salary.is_paid == True).count()
 
                 report = {
                     'month_year': 'جميع الأشهر',
                     'start_date': None,
                     'end_date': None,
-                    'total_employees': len(salaries),
-                    'total_attendance_days': sum(s.attendance_days for s in salaries),
-                    'total_salaries': sum(s.total_salary for s in salaries),
-                    'paid_salaries': sum(1 for s in salaries if s.is_paid),
+                    'total_employees': total_employees,
+                    'total_attendance_days': total_attendance_days,
+                    'total_salaries': float(total_salaries),
+                    'paid_salaries': paid_salaries,
                     'salaries': salaries_data
                 }
 
-        # عرض شهر محدد
+        # ========== 3. عرض شهر محدد مع Pagination ==========
         elif month_year and month_year != 'all':
             try:
-                # محاولة العثور على الرواتب بالتنسيقين
-                salaries = Salary.query.filter_by(month_year=month_year).all()
+                # البحث عن الرواتب بالتنسيقين
+                query = Salary.query.filter(Salary.month_year == month_year)
 
-                if not salaries:
-                    # تجربة التنسيق الآخر
-                    if '-' in month_year:
-                        parts = month_year.split('-')
-                        if len(parts[0]) == 4:  # YYYY-MM
-                            alt_format = f"{parts[1]}-{parts[0]}"
-                        else:  # MM-YYYY
-                            alt_format = f"{parts[1]}-{parts[0]}"
-                        salaries = Salary.query.filter_by(month_year=alt_format).all()
+                if query.count() == 0 and '-' in month_year:
+                    parts = month_year.split('-')
+                    if len(parts[0]) == 4:  # YYYY-MM
+                        alt_format = f"{parts[1]}-{parts[0]}"
+                    else:  # MM-YYYY
+                        alt_format = f"{parts[1]}-{parts[0]}"
+                    query = Salary.query.filter(Salary.month_year == alt_format)
+
+                # استخدام paginate
+                paginated_salaries = query.order_by(Salary.employee_id).paginate(
+                    page=page, per_page=per_page, error_out=False
+                )
+                salaries = paginated_salaries.items
 
                 if salaries:
                     start_date, end_date = get_financial_month_dates(month_year)
@@ -2391,17 +2472,30 @@ def register_routes(app):
                             'deduction_amount': salary.deduction_amount,
                             'penalty_amount': salary.penalty_amount,
                             'total_salary': salary.total_salary,
-                            'is_paid': salary.is_paid
+                            'is_paid': salary.is_paid,
+                            'basic_salary': salary.basic_salary_amount,
+                            'resident_allowance': salary.resident_allowance_amount,
+                            'clothing': salary.clothing_allowance_amount,
+                            'health_card': salary.health_card_amount,
+                            'insurance': salary.insurance_amount
                         })
+
+                    # إحصائيات الشهر
+                    total_employees = query.count()
+                    total_attendance_days = db.session.query(func.sum(Salary.attendance_days)).filter(
+                        Salary.month_year == month_year).scalar() or 0
+                    total_salaries = db.session.query(func.sum(Salary.total_salary)).filter(
+                        Salary.month_year == month_year).scalar() or 0
+                    paid_salaries = query.filter(Salary.is_paid == True).count()
 
                     report = {
                         'month_year': month_year,
                         'start_date': start_date,
                         'end_date': end_date,
-                        'total_employees': len(salaries),
-                        'total_attendance_days': sum(s.attendance_days for s in salaries),
-                        'total_salaries': sum(s.total_salary for s in salaries),
-                        'paid_salaries': sum(1 for s in salaries if s.is_paid),
+                        'total_employees': total_employees,
+                        'total_attendance_days': total_attendance_days,
+                        'total_salaries': float(total_salaries),
+                        'paid_salaries': paid_salaries,
                         'salaries': salaries_data
                     }
             except Exception as e:
@@ -2411,7 +2505,25 @@ def register_routes(app):
                                report=report,
                                available_months=available_months,
                                selected_month=month_year,
+                               pagination=paginated_salaries if 'paginated_salaries' in dir() else None,
+                               page=page,
+                               per_page=per_page,
                                now=datetime.now())
+
+    def _format_period_display(salary):
+        """دالة مساعدة لتنسيق عرض الفترة (تجنب تكرار الكود)"""
+        if salary.notes and 'فترة من' in salary.notes:
+            return salary.notes
+        elif '_' in salary.month_year:
+            parts = salary.month_year.split('_')
+            if len(parts) == 2:
+                try:
+                    start = datetime.strptime(parts[0], '%Y%m%d').date()
+                    end = datetime.strptime(parts[1], '%Y%m%d').date()
+                    return f"{start.strftime('%d/%m/%Y')} - {end.strftime('%d/%m/%Y')}"
+                except:
+                    pass
+        return salary.month_year
 
     @app.route('/reports/employees')
     @login_required
