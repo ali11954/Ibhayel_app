@@ -23,7 +23,7 @@
         <div class="card-body">
             {% if transfers %}
             <div class="table-responsive">
-                <table class="table table-bordered table-hover">
+                <table class="table table-bordered table-hover" id="periodsTable">
                     <thead>
                         <tr>
                             <th>#</th>
@@ -39,30 +39,32 @@
                     </thead>
                     <tbody>
                         {% for transfer in transfers %}
-                        <tr>
+                        <tr id="transfer-{{ transfer.id }}">
                             <td>{{ loop.index }}</td>
                             <td>
                                 {{ transfer.period_name }}
-                                {% if 'رواتب الإدارة' in transfer.period_name %}
+                                {% if transfer.payroll_type == 'admin' %}
                                 <span class="badge bg-info ms-1">إدارة</span>
+                                {% elif transfer.payroll_type == 'labor' %}
+                                <span class="badge bg-secondary ms-1">عمال</span>
                                 {% endif %}
                             </td>
                             <td>{{ transfer.start_date.strftime('%Y-%m-%d') }}</td>
                             <td>{{ transfer.end_date.strftime('%Y-%m-%d') }}</td>
                             <td>{{ transfer.transfers_details|length }}</td>
                             <td>
-                                {% set locked_count = transfer.transfers_details|selectattr('is_locked')|list|length %}
+                                {% set locked_count = transfer.transfers_details|selectattr('is_processed')|list|length %}
                                 <span class="badge {% if locked_count == transfer.transfers_details|length %}bg-success{% else %}bg-warning{% endif %}">
                                     {{ locked_count }}/{{ transfer.transfers_details|length }}
                                 </span>
-                              </td>
+                            </td>
                             <td>
                                 {% if transfer.is_transferred %}
                                     <span class="badge bg-success">تم الترحيل</span>
                                 {% else %}
                                     <span class="badge bg-warning">قيد الانتظار</span>
                                 {% endif %}
-                              </td>
+                            </td>
                             <td>{{ transfer.transfer_date.strftime('%Y-%m-%d') if transfer.transfer_date else '-' }}</td>
                             <td>
                                 <div class="btn-group btn-group-sm">
@@ -78,21 +80,28 @@
                                             <i class="fas fa-sync-alt"></i>
                                         </button>
 
-                                       <a href="{{ url_for('view_period_transfer', transfer_id=transfer.id) }}"
+                                        <a href="{{ url_for('edit_period_transfer', transfer_id=transfer.id) }}"
                                            class="btn btn-primary" title="تعديل">
                                             <i class="fas fa-edit"></i>
                                         </a>
 
                                         <button type="button" class="btn btn-danger"
-                                                onclick="deletePeriod({{ transfer.id }})"
+                                                onclick="deletePeriod({{ transfer.id }}, '{{ transfer.period_name }}', false)"
                                                 title="حذف">
                                             <i class="fas fa-trash"></i>
                                         </button>
                                     {% else %}
-                                        <a href="{{ url_for('salaries_list', month=transfer.month_year) }}"
+                                        <a href="{{ url_for('salaries_list', period_key=transfer.start_date.strftime('%Y%m%d') + '_' + transfer.end_date.strftime('%Y%m%d')) }}"
                                            class="btn btn-success" title="عرض الرواتب">
-                                            <i class="fas fa-money-bill"></i>
+                                            <i class="fas fa-money-bill-wave"></i>
                                         </a>
+
+                                        <!-- زر الحذف الإجباري للفترات المترحلة -->
+                                        <button type="button" class="btn btn-danger"
+                                                onclick="forceDeletePeriod({{ transfer.id }}, '{{ transfer.period_name }}')"
+                                                title="حذف إجباري (مع حذف الرواتب والقيود المحاسبية)">
+                                            <i class="fas fa-trash-alt"></i> حذف
+                                        </button>
                                     {% endif %}
                                 </div>
                             </td>
@@ -104,39 +113,308 @@
             {% else %}
             <div class="alert alert-info text-center">
                 <i class="fas fa-info-circle"></i> لا توجد فترات ترحيل
+                <hr>
+                <a href="{{ url_for('create_period_transfer') }}" class="btn btn-primary btn-sm">
+                    <i class="fas fa-plus"></i> إنشاء أول فترة
+                </a>
             </div>
             {% endif %}
         </div>
     </div>
 </div>
 
+<!-- Modal تأكيد الحذف -->
+<div class="modal fade" id="deleteModal" tabindex="-1" role="dialog">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <div class="modal-header bg-danger text-white">
+                <h5 class="modal-title">
+                    <i class="fas fa-exclamation-triangle"></i> تأكيد الحذف
+                </h5>
+                <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                <p>⚠️ <strong>تحذير!</strong> هذا الإجراء لا يمكن التراجع عنه.</p>
+                <p>سيتم حذف:</p>
+                <ul>
+                    <li>فترة الترحيل <strong id="deletePeriodName"></strong></li>
+                    <li>جميع تفاصيل الحضور المرتبطة</li>
+                    <li>الرواتب المستحقة (إذا تم ترحيلها)</li>
+                    <li>القيود المحاسبية المرتبطة</li>
+                </ul>
+                <p class="text-danger">هل أنت متأكد من المتابعة؟</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-dismiss="modal">
+                    <i class="fas fa-times"></i> إلغاء
+                </button>
+                <button type="button" class="btn btn-danger" id="confirmDeleteBtn">
+                    <i class="fas fa-trash"></i> نعم، احذف
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <script>
+let currentDeleteId = null;
+let currentIsTransferred = false;
+
 function refreshPeriod(transferId) {
     if (confirm('⚠️ هل أنت متأكد من تحديث هذه الفترة؟\nسيتم إعادة حساب بيانات الحضور والإضافي من جديد.')) {
+        // إظهار مؤشر التحميل
+        const btn = event.currentTarget;
+        const originalHtml = btn.innerHTML;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+        btn.disabled = true;
+
         fetch(`/attendance/period-transfer/refresh/${transferId}`, {
             method: 'POST',
             headers: {
-                'Content-Type': 'application/json'
+                'Content-Type': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest'
             }
-        }).then(response => {
-            window.location.reload();
-        }).catch(error => {
-            alert('حدث خطأ: ' + error);
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                showToast('success', data.message || 'تم تحديث البيانات بنجاح');
+                setTimeout(() => window.location.reload(), 1500);
+            } else {
+                showToast('error', data.error || 'حدث خطأ أثناء التحديث');
+                btn.innerHTML = originalHtml;
+                btn.disabled = false;
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            showToast('error', 'حدث خطأ في الاتصال بالخادم');
+            btn.innerHTML = originalHtml;
+            btn.disabled = false;
         });
     }
 }
 
-function deletePeriod(transferId) {
-    if (confirm('⚠️ هل أنت متأكد من حذف هذه الفترة؟')) {
-        fetch(`/attendance/period-transfer/delete/${transferId}`, {
+function deletePeriod(transferId, periodName, isTransferred = false) {
+    currentDeleteId = transferId;
+    currentIsTransferred = isTransferred;
+    document.getElementById('deletePeriodName').innerText = periodName;
+
+    // تغيير محتوى المودال حسب نوع الحذف
+    const modalTitle = document.querySelector('#deleteModal .modal-title');
+    const modalBody = document.querySelector('#deleteModal .modal-body');
+    const confirmBtn = document.getElementById('confirmDeleteBtn');
+
+    if (isTransferred) {
+        modalTitle.innerHTML = '<i class="fas fa-exclamation-triangle"></i> حذف إجباري - فترة مترحلة';
+        modalBody.innerHTML = `
+            <p>🔴 <strong>تحذير خطير!</strong> هذا الإجراء لا يمكن التراجع عنه.</p>
+            <p>سيتم حذف:</p>
+            <ul>
+                <li>فترة الترحيل <strong>${periodName}</strong></li>
+                <li>جميع تفاصيل الحضور المرتبطة</li>
+                <li><strong class="text-danger">الرواتب المستحقة (بما فيها المدفوعة)</strong></li>
+                <li><strong class="text-danger">القيود المحاسبية المرتبطة</strong></li>
+            </ul>
+            <p class="text-danger font-weight-bold">⚠️ هذا الإجراء لا يمكن التراجع عنه! ⚠️</p>
+            <p class="text-danger">هل أنت متأكد من المتابعة؟</p>
+        `;
+        confirmBtn.innerHTML = '<i class="fas fa-trash-alt"></i> نعم، احذف إجبارياً';
+    } else {
+        modalTitle.innerHTML = '<i class="fas fa-exclamation-triangle"></i> تأكيد الحذف';
+        modalBody.innerHTML = `
+            <p>⚠️ <strong>تحذير!</strong> هذا الإجراء لا يمكن التراجع عنه.</p>
+            <p>سيتم حذف:</p>
+            <ul>
+                <li>فترة الترحيل <strong>${periodName}</strong></li>
+                <li>جميع تفاصيل الحضور المرتبطة</li>
+            </ul>
+            <p class="text-danger">هل أنت متأكد من المتابعة؟</p>
+        `;
+        confirmBtn.innerHTML = '<i class="fas fa-trash"></i> نعم، احذف';
+    }
+
+    $('#deleteModal').modal('show');
+}
+
+// حذف إجباري مباشر للفترات المترحلة (بدون مودال)
+function forceDeletePeriod(transferId, periodName) {
+    if (confirm('🔴 تحذير خطير! 🔴\n\n' +
+                'هذه الفترة تم ترحيلها مسبقاً.\n' +
+                'سيتم حذف:\n' +
+                '- فترة الترحيل "' + periodName + '"\n' +
+                '- جميع الرواتب المرتبطة\n' +
+                '- القيود المحاسبية المرتبطة\n\n' +
+                '⚠️ هذا الإجراء لا يمكن التراجع عنه!\n\n' +
+                'هل أنت متأكد؟')) {
+
+        // إظهار مؤشر التحميل على الزر
+        const btns = document.querySelectorAll(`button[onclick*="forceDeletePeriod(${transferId},"]`);
+        btns.forEach(btn => {
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+            btn.disabled = true;
+        });
+
+        fetch(`/attendance/period-transfer/force-delete/${transferId}`, {
             method: 'POST',
             headers: {
-                'Content-Type': 'application/json'
+                'Content-Type': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest'
             }
-        }).then(response => {
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                showToast('success', data.message || 'تم حذف الفترة بنجاح');
+                // حذف الصف من الجدول
+                const row = document.getElementById(`transfer-${transferId}`);
+                if (row) row.remove();
+                // إذا لم يتبقى صفوف، إعادة تحميل الصفحة
+                const tbody = document.querySelector('#periodsTable tbody');
+                if (tbody && tbody.children.length === 0) {
+                    window.location.reload();
+                }
+            } else {
+                showToast('error', data.error || 'حدث خطأ أثناء الحذف');
+                window.location.reload();
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            showToast('error', 'حدث خطأ في الاتصال بالخادم');
             window.location.reload();
         });
     }
 }
+
+document.getElementById('confirmDeleteBtn').addEventListener('click', function() {
+    if (!currentDeleteId) return;
+
+    const btn = this;
+    const originalHtml = btn.innerHTML;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> جاري الحذف...';
+    btn.disabled = true;
+
+    const url = currentIsTransferred
+        ? `/attendance/period-transfer/force-delete/${currentDeleteId}`
+        : `/attendance/period-transfer/delete/${currentDeleteId}`;
+
+    fetch(url, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-Requested-With': 'XMLHttpRequest'
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            $('#deleteModal').modal('hide');
+            showToast('success', data.message || 'تم حذف الفترة بنجاح');
+            const row = document.getElementById(`transfer-${currentDeleteId}`);
+            if (row) row.remove();
+            const tbody = document.querySelector('#periodsTable tbody');
+            if (tbody && tbody.children.length === 0) {
+                window.location.reload();
+            }
+        } else {
+            showToast('error', data.error || 'حدث خطأ أثناء الحذف');
+            window.location.reload();
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        showToast('error', 'حدث خطأ في الاتصال بالخادم');
+        window.location.reload();
+    })
+    .finally(() => {
+        btn.innerHTML = originalHtml;
+        btn.disabled = false;
+        currentDeleteId = null;
+    });
+});
+
+// دالة عرض الإشعارات
+function showToast(type, message) {
+    const toast = document.createElement('div');
+    toast.className = `toast-notification ${type}`;
+    toast.innerHTML = `
+        <div class="toast-icon">
+            <i class="fas ${type === 'success' ? 'fa-check-circle' : 'fa-exclamation-circle'}"></i>
+        </div>
+        <div class="toast-message">${message}</div>
+        <div class="toast-close" onclick="this.parentElement.remove()">
+            <i class="fas fa-times"></i>
+        </div>
+    `;
+    toast.style.cssText = `
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        min-width: 300px;
+        background: ${type === 'success' ? '#28a745' : '#dc3545'};
+        color: white;
+        padding: 12px 20px;
+        border-radius: 8px;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        z-index: 10000;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        animation: slideIn 0.3s ease;
+    `;
+
+    document.body.appendChild(toast);
+
+    setTimeout(() => {
+        if (toast && toast.parentElement) {
+            toast.style.animation = 'slideOut 0.3s ease';
+            setTimeout(() => toast.remove(), 300);
+        }
+    }, 3000);
+}
+
+// إضافة CSS للحركات
+const style = document.createElement('style');
+style.textContent = `
+    @keyframes slideIn {
+        from {
+            transform: translateX(100%);
+            opacity: 0;
+        }
+        to {
+            transform: translateX(0);
+            opacity: 1;
+        }
+    }
+    @keyframes slideOut {
+        from {
+            transform: translateX(0);
+            opacity: 1;
+        }
+        to {
+            transform: translateX(100%);
+            opacity: 0;
+        }
+    }
+    .toast-notification .toast-close {
+        cursor: pointer;
+        margin-left: auto;
+        opacity: 0.7;
+    }
+    .toast-notification .toast-close:hover {
+        opacity: 1;
+    }
+`;
+document.head.appendChild(style);
 </script>
+
+<!-- تضمين Bootstrap JS للمودال -->
+{% block extra_scripts %}
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.bundle.min.js"></script>
+{% endblock %}
+
 {% endblock %}

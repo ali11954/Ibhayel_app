@@ -6581,6 +6581,231 @@ def register_routes(app):
                                transfer=transfer,
                                now=datetime.now())
 
+    @app.route('/attendance/period-transfer/delete/<int:transfer_id>', methods=['POST'])
+    @login_required
+    @role_required('admin', 'finance')
+    def delete_period_transfer(transfer_id):
+        """حذف فترة ترحيل الدوام مع جميع ارتباطاتها (API لـ fetch)"""
+        transfer = AttendancePeriodTransfer.query.get_or_404(transfer_id)
+
+        try:
+            # إذا كانت الفترة تم ترحيلها إلى الرواتب، نحذف الرواتب المرتبطة
+            if transfer.is_transferred:
+                period_key = f"{transfer.start_date.strftime('%Y%m%d')}_{transfer.end_date.strftime('%Y%m%d')}"
+                salaries = Salary.query.filter_by(month_year=period_key).all()
+
+                for salary in salaries:
+                    # حذف القيد المحاسبي للصرف إذا وجد
+                    journal_entry = JournalEntry.query.filter_by(
+                        reference_type='salary_payment',
+                        reference_id=salary.id
+                    ).first()
+                    if journal_entry:
+                        db.session.delete(journal_entry)
+
+                    # حذف قيد استحقاق الراتب إذا وجد
+                    accrual_entry = JournalEntry.query.filter(
+                        JournalEntry.reference_type == 'salary',
+                        JournalEntry.reference_id == salary.id
+                    ).first()
+                    if accrual_entry:
+                        db.session.delete(accrual_entry)
+
+                    db.session.delete(salary)
+
+            # حذف تفاصيل الترحيل
+            for detail in transfer.transfers_details:
+                db.session.delete(detail)
+
+            # حذف الترحيل نفسه
+            db.session.delete(transfer)
+            db.session.commit()
+
+            return jsonify({'success': True, 'message': 'تم حذف الفترة بنجاح'})
+
+        except Exception as e:
+            db.session.rollback()
+            return jsonify({'success': False, 'error': str(e)}), 500
+
+    @app.route('/attendance/period-transfer/refresh/<int:transfer_id>', methods=['POST'])
+    @login_required
+    @role_required('admin', 'finance')
+    def refresh_period_transfer_api(transfer_id):
+        """تحديث فترة ترحيل موجودة - إعادة حساب بيانات الحضور والإضافي (API لـ fetch)"""
+        transfer = AttendancePeriodTransfer.query.get_or_404(transfer_id)
+
+        if transfer.is_transferred:
+            return jsonify({'success': False, 'error': 'لا يمكن تحديث فترة تم ترحيلها بالفعل'}), 400
+
+        try:
+            start_date = transfer.start_date
+            end_date = transfer.end_date
+
+            # حذف التفاصيل القديمة
+            for detail in transfer.transfers_details:
+                db.session.delete(detail)
+            db.session.flush()
+
+            # جلب الموظفين حسب الفلتر
+            query = Employee.query.filter_by(is_active=True)
+
+            if transfer.company_id:
+                query = query.filter_by(company_id=transfer.company_id)
+            elif transfer.region:
+                query = query.filter_by(region=transfer.region)
+            else:
+                query = query.filter(Employee.employee_type == 'worker')
+
+            employees = query.all()
+
+            if not employees:
+                db.session.rollback()
+                return jsonify({'success': False, 'error': 'لا يوجد موظفين في هذا الفلتر'}), 400
+
+            count = 0
+            for employee in employees:
+                attendance_summary = get_employee_attendance_summary(employee, start_date, end_date)
+                overtime_hours = get_employee_overtime_hours(employee, start_date, end_date)
+
+                detail = AttendancePeriodTransferDetail(
+                    transfer_id=transfer.id,
+                    employee_id=employee.id,
+                    attendance_days=attendance_summary['attendance_days'],
+                    absent_days=attendance_summary['absent_days'],
+                    sick_days=attendance_summary['sick_days'],
+                    late_minutes_total=attendance_summary['late_minutes_total'],
+                    overtime_hours=overtime_hours
+                )
+                db.session.add(detail)
+                count += 1
+
+            db.session.commit()
+
+            return jsonify({'success': True, 'message': f'تم تحديث {count} موظف بنجاح'})
+
+        except Exception as e:
+            db.session.rollback()
+            return jsonify({'success': False, 'error': str(e)}), 500
+
+    @app.route('/attendance/period-transfer/edit/<int:transfer_id>', methods=['GET', 'POST'])
+    @login_required
+    @role_required('admin', 'finance')
+    def edit_period_transfer(transfer_id):
+        """تعديل فترة ترحيل دوام"""
+        transfer = AttendancePeriodTransfer.query.get_or_404(transfer_id)
+
+        if transfer.is_transferred:
+            flash('لا يمكن تعديل فترة تم ترحيلها بالفعل', 'danger')
+            return redirect(url_for('period_transfer_list'))
+
+        if request.method == 'POST':
+            try:
+                transfer.period_name = request.form.get('period_name')
+                transfer.start_date = datetime.strptime(request.form.get('start_date'), '%Y-%m-%d').date()
+                transfer.end_date = datetime.strptime(request.form.get('end_date'), '%Y-%m-%d').date()
+
+                db.session.commit()
+                flash('✅ تم تحديث الفترة بنجاح', 'success')
+                return redirect(url_for('view_period_transfer', transfer_id=transfer.id))
+
+            except Exception as e:
+                db.session.rollback()
+                flash(f'❌ حدث خطأ: {str(e)}', 'danger')
+
+        return render_template('attendance/edit_period_transfer.html', transfer=transfer)
+
+    @app.route('/attendance/period-transfer/force-delete/<int:transfer_id>', methods=['POST'])
+    @login_required
+    @role_required('admin', 'finance')
+    def force_delete_period_transfer(transfer_id):
+        """حذف إجباري لفترة الترحيل مع جميع ارتباطاتها (حتى لو كانت مترحلة)"""
+        transfer = AttendancePeriodTransfer.query.get_or_404(transfer_id)
+
+        try:
+            deleted_items = {
+                'salaries': 0,
+                'journal_entries': 0,
+                'transfer_details': 0
+            }
+
+            # ========== 1. إذا كانت الفترة تم ترحيلها، نحذف الرواتب المرتبطة ==========
+            if transfer.is_transferred:
+                period_key = f"{transfer.start_date.strftime('%Y%m%d')}_{transfer.end_date.strftime('%Y%m%d')}"
+
+                # البحث عن الرواتب بهذا المفتاح
+                salaries = Salary.query.filter(
+                    Salary.month_year == period_key
+                ).all()
+
+                # البحث عن الرواتب بصيغة MM-YYYY (للحالات القديمة)
+                if not salaries:
+                    alt_key = transfer.start_date.strftime('%m-%Y')
+                    salaries = Salary.query.filter(
+                        Salary.month_year == alt_key
+                    ).all()
+
+                for salary in salaries:
+                    deleted_items['salaries'] += 1
+
+                    # حذف القيد المحاسبي للصرف (salary_payment)
+                    payment_entry = JournalEntry.query.filter_by(
+                        reference_type='salary_payment',
+                        reference_id=salary.id
+                    ).first()
+                    if payment_entry:
+                        db.session.delete(payment_entry)
+                        deleted_items['journal_entries'] += 1
+
+                    # حذف قيد استحقاق الراتب (salary)
+                    accrual_entry = JournalEntry.query.filter(
+                        JournalEntry.reference_type == 'salary',
+                        JournalEntry.reference_id == salary.id
+                    ).first()
+                    if accrual_entry:
+                        db.session.delete(accrual_entry)
+                        deleted_items['journal_entries'] += 1
+
+                    # حذف قيد استحقاق الراتب بصيغة أخرى (salary_accrual)
+                    accrual_entry2 = JournalEntry.query.filter(
+                        JournalEntry.reference_type == 'salary_accrual',
+                        JournalEntry.reference_id == salary.id
+                    ).first()
+                    if accrual_entry2:
+                        db.session.delete(accrual_entry2)
+                        deleted_items['journal_entries'] += 1
+
+                    db.session.delete(salary)
+
+            # ========== 2. حذف تفاصيل الترحيل ==========
+            for detail in transfer.transfers_details:
+                db.session.delete(detail)
+                deleted_items['transfer_details'] += 1
+
+            # ========== 3. حذف الترحيل نفسه ==========
+            period_name = transfer.period_name
+            db.session.delete(transfer)
+
+            db.session.commit()
+
+            # بناء رسالة النجاح
+            message = f'تم حذف الفترة "{period_name}" بنجاح'
+            if deleted_items['salaries'] > 0:
+                message += f' (تم حذف {deleted_items["salaries"]} راتب و {deleted_items["journal_entries"]} قيد محاسبي)'
+
+            return jsonify({
+                'success': True,
+                'message': message,
+                'deleted': deleted_items
+            })
+
+        except Exception as e:
+            db.session.rollback()
+            import traceback
+            traceback.print_exc()
+            return jsonify({
+                'success': False,
+                'error': str(e)
+            }), 500
 
 
 
