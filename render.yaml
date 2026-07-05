@@ -5,9 +5,6 @@ services:
     buildCommand: |
       pip install --upgrade pip
       pip install -r requirements.txt
-      which node && node --version || echo "Node.js not found"
-      cd frontend && npm install && npx vite build
-      ls -la frontend/dist || echo "dist not created"
     startCommand: gunicorn app:app --bind 0.0.0.0:$PORT --workers 2 --threads 4 --timeout 120
     envVars:
       - key: PYTHON_VERSION
