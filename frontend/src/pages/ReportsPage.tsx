@@ -8,7 +8,34 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContaine
 import api from '@/api/client';
 import { formatNum } from '@/lib/utils';
 
+function pctChange(current: number, previous: number): number | null {
+  if (!previous || previous === 0) return null;
+  return Math.round((current - previous) / previous * 100);
+}
+function ChangeBadge({ current, prev, invert }: { current: number; prev: number; invert?: boolean }) {
+  const pct = pctChange(current, prev);
+  if (pct === null) return null;
+  const good = invert ? pct <= 0 : pct >= 0;
+  return (
+    <span className={`text-xs font-bold ${good ? 'text-green-600' : 'text-red-600'}`}>
+      {pct >= 0 ? '↑' : '↓'} {Math.abs(pct)}%
+    </span>
+  );
+}
+
 const COLORS = ['#10b981', '#f59e0b', '#ef4444', '#6366f1', '#8b5cf6', '#ec4899', '#06b6d4'];
+
+function getMonthStr(d: Date) { return d.toISOString().slice(0, 7); }
+function prevMonth(ym: string) {
+  const [y, m] = ym.split('-').map(Number);
+  const d = new Date(y, m - 2, 1);
+  return d.toISOString().slice(0, 7);
+}
+function getMonthLabel(ym: string) {
+  const [y, m] = ym.split('-').map(Number);
+  const names = ['يناير','فبراير','مارس','أبريل','مايو','يونيو','يوليو','أغسطس','سبتمبر','أكتوبر','نوفمبر','ديسمبر'];
+  return `${names[m - 1]} ${y}`;
+}
 
 export default function ReportsPage() {
   const [stats, setStats] = useState<any>(null);
@@ -19,82 +46,47 @@ export default function ReportsPage() {
   const [financialComp, setFinancialComp] = useState<any>(null);
   const [workPlans, setWorkPlans] = useState<any[]>([]);
   const [evaluations, setEvaluations] = useState<any>(null);
+  const [evaluationsComp, setEvaluationsComp] = useState<any>(null);
   const [contractorProfit, setContractorProfit] = useState<any>(null);
+  const [contractorProfitComp, setContractorProfitComp] = useState<any>(null);
   const [companies, setCompanies] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('overview');
-
-  const [dateFrom, setDateFrom] = useState(() => {
-    const d = new Date(); d.setDate(d.getDate() - 30); return d.toISOString().split('T')[0];
-  });
-  const [dateTo, setDateTo] = useState(() => new Date().toISOString().split('T')[0]);
-  const [companyFilter, setCompanyFilter] = useState('');
-  const [compareMode, setCompareMode] = useState(false);
-  const [comparePeriod, setComparePeriod] = useState<'prev_month' | 'prev_quarter' | 'prev_year'>('prev_month');
-  const [showFilters, setShowFilters] = useState(false);
+  const [selectedMonth, setSelectedMonth] = useState(() => getMonthStr(new Date()));
 
   const loadData = () => {
     setLoading(true);
-    const params: Record<string, string> = {};
-    if (dateFrom) params.date_from = dateFrom;
-    if (dateTo) params.date_to = dateTo;
-    if (companyFilter) params.company_id = companyFilter;
-
-    const qs = new URLSearchParams(params).toString();
-    const attUrl = '/reports/attendance' + (qs ? '?' + qs : '');
-
+    const pm = prevMonth(selectedMonth);
     Promise.all([
       api.get('/dashboard/stats'),
       api.get('/reports/employees'),
-      api.get(attUrl),
-      api.get('/reports/financial'),
+      api.get(`/reports/attendance?date_from=${selectedMonth}-01&date_to=${selectedMonth}-31`),
+      api.get(`/reports/attendance?date_from=${pm}-01&date_to=${pm}-31`),
+      api.get(`/reports/financial?month_year=${selectedMonth.replace('-', '-')}`),
+      api.get(`/reports/financial?month_year=${pm.replace('-', '-')}`),
       api.get('/work-plans'),
-      api.get('/reports/evaluations').catch(() => ({ data: { data: { total_evaluations: 0, avg_score: 0, avg_rating: '-', rating_distribution: [], type_distribution: [], top_employees: [], monthly_trend: [], all_employees: [] } } })),
-      api.get('/reports/contractor-profit').catch(() => ({ data: { data: { employees: [], summary: {} } } })),
+      api.get(`/reports/evaluations?month_year=${selectedMonth}`).catch(() => ({ data: { data: { total_evaluations: 0, avg_score: 0, avg_rating: '-', rating_distribution: [], type_distribution: [], top_employees: [], monthly_trend: [], all_employees: [] } } })),
+      api.get(`/reports/evaluations?month_year=${pm}`).catch(() => ({ data: { data: { total_evaluations: 0, avg_score: 0, avg_rating: '-', rating_distribution: [], type_distribution: [], top_employees: [], monthly_trend: [], all_employees: [] } } })),
+      api.get(`/reports/contractor-profit?month_year=${selectedMonth}`).catch(() => ({ data: { data: { employees: [], summary: {} } } })),
+      api.get(`/reports/contractor-profit?month_year=${pm}`).catch(() => ({ data: { data: { employees: [], summary: {} } } })),
       api.get('/companies'),
-    ]).then(([sRes, eRes, aRes, fRes, wRes, evRes, cpRes, cRes]) => {
+    ]).then(([sRes, eRes, aRes, aCompRes, fRes, fCompRes, wRes, evRes, evCompRes, cpRes, cpCompRes, cRes]) => {
       setStats(sRes.data.data);
       setEmployees(eRes.data.data);
       setAttendance(aRes.data.data);
+      setAttendanceComp(aCompRes.data.data);
       setFinancial(fRes.data.data);
+      setFinancialComp(fCompRes.data.data);
       setWorkPlans(wRes.data.data || []);
       setEvaluations(evRes.data.data);
+      setEvaluationsComp(evCompRes.data.data);
       setContractorProfit(cpRes.data.data);
+      setContractorProfitComp(cpCompRes.data.data);
       setCompanies(cRes.data.data || []);
     }).catch(console.error).finally(() => setLoading(false));
   };
 
-  const loadComparison = () => {
-    if (!compareMode) { setAttendanceComp(null); setFinancialComp(null); return; }
-    const today = new Date();
-    let compFrom: Date, compTo: Date;
-    if (comparePeriod === 'prev_month') {
-      compTo = new Date(today.getFullYear(), today.getMonth(), 0);
-      compFrom = new Date(compTo.getFullYear(), compTo.getMonth(), 1);
-    } else if (comparePeriod === 'prev_quarter') {
-      compTo = new Date(today.getFullYear(), today.getMonth(), 0);
-      compFrom = new Date(compTo.getFullYear(), compTo.getMonth() - 2, 1);
-    } else {
-      compTo = new Date(today.getFullYear() - 1, 11, 31);
-      compFrom = new Date(today.getFullYear() - 1, 0, 1);
-    }
-    const params: Record<string, string> = {
-      date_from: compFrom.toISOString().split('T')[0],
-      date_to: compTo.toISOString().split('T')[0],
-    };
-    if (companyFilter) params.company_id = companyFilter;
-    const qs = new URLSearchParams(params).toString();
-    Promise.all([
-      api.get('/reports/attendance?' + qs),
-      api.get('/reports/financial'),
-    ]).then(([aRes, fRes]) => {
-      setAttendanceComp(aRes.data.data);
-      setFinancialComp(fRes.data.data);
-    }).catch(console.error);
-  };
-
-  useEffect(() => { loadData(); }, [dateFrom, dateTo, companyFilter]);
-  useEffect(() => { if (compareMode) loadComparison(); }, [compareMode, comparePeriod, dateFrom, dateTo, companyFilter]);
+  useEffect(() => { loadData(); }, [selectedMonth]);
 
   if (loading) return <div className="flex items-center justify-center h-64"><div className="w-8 h-8 border-3 border-primary-500/30 border-t-primary-500 rounded-full animate-spin" /></div>;
 
@@ -152,57 +144,29 @@ export default function ReportsPage() {
         })}
       </div>
 
-      {/* Filter Bar */}
+      {/* Month Selector */}
       <Card>
         <CardContent className="p-4">
           <div className="flex flex-wrap items-center gap-3">
-            <button onClick={() => setShowFilters(!showFilters)} className="flex items-center gap-2 text-sm font-medium text-gray-600 hover:text-primary-600 transition-colors">
-              <Filter className="w-4 h-4" />
-              الفلاتر
-              {(dateFrom || dateTo || companyFilter) && <span className="w-2 h-2 bg-primary-500 rounded-full" />}
-            </button>
-            {showFilters && (
-              <>
-                <div className="flex items-center gap-2">
-                  <label className="text-xs text-gray-500">من:</label>
-                  <Input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)} className="w-36 text-sm" />
-                </div>
-                <div className="flex items-center gap-2">
-                  <label className="text-xs text-gray-500">إلى:</label>
-                  <Input type="date" value={dateTo} onChange={e => setDateTo(e.target.value)} className="w-36 text-sm" />
-                </div>
-                <select value={companyFilter} onChange={e => setCompanyFilter(e.target.value)}
-                  className="w-44 text-sm border border-gray-300 rounded-lg px-3 py-2 bg-white">
-                  <option value="">جميع الشركات</option>
-                  {companies.map((c: any) => <option key={c.id} value={c.id}>{c.name}</option>)}
-                </select>
-                <div className="flex gap-1">
-                  {[
-                    { label: '30 يوم', from: () => { const d = new Date(); d.setDate(d.getDate()-30); return d.toISOString().split('T')[0]; } },
-                    { label: '3 أشهر', from: () => { const d = new Date(); d.setMonth(d.getMonth()-3); return d.toISOString().split('T')[0]; } },
-                    { label: '6 أشهر', from: () => { const d = new Date(); d.setMonth(d.getMonth()-6); return d.toISOString().split('T')[0]; } },
-                    { label: 'سنة', from: () => { const d = new Date(); d.setFullYear(d.getFullYear()-1); return d.toISOString().split('T')[0]; } },
-                  ].map(p => (
-                    <Button key={p.label} size="sm" variant="outline" onClick={() => { setDateFrom(p.from()); setDateTo(new Date().toISOString().split('T')[0]); }}>{p.label}</Button>
-                  ))}
-                </div>
-                <Button size="sm" variant="outline" onClick={() => { setDateFrom(''); setDateTo(''); setCompanyFilter(''); }}>مسح</Button>
-              </>
-            )}
-            <div className="mr-auto flex items-center gap-2">
-              <button onClick={() => setCompareMode(!compareMode)}
-                className={`flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-lg border transition-colors ${compareMode ? 'bg-primary-50 border-primary-300 text-primary-700' : 'border-gray-300 text-gray-600 hover:bg-gray-50'}`}>
-                <ArrowLeftRight className="w-3.5 h-3.5" />
-                مقارنة
-              </button>
-              {compareMode && (
-                <select value={comparePeriod} onChange={e => setComparePeriod(e.target.value as any)}
-                  className="text-sm border border-gray-300 rounded-lg px-3 py-1.5 bg-white">
-                  <option value="prev_month">الشهر السابق</option>
-                  <option value="prev_quarter">الربع السابق</option>
-                  <option value="prev_year">السنة السابقة</option>
-                </select>
-              )}
+            <div className="flex items-center gap-2">
+              <Filter className="w-4 h-4 text-gray-500" />
+              <span className="text-sm font-medium text-gray-700">الشهر:</span>
+            </div>
+            <input type="month" value={selectedMonth} onChange={e => setSelectedMonth(e.target.value)}
+              className="border border-gray-300 rounded-lg px-3 py-2 text-sm bg-white" />
+            <div className="flex gap-1">
+              {[
+                { label: 'الشهر الحالي', value: getMonthStr(new Date()) },
+                { label: 'الشهر السابق', value: prevMonth(getMonthStr(new Date())) },
+              ].map(p => (
+                <Button key={p.label} size="sm" variant={selectedMonth === p.value ? 'default' : 'outline'}
+                  onClick={() => setSelectedMonth(p.value)}>{p.label}</Button>
+              ))}
+            </div>
+            <div className="mr-auto flex items-center gap-3 text-sm text-gray-500">
+              <span>الشهر الحالي: <strong className="text-gray-700">{getMonthLabel(selectedMonth)}</strong></span>
+              <span className="text-gray-300">|</span>
+              <span>الشهر السابق: <strong className="text-gray-700">{getMonthLabel(prevMonth(selectedMonth))}</strong></span>
             </div>
           </div>
         </CardContent>
@@ -392,7 +356,7 @@ export default function ReportsPage() {
             {[
               { label: 'حاضر', value: attendance?.summary?.present || 0, comp: attendanceComp?.summary?.present || 0, color: 'bg-green-500' },
               { label: 'متأخر', value: attendance?.summary?.late || 0, comp: attendanceComp?.summary?.late || 0, color: 'bg-yellow-500' },
-              { label: 'غائب', value: attendance?.summary?.absent || 0, comp: attendanceComp?.summary?.absent || 0, color: 'bg-red-500' },
+              { label: 'غائب', value: attendance?.summary?.absent || 0, comp: attendanceComp?.summary?.absent || 0, color: 'bg-red-500', invert: true },
               { label: 'مرضي', value: attendance?.summary?.sick || 0, comp: attendanceComp?.summary?.sick || 0, color: 'bg-blue-500' },
               { label: 'إجازة', value: attendance?.summary?.annual_leave || 0, comp: attendanceComp?.summary?.annual_leave || 0, color: 'bg-purple-500' },
             ].map((item) => (
@@ -401,40 +365,38 @@ export default function ReportsPage() {
                   <div className={`w-3 h-3 rounded-full ${item.color} mx-auto mb-2`} />
                   <p className="text-2xl font-bold">{item.value}</p>
                   <p className="text-xs text-gray-500">{item.label}</p>
-                  {compareMode && item.comp > 0 && (
-                    <p className={`text-xs mt-1 font-medium ${item.value >= item.comp ? 'text-green-600' : 'text-red-600'}`}>
-                      {item.value >= item.comp ? '↑' : '↓'} {Math.abs(Math.round((item.value - item.comp) / item.comp * 100))}%
-                    </p>
-                  )}
+                  <div className="mt-1"><ChangeBadge current={item.value} prev={item.comp} invert={item.invert} /></div>
                 </CardContent>
               </Card>
             ))}
           </div>
 
-          {compareMode && (
-            <Card className="bg-primary-50 border-primary-200">
-              <CardContent className="p-4">
-                <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 text-center">
-                  <div>
-                    <p className="text-xs text-gray-500">الفترة الحالية</p>
-                    <p className="font-bold text-primary-700">{attendance?.start_date || ''} ~ {attendance?.end_date || ''}</p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-gray-500">نسبة الحضور</p>
-                    <p className="font-bold text-green-700">{attendance?.attendance_rate || 0}%</p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-gray-500">الفترة المقارنة</p>
-                    <p className="font-bold text-gray-600">{attendanceComp?.start_date || '—'} ~ {attendanceComp?.end_date || '—'}</p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-gray-500">نسبة الحضور (مقارنة)</p>
-                    <p className="font-bold text-gray-600">{attendanceComp?.attendance_rate || 0}%</p>
-                  </div>
+          <Card className="bg-primary-50 border-primary-200">
+            <CardContent className="p-4">
+              <div className="grid grid-cols-2 lg:grid-cols-5 gap-4 text-center">
+                <div>
+                  <p className="text-xs text-gray-500">الفترة الحالية</p>
+                  <p className="font-bold text-primary-700">{getMonthLabel(selectedMonth)}</p>
                 </div>
-              </CardContent>
-            </Card>
-          )}
+                <div>
+                  <p className="text-xs text-gray-500">نسبة الحضور</p>
+                  <p className="font-bold text-green-700">{attendance?.attendance_rate || 0}%</p>
+                </div>
+                <div>
+                  <p className="text-xs text-gray-500">الشهر السابق</p>
+                  <p className="font-bold text-gray-600">{getMonthLabel(prevMonth(selectedMonth))}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-gray-500">نسبة الحضور (الشهر السابق)</p>
+                  <p className="font-bold text-gray-600">{attendanceComp?.attendance_rate || 0}%</p>
+                </div>
+                <div>
+                  <p className="text-xs text-gray-500">التغيير</p>
+                  <ChangeBadge current={attendance?.attendance_rate || 0} prev={attendanceComp?.attendance_rate || 0} />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
 
           <Card>
             <CardContent className="p-6">
@@ -458,7 +420,7 @@ export default function ReportsPage() {
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             <Card>
               <CardContent className="p-6">
-                <h3 className="font-bold text-gray-900 mb-4">نسبة الحضور — الفترة الحالية</h3>
+                <h3 className="font-bold text-gray-900 mb-4">نسبة الحضور — {getMonthLabel(selectedMonth)}</h3>
                 <ResponsiveContainer width="100%" height={300}>
                   <PieChart>
                     <Pie data={[
@@ -474,26 +436,24 @@ export default function ReportsPage() {
                 </ResponsiveContainer>
               </CardContent>
             </Card>
-            {compareMode && attendanceComp && (
-              <Card>
-                <CardContent className="p-6">
-                  <h3 className="font-bold text-gray-900 mb-4">نسبة الحضور — الفترة المقارنة</h3>
-                  <ResponsiveContainer width="100%" height={300}>
-                    <PieChart>
-                      <Pie data={[
-                        { name: 'حاضر', value: attendanceComp?.summary?.present || 0 },
-                        { name: 'متأخر', value: attendanceComp?.summary?.late || 0 },
-                        { name: 'غائب', value: attendanceComp?.summary?.absent || 0 },
-                        { name: 'مرضي', value: attendanceComp?.summary?.sick || 0 },
-                        { name: 'إجازة', value: attendanceComp?.summary?.annual_leave || 0 },
-                      ].filter(d => d.value > 0)} cx="50%" cy="50%" innerRadius={70} outerRadius={110} paddingAngle={4} dataKey="value" label={({ name, percent }: any) => `${name} ${((percent || 0) * 100).toFixed(0)}%`}>
-                      </Pie>
-                      <Tooltip />
-                    </PieChart>
-                  </ResponsiveContainer>
-                </CardContent>
-              </Card>
-            )}
+            <Card>
+              <CardContent className="p-6">
+                <h3 className="font-bold text-gray-900 mb-4">نسبة الحضور — {getMonthLabel(prevMonth(selectedMonth))}</h3>
+                <ResponsiveContainer width="100%" height={300}>
+                  <PieChart>
+                    <Pie data={[
+                      { name: 'حاضر', value: attendanceComp?.summary?.present || 0 },
+                      { name: 'متأخر', value: attendanceComp?.summary?.late || 0 },
+                      { name: 'غائب', value: attendanceComp?.summary?.absent || 0 },
+                      { name: 'مرضي', value: attendanceComp?.summary?.sick || 0 },
+                      { name: 'إجازة', value: attendanceComp?.summary?.annual_leave || 0 },
+                    ].filter(d => d.value > 0)} cx="50%" cy="50%" innerRadius={70} outerRadius={110} paddingAngle={4} dataKey="value" label={({ name, percent }: any) => `${name} ${((percent || 0) * 100).toFixed(0)}%`}>
+                    </Pie>
+                    <Tooltip />
+                  </PieChart>
+                </ResponsiveContainer>
+              </CardContent>
+            </Card>
           </div>
         </div>
       )}
@@ -637,13 +597,13 @@ export default function ReportsPage() {
             </div>
           ) : (
             <>
-              {/* KPI Cards */}
               <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
                 <Card className="bg-gradient-to-br from-amber-50 to-orange-50 border-amber-200">
                   <CardContent className="p-5 text-center">
                     <Star className="w-8 h-8 text-amber-500 mx-auto mb-2" />
                     <p className="text-2xl font-bold text-amber-700">{evaluations.total_evaluations}</p>
                     <p className="text-sm text-amber-600">إجمالي التقييمات</p>
+                    <ChangeBadge current={evaluations.total_evaluations || 0} prev={evaluationsComp?.total_evaluations || 0} />
                   </CardContent>
                 </Card>
                 <Card className="bg-gradient-to-br from-green-50 to-emerald-50 border-green-200">
@@ -651,6 +611,7 @@ export default function ReportsPage() {
                     <TrendingUp className="w-8 h-8 text-green-500 mx-auto mb-2" />
                     <p className="text-2xl font-bold text-green-700">{evaluations.avg_score}/10</p>
                     <p className="text-sm text-green-600">المتوسط — {evaluations.avg_rating}</p>
+                    <ChangeBadge current={evaluations.avg_score || 0} prev={evaluationsComp?.avg_score || 0} />
                   </CardContent>
                 </Card>
                 <Card className="bg-gradient-to-br from-blue-50 to-indigo-50 border-blue-200">
@@ -658,6 +619,7 @@ export default function ReportsPage() {
                     <Award className="w-8 h-8 text-blue-500 mx-auto mb-2" />
                     <p className="text-2xl font-bold text-blue-700">{evaluations.rating_distribution?.find((r: any) => r.name === 'ممتاز')?.value || 0}</p>
                     <p className="text-sm text-blue-600">تقييم "ممتاز"</p>
+                    <ChangeBadge current={evaluations.rating_distribution?.find((r: any) => r.name === 'ممتاز')?.value || 0} prev={evaluationsComp?.rating_distribution?.find((r: any) => r.name === 'ممتاز')?.value || 0} />
                   </CardContent>
                 </Card>
                 <Card className="bg-gradient-to-br from-red-50 to-pink-50 border-red-200">
@@ -665,6 +627,7 @@ export default function ReportsPage() {
                     <Target className="w-8 h-8 text-red-500 mx-auto mb-2" />
                     <p className="text-2xl font-bold text-red-700">{evaluations.rating_distribution?.find((r: any) => r.name === 'ضعيف')?.value || 0}</p>
                     <p className="text-sm text-red-600">تقييم "ضعيف"</p>
+                    <ChangeBadge current={evaluations.rating_distribution?.find((r: any) => r.name === 'ضعيف')?.value || 0} prev={evaluationsComp?.rating_distribution?.find((r: any) => r.name === 'ضعيف')?.value || 0} invert />
                   </CardContent>
                 </Card>
               </div>
@@ -838,6 +801,7 @@ export default function ReportsPage() {
                 <TrendingUp className="w-8 h-8 text-green-500 mx-auto mb-2" />
                 <p className="text-sm text-green-600">إجمالي الإيرادات</p>
                 <p className="text-3xl font-bold text-green-700">{formatNum(financial?.total_income)} ر.ي</p>
+                <ChangeBadge current={financial?.total_income || 0} prev={financialComp?.total_income || 0} />
               </CardContent>
             </Card>
             <Card className="bg-red-50 border-red-200">
@@ -845,6 +809,7 @@ export default function ReportsPage() {
                 <TrendingDown className="w-8 h-8 text-red-500 mx-auto mb-2" />
                 <p className="text-sm text-red-600">إجمالي المصروفات</p>
                 <p className="text-3xl font-bold text-red-700">{formatNum(financial?.total_expense)} ر.ي</p>
+                <ChangeBadge current={financial?.total_expense || 0} prev={financialComp?.total_expense || 0} invert />
               </CardContent>
             </Card>
             <Card className="bg-primary-50 border-primary-200">
@@ -852,30 +817,10 @@ export default function ReportsPage() {
                 <DollarSign className="w-8 h-8 text-primary-500 mx-auto mb-2" />
                 <p className="text-sm text-primary-600">الصافي</p>
                 <p className={`text-3xl font-bold ${(financial?.balance || 0) >= 0 ? 'text-green-700' : 'text-red-700'}`}>{formatNum(financial?.balance)} ر.ي</p>
+                <ChangeBadge current={financial?.balance || 0} prev={financialComp?.balance || 0} />
               </CardContent>
             </Card>
           </div>
-
-          {compareMode && attendanceComp && (
-            <Card className="bg-primary-50 border-primary-200">
-              <CardContent className="p-4">
-                <div className="grid grid-cols-2 lg:grid-cols-3 gap-4 text-center">
-                  <div>
-                    <p className="text-xs text-gray-500">إيرادات الفترة الحالية</p>
-                    <p className="font-bold text-green-700">{formatNum(financial?.total_income)} ر.ي</p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-gray-500">مصروفات الفترة الحالية</p>
-                    <p className="font-bold text-red-700">{formatNum(financial?.total_expense)} ر.ي</p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-gray-500">صافي الفترة الحالية</p>
-                    <p className={`font-bold ${(financial?.balance || 0) >= 0 ? 'text-green-700' : 'text-red-700'}`}>{formatNum(financial?.balance)} ر.ي</p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          )}
 
           <Card>
             <CardContent className="p-6">
@@ -913,7 +858,7 @@ export default function ReportsPage() {
 
       {activeTab === 'contractor' && (
         <div className="space-y-6">
-          <h2 className="text-xl font-bold">أرباح المتعهد - طلعت هائل</h2>
+          <h2 className="text-xl font-bold">أرباح المتعهد — {getMonthLabel(selectedMonth)}</h2>
           
           {contractorProfit?.summary && (
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -921,6 +866,7 @@ export default function ReportsPage() {
                 <CardContent className="p-4">
                   <div className="text-sm text-gray-500">إجمالي الإيرادات</div>
                   <div className="text-xl font-bold text-green-600">{formatNum(contractorProfit.summary.total_revenue)} ر.ي</div>
+                  <ChangeBadge current={contractorProfit.summary.total_revenue || 0} prev={contractorProfitComp?.summary?.total_revenue || 0} />
                 </CardContent>
               </Card>
               <Card>
@@ -941,6 +887,7 @@ export default function ReportsPage() {
                   <div className={`text-xl font-bold ${(contractorProfit.summary.total_profit || 0) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
                     {formatNum(contractorProfit.summary.total_profit)} ر.ي
                   </div>
+                  <ChangeBadge current={contractorProfit.summary.total_profit || 0} prev={contractorProfitComp?.summary?.total_profit || 0} />
                 </CardContent>
               </Card>
             </div>

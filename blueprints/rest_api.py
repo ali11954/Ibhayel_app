@@ -2267,12 +2267,31 @@ def api_reports_attendance():
 @login_required
 def api_reports_financial():
     from datetime import timedelta
+    from calendar import monthrange
     today = datetime.now().date()
+    month_year = request.args.get('month_year')
+
+    if month_year:
+        parts = month_year.split('-')
+        if len(parts) == 2:
+            if len(parts[0]) == 4:
+                y, m = int(parts[0]), int(parts[1])
+            else:
+                y, m = int(parts[1]), int(parts[0])
+        else:
+            y, m = today.year, today.month
+        start_date = datetime(y, m, 1).date()
+        days_in_month = monthrange(y, m)[1]
+        end_date = datetime(y, m, days_in_month).date()
+    else:
+        start_date = today.replace(day=1)
+        end_date = today
 
     total_by_type = db.session.query(
         FinancialTransaction.transaction_type,
         func.sum(FinancialTransaction.amount),
         func.count(FinancialTransaction.id)
+    ).filter(FinancialTransaction.date >= start_date, FinancialTransaction.date <= end_date
     ).group_by(FinancialTransaction.transaction_type).all()
 
     monthly_data = {}
@@ -2293,33 +2312,37 @@ def api_reports_financial():
                 monthly_data[key]['expense'] += float(t.amount or 0)
             monthly_data[key]['count'] += 1
 
-    total_income = db.session.query(func.sum(FinancialTransaction.amount)).filter(
-        FinancialTransaction.transaction_type.in_(['overtime'])
-    ).scalar() or 0
-    total_expense = db.session.query(func.sum(FinancialTransaction.amount)).filter(
-        FinancialTransaction.transaction_type.in_(['advance', 'deduction', 'penalty'])
-    ).scalar() or 0
+    total_income = sum(float(s or 0) for t, s, c in total_by_type if t in ('overtime',))
+    total_expense = sum(float(s or 0) for t, s, c in total_by_type if t in ('advance', 'deduction', 'penalty', 'cafeteria', 'restaurant'))
 
     return ok({
         'by_type': [{'type': t, 'total': float(s or 0), 'count': c} for t, s, c in total_by_type],
         'monthly': list(monthly_data.values()),
-        'total_income': float(total_income),
-        'total_expense': float(total_expense),
-        'balance': float(total_income - total_expense),
+        'total_income': total_income,
+        'total_expense': total_expense,
+        'balance': total_income - total_expense,
+        'month_year': month_year or 'current',
+        'period': f'{start_date.strftime("%Y-%m-%d")} ~ {end_date.strftime("%Y-%m-%d")}',
     })
 
 
 @rest_api.route('/reports/employees')
 @login_required
 def api_reports_employees():
-    employees = Employee.query.filter_by(is_active=True).all()
+    company_id = request.args.get('company_id')
+    q = Employee.query.filter_by(is_active=True)
+    if company_id:
+        q = q.filter_by(company_id=int(company_id))
+    employees = q.all()
     companies = Company.query.all()
     company_map = {c.id: c.name for c in companies}
 
     by_company = {}
+    total_salary = 0
     for e in employees:
         cname = company_map.get(e.company_id, 'غير محدد')
         by_company[cname] = by_company.get(cname, 0) + 1
+        total_salary += float(e.total_salary or e.salary or 0)
 
     return ok({
         'employees': [{
@@ -2340,21 +2363,34 @@ def api_reports_employees():
 @rest_api.route('/reports/evaluations')
 @login_required
 def api_reports_evaluations():
-    evaluations = Evaluation.query.order_by(Evaluation.date.desc()).all()
+    month_year = request.args.get('month_year')
+
+    q = Evaluation.query
+    if month_year:
+        parts = month_year.split('-')
+        if len(parts) == 2:
+            if len(parts[0]) == 4:
+                y, m = int(parts[0]), int(parts[1])
+            else:
+                y, m = int(parts[1]), int(parts[0])
+            from calendar import monthrange
+            start_date = datetime(y, m, 1).date()
+            end_date = datetime(y, m, monthrange(y, m)[1]).date()
+            q = q.filter(Evaluation.date >= start_date, Evaluation.date <= end_date)
+
+    evaluations = q.order_by(Evaluation.date.desc()).all()
     employees = Employee.query.filter_by(is_active=True).all()
     companies = Company.query.all()
 
     total_evals = len(evaluations)
     avg_score = sum(e.score for e in evaluations) / total_evals if total_evals > 0 else 0
 
-    # توزيع التقييمات حسب التصنيف
     rating_dist = {'ممتاز': 0, 'جيد جداً': 0, 'جيد': 0, 'مقبول': 0, 'ضعيف': 0}
     for e in evaluations:
         r = e.get_rating()
         if r in rating_dist:
             rating_dist[r] += 1
 
-    # متوسط التقييم لكل موظف
     emp_scores = {}
     for e in evaluations:
         if e.employee_id not in emp_scores:
@@ -2374,15 +2410,12 @@ def api_reports_evaluations():
         })
     emp_avg.sort(key=lambda x: x['avg_score'], reverse=True)
 
-    # توزيع حسب نوع التقييم
     type_dist = {}
     for e in evaluations:
         t = e.get_type_name()
         type_dist[t] = type_dist.get(t, 0) + 1
 
-    # آخر 6 أشهر
     monthly_trend = {}
-    from datetime import timedelta
     for e in evaluations:
         key = e.date.strftime('%Y-%m') if e.date else 'غير محدد'
         if key not in monthly_trend:
@@ -2402,6 +2435,7 @@ def api_reports_evaluations():
         'bottom_employees': emp_avg[-5:] if len(emp_avg) >= 5 else emp_avg,
         'monthly_trend': trend_data,
         'all_employees': emp_avg,
+        'month_year': month_year or 'all',
     })
 
 
