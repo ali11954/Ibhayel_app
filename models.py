@@ -2624,3 +2624,42 @@ class LeaveRequest(db.Model):
         }
 
 
+class BankInfo(db.Model):
+    """المعلومات البنكية للموظف"""
+    __tablename__ = 'bank_info'
+
+    id = db.Column(db.Integer, primary_key=True)
+    employee_id = db.Column(db.Integer, db.ForeignKey('employees.id'), nullable=False)
+    bank_name = db.Column(db.String(200), nullable=False)
+    account_number = db.Column(db.String(50), nullable=False)
+    iban = db.Column(db.String(50), default='')
+    swift_code = db.Column(db.String(20), default='')
+    branch_name = db.Column(db.String(200), default='')
+    account_type = db.Column(db.String(50), default='current')
+    currency = db.Column(db.String(10), default='YER')
+    is_primary = db.Column(db.Boolean, default=True)
+    notes = db.Column(db.Text, default='')
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    employee = db.relationship('Employee', backref=db.backref('bank_accounts', lazy='dynamic'))
+
+    ACCOUNT_TYPES = {'current': 'حساب جاري', 'savings': 'حساب توفير', 'salary': 'حساب راتب'}
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'employee_id': self.employee_id,
+            'bank_name': self.bank_name,
+            'account_number': self.account_number,
+            'iban': self.iban or '',
+            'swift_code': self.swift_code or '',
+            'branch_name': self.branch_name or '',
+            'account_type': self.account_type,
+            'account_type_name': self.ACCOUNT_TYPES.get(self.account_type, self.account_type),
+            'currency': self.currency or 'YER',
+            'is_primary': self.is_primary,
+            'notes': self.notes or '',
+            'created_at': self.created_at.strftime('%Y-%m-%d %H:%M') if self.created_at else None,
+            'updated_at': self.updated_at.strftime('%Y-%m-%d %H:%M') if self.updated_at else None,
+        }

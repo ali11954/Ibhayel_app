@@ -9,7 +9,7 @@ from models import (
     Contract, Supplier, SupplierInvoice, SupplierInvoicePayment, Invoice, Account, JournalEntry, JournalEntryDetail,
     JournalEntryDetail as JED, MealDeduction, LaborMonthlyCost, ContractorAnnualCost,
     ExpenseCategory, SystemSettings, AllowanceSetting, WorkPlan, WorkPlanTask,
-    FinancialPeriod, LeaveType, LeaveBalance, LeaveRequest
+    FinancialPeriod, LeaveType, LeaveBalance, LeaveRequest, BankInfo
 )
 
 rest_api = Blueprint('rest_api', __name__, url_prefix='/api')
@@ -50,6 +50,15 @@ def api_login():
 
     login_user(user, remember=True)
     return ok({'user': user.to_dict()}, 'تم تسجيل الدخول بنجاح')
+
+@rest_api.route('/debug/session')
+def api_debug_session():
+    from flask_login import current_user
+    return jsonify({
+        'authenticated': current_user.is_authenticated,
+        'user_id': getattr(current_user, 'id', None),
+        'session_cookie': bool(request.cookies.get('session')),
+    })
 
 
 @rest_api.route('/auth/logout', methods=['POST'])
@@ -177,6 +186,57 @@ def api_check_card():
     if emp_id:
         q = q.filter(Employee.id != int(emp_id))
     return ok({'exists': q.first() is not None})
+
+
+# ==================== BANK INFO ====================
+
+@rest_api.route('/employees/<int:emp_id>/bank-info')
+@login_required
+def api_bank_info_list(emp_id):
+    items = BankInfo.query.filter_by(employee_id=emp_id).order_by(BankInfo.is_primary.desc(), BankInfo.id).all()
+    return ok([i.to_dict() for i in items])
+
+
+@rest_api.route('/employees/<int:emp_id>/bank-info', methods=['POST'])
+@login_required
+def api_bank_info_create(emp_id):
+    data = request.get_json(force=True, silent=True) or {}
+    if not data.get('bank_name') or not data.get('account_number'):
+        return fail('اسم البنك ورقم الحساب مطلوبان')
+    if data.get('is_primary'):
+        BankInfo.query.filter_by(employee_id=emp_id).update({'is_primary': False})
+    item = BankInfo(employee_id=emp_id, bank_name=data['bank_name'], account_number=data['account_number'],
+                    iban=data.get('iban', ''), swift_code=data.get('swift_code', ''),
+                    branch_name=data.get('branch_name', ''), account_type=data.get('account_type', 'current'),
+                    currency=data.get('currency', 'YER'), is_primary=data.get('is_primary', True),
+                    notes=data.get('notes', ''))
+    db.session.add(item)
+    db.session.commit()
+    return ok(item.to_dict(), 'تمت الإضافة بنجاح')
+
+
+@rest_api.route('/bank-info/<int:item_id>', methods=['PUT'])
+@login_required
+def api_bank_info_update(item_id):
+    item = BankInfo.query.get_or_404(item_id)
+    data = request.get_json(force=True, silent=True) or {}
+    if data.get('is_primary'):
+        BankInfo.query.filter_by(employee_id=item.employee_id).update({'is_primary': False})
+    for field in ['bank_name', 'account_number', 'iban', 'swift_code', 'branch_name', 'account_type', 'currency', 'is_primary', 'notes']:
+        if field in data:
+            setattr(item, field, data[field])
+    item.updated_at = datetime.utcnow()
+    db.session.commit()
+    return ok(item.to_dict(), 'تم التعديل بنجاح')
+
+
+@rest_api.route('/bank-info/<int:item_id>', methods=['DELETE'])
+@login_required
+def api_bank_info_delete(item_id):
+    item = BankInfo.query.get_or_404(item_id)
+    db.session.delete(item)
+    db.session.commit()
+    return ok(message='تم الحذف بنجاح')
 
 
 # ==================== ATTENDANCE ====================
@@ -2912,12 +2972,21 @@ def api_contractor_profit():
         present_days = sum(1 for a in attendances if a.attendance_status in ['present', 'late'])
         absent_days = days_in_month - present_days
 
-        revenue = emp.total_salary or emp.salary or 0
+        base_salary = emp.salary or 0
+        revenue = emp.total_salary or base_salary
 
-        daily_rate = (emp.salary or 0) / 30
-        basic_paid = round(daily_rate * present_days, 2)
+        basic_paid = round((base_salary / 30) * present_days, 2)
         resident_paid = round(500 * present_days, 2) if emp.is_resident else 0
-        total_employee_paid = basic_paid + resident_paid
+
+        overtime_txns = FinancialTransaction.query.filter(
+            FinancialTransaction.employee_id == emp.id,
+            FinancialTransaction.transaction_type == 'overtime',
+            FinancialTransaction.date >= start_date,
+            FinancialTransaction.date <= end_date,
+        ).all()
+        overtime_amount = sum(t.amount for t in overtime_txns)
+
+        total_employee_paid = basic_paid + resident_paid + overtime_amount
 
         insurance_cost = monthly_insurance
         health_cost = monthly_health
@@ -2932,13 +3001,14 @@ def api_contractor_profit():
             'job_title': emp.job_title or '',
             'company_name': emp.company.name if emp.company else '',
             'is_resident': emp.is_resident,
-            'base_salary': emp.salary or 0,
+            'base_salary': base_salary,
             'total_salary_revenue': revenue,
             'days_in_month': days_in_month,
             'present_days': present_days,
             'absent_days': absent_days,
             'basic_paid': basic_paid,
             'resident_paid': resident_paid,
+            'overtime_amount': overtime_amount,
             'total_employee_paid': total_employee_paid,
             'insurance_cost': insurance_cost,
             'health_cost': health_cost,

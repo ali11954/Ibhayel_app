@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { BarChart3, Users, Building2, DollarSign, CalendarCheck, Download, Printer, TrendingUp, TrendingDown, PieChart as PieIcon, Activity, ClipboardList, Briefcase, Star, Award, Target, TrendingUpIcon, Filter, ArrowLeftRight } from 'lucide-react';
+import { BarChart3, Users, Building2, DollarSign, CalendarCheck, Download, Printer, TrendingUp, TrendingDown, PieChart as PieIcon, Activity, ClipboardList, Briefcase, Star, Award, Target, TrendingUpIcon, Filter, ArrowLeftRight, FileText, Settings2, X, Check } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/input';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, LineChart, Line, Legend, AreaChart, Area, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar, ComposedChart } from 'recharts';
 import api from '@/api/client';
 import { formatNum } from '@/lib/utils';
+import { openPrintWindow, contractorColumns, contractorRow, attendanceColumns, attendanceRow, employeesColumns, employeesRow, financialColumns, financialRow, evaluationsColumns, evaluationsRow, overviewColumns, overviewRow, workPlansColumns, workPlansRow, type ColDef } from '@/lib/pdfExport';
 
 function pctChange(current: number, previous: number): number | null {
   if (!previous || previous === 0) return null;
@@ -25,16 +26,24 @@ function ChangeBadge({ current, prev, invert }: { current: number; prev: number;
 
 const COLORS = ['#10b981', '#f59e0b', '#ef4444', '#6366f1', '#8b5cf6', '#ec4899', '#06b6d4'];
 
-function getMonthStr(d: Date) { return d.toISOString().slice(0, 7); }
+function getMonthStr(d: Date) {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  return `${y}-${m}`;
+}
 function prevMonth(ym: string) {
   const [y, m] = ym.split('-').map(Number);
   const d = new Date(y, m - 2, 1);
-  return d.toISOString().slice(0, 7);
+  return getMonthStr(d);
 }
 function getMonthLabel(ym: string) {
   const [y, m] = ym.split('-').map(Number);
   const names = ['يناير','فبراير','مارس','أبريل','مايو','يونيو','يوليو','أغسطس','سبتمبر','أكتوبر','نوفمبر','ديسمبر'];
   return `${names[m - 1]} ${y}`;
+}
+function getDaysInMonth(ym: string) {
+  const [y, m] = ym.split('-').map(Number);
+  return new Date(y, m, 0).getDate();
 }
 
 export default function ReportsPage() {
@@ -53,23 +62,28 @@ export default function ReportsPage() {
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('overview');
   const [selectedMonth, setSelectedMonth] = useState(() => getMonthStr(new Date()));
+  const [showColumnModal, setShowColumnModal] = useState(false);
+  const [exportColumns, setExportColumns] = useState<Record<string, boolean>>({});
+  const [exportType, setExportType] = useState('');
+  const [exportData, setExportData] = useState<{ cols: any[]; data: Record<string,string>[] }>({ cols: [], data: [] });
 
   const loadData = () => {
     setLoading(true);
     const pm = prevMonth(selectedMonth);
+    const empty = (d: any) => ({ data: { data: d } });
     Promise.all([
-      api.get('/dashboard/stats'),
-      api.get('/reports/employees'),
-      api.get(`/reports/attendance?date_from=${selectedMonth}-01&date_to=${selectedMonth}-31`),
-      api.get(`/reports/attendance?date_from=${pm}-01&date_to=${pm}-31`),
-      api.get(`/reports/financial?month_year=${selectedMonth.replace('-', '-')}`),
-      api.get(`/reports/financial?month_year=${pm.replace('-', '-')}`),
-      api.get('/work-plans'),
-      api.get(`/reports/evaluations?month_year=${selectedMonth}`).catch(() => ({ data: { data: { total_evaluations: 0, avg_score: 0, avg_rating: '-', rating_distribution: [], type_distribution: [], top_employees: [], monthly_trend: [], all_employees: [] } } })),
-      api.get(`/reports/evaluations?month_year=${pm}`).catch(() => ({ data: { data: { total_evaluations: 0, avg_score: 0, avg_rating: '-', rating_distribution: [], type_distribution: [], top_employees: [], monthly_trend: [], all_employees: [] } } })),
-      api.get(`/reports/contractor-profit?month_year=${selectedMonth}`).catch(() => ({ data: { data: { employees: [], summary: {} } } })),
-      api.get(`/reports/contractor-profit?month_year=${pm}`).catch(() => ({ data: { data: { employees: [], summary: {} } } })),
-      api.get('/companies'),
+      api.get('/dashboard/stats').catch(() => empty({ total_employees: 0, today_attendance: 0, pending_salaries: 0, work_plans_total: 0, total_companies: 0, total_suppliers: 0, total_income: 0, total_expense: 0, recent_attendance: [], recent_evaluations: [], recent_transactions: [], work_plans_pending: 0, work_plans_in_progress: 0, work_plans_completed: 0, active_contracts: 0, pending_transactions: 0, top_employees: [] })),
+      api.get('/reports/employees').catch(() => empty({ by_company: [], employees: [] })),
+      api.get(`/reports/attendance?date_from=${selectedMonth}-01&date_to=${selectedMonth}-31`).catch(() => empty({ daily: [], attendance_rate: 0, summary: {} })),
+      api.get(`/reports/attendance?date_from=${pm}-01&date_to=${pm}-31`).catch(() => empty({ daily: [], attendance_rate: 0, summary: {} })),
+      api.get(`/reports/financial?month_year=${selectedMonth.replace('-', '-')}`).catch(() => empty({ balance: 0, by_type: [], monthly: [] })),
+      api.get(`/reports/financial?month_year=${pm.replace('-', '-')}`).catch(() => empty({ balance: 0, by_type: [], monthly: [] })),
+      api.get('/work-plans').catch(() => empty([])),
+      api.get(`/reports/evaluations?month_year=${selectedMonth}`).catch(() => empty({ total_evaluations: 0, avg_score: 0, avg_rating: '-', rating_distribution: [], type_distribution: [], top_employees: [], monthly_trend: [], all_employees: [] })),
+      api.get(`/reports/evaluations?month_year=${pm}`).catch(() => empty({ total_evaluations: 0, avg_score: 0, avg_rating: '-', rating_distribution: [], type_distribution: [], top_employees: [], monthly_trend: [], all_employees: [] })),
+      api.get(`/reports/contractor-profit?month_year=${selectedMonth}`).catch(() => empty({ employees: [], summary: {} })),
+      api.get(`/reports/contractor-profit?month_year=${pm}`).catch(() => empty({ employees: [], summary: {} })),
+      api.get('/companies').catch(() => empty([])),
     ]).then(([sRes, eRes, aRes, aCompRes, fRes, fCompRes, wRes, evRes, evCompRes, cpRes, cpCompRes, cRes]) => {
       setStats(sRes.data.data);
       setEmployees(eRes.data.data);
@@ -83,7 +97,7 @@ export default function ReportsPage() {
       setContractorProfit(cpRes.data.data);
       setContractorProfitComp(cpCompRes.data.data);
       setCompanies(cRes.data.data || []);
-    }).catch(console.error).finally(() => setLoading(false));
+    }).catch((err) => { console.error('Reports load error:', err); }).finally(() => setLoading(false));
   };
 
   useEffect(() => { loadData(); }, [selectedMonth]);
@@ -127,6 +141,23 @@ export default function ReportsPage() {
         </div>
         <div className="flex gap-2">
           <Button variant="outline" onClick={() => window.print()}><Printer className="w-4 h-4" /> طباعة</Button>
+          <Button variant="outline" className="gap-2" onClick={() => {
+            let cols: ColDef[] = [];
+            let data: Record<string,string>[] = [];
+            if (activeTab === 'contractor') { cols = contractorColumns; data = (contractorProfit?.employees||[]).map(contractorRow); }
+            else if (activeTab === 'attendance') { cols = attendanceColumns; data = (attendance?.daily||[]).map(attendanceRow); }
+            else if (activeTab === 'employees') { cols = employeesColumns; data = (employees?.employees||[]).map(employeesRow); }
+            else if (activeTab === 'financial') { cols = financialColumns; data = (financial?.by_type||[]).map(financialRow); }
+            else if (activeTab === 'evaluations') { cols = evaluationsColumns; data = (evaluations?.all_employees||[]).map(evaluationsRow); }
+            else if (activeTab === 'overview') { cols = overviewColumns; data = (employees?.by_company||[]).map(overviewRow); }
+            else if (activeTab === 'workplans') { cols = workPlansColumns; data = (workPlans||[]).map(workPlansRow); }
+            if (cols.length) {
+              setExportType(activeTab);
+              setExportColumns(Object.fromEntries(cols.map(c => [c.key, c.default !== false])));
+              setShowColumnModal(true);
+              setExportData({ cols, data });
+            }
+          }}><FileText className="w-4 h-4" /> تصدير PDF</Button>
         </div>
       </div>
 
@@ -411,7 +442,7 @@ export default function ReportsPage() {
                   <Bar dataKey="present" fill="#10b981" name="حاضر" radius={[4, 4, 0, 0]} />
                   <Bar dataKey="late" fill="#f59e0b" name="متأخر" radius={[4, 4, 0, 0]} />
                   <Bar dataKey="absent" fill="#ef4444" name="غائب" radius={[4, 4, 0, 0]} />
-                  {compareMode && <Bar dataKey="sick" fill="#3b82f6" name="مرضي" radius={[4, 4, 0, 0]} />}
+                  <Bar dataKey="sick" fill="#3b82f6" name="مرضي" radius={[4, 4, 0, 0]} />
                 </BarChart>
               </ResponsiveContainer>
             </CardContent>
@@ -899,27 +930,35 @@ export default function ReportsPage() {
                 <table className="w-full text-sm">
                   <thead className="bg-gray-50">
                     <tr>
-                      <th className="px-4 py-3 text-right font-medium text-gray-600">العامل</th>
-                      <th className="px-4 py-3 text-right font-medium text-gray-600">الشركة</th>
-                      <th className="px-4 py-3 text-right font-medium text-gray-600">الراتب الشامل</th>
-                      <th className="px-4 py-3 text-right font-medium text-gray-600">أيام الحضور</th>
-                      <th className="px-4 py-3 text-right font-medium text-gray-600">الراتب الأساسي</th>
-                      <th className="px-4 py-3 text-right font-medium text-gray-600">بدل الإقامة</th>
-                      <th className="px-4 py-3 text-right font-medium text-gray-600">تكاليف صاحب العمل</th>
-                      <th className="px-4 py-3 text-right font-medium text-gray-600">الربح</th>
+                      <th className="px-3 py-3 text-right font-medium text-gray-600">العامل</th>
+                      <th className="px-3 py-3 text-right font-medium text-gray-600">الشركة</th>
+                      <th className="px-3 py-3 text-right font-medium text-gray-600">الراتب الشامل</th>
+                      <th className="px-3 py-3 text-right font-medium text-gray-600">الراتب الأساسي</th>
+                      <th className="px-3 py-3 text-right font-medium text-gray-600">أيام الحضور</th>
+                      <th className="px-3 py-3 text-right font-medium text-gray-600">المبلغ المستحق</th>
+                      <th className="px-3 py-3 text-right font-medium text-gray-600">بدل الإقامة</th>
+                      <th className="px-3 py-3 text-right font-medium text-gray-600">بدل الإضافي</th>
+                      <th className="px-3 py-3 text-right font-medium text-gray-600">التأمين</th>
+                      <th className="px-3 py-3 text-right font-medium text-gray-600">صندوق صحي</th>
+                      <th className="px-3 py-3 text-right font-medium text-gray-600">بدل الملابس</th>
+                      <th className="px-3 py-3 text-right font-medium text-gray-600">الربح</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-100">
                     {(contractorProfit?.employees || []).map((emp: any) => (
                       <tr key={emp.employee_id} className="hover:bg-gray-50">
-                        <td className="px-4 py-3 font-medium">{emp.employee_name}</td>
-                        <td className="px-4 py-3 text-gray-600">{emp.company_name}</td>
-                        <td className="px-4 py-3">{formatNum(emp.total_salary_revenue)} ر.ي</td>
-                        <td className="px-4 py-3">{emp.present_days}/{emp.days_in_month}</td>
-                        <td className="px-4 py-3">{formatNum(emp.basic_paid)} ر.ي</td>
-                        <td className="px-4 py-3">{formatNum(emp.resident_paid)} ر.ي</td>
-                        <td className="px-4 py-3">{formatNum(emp.total_employer_costs)} ر.ي</td>
-                        <td className={`px-4 py-3 font-bold ${emp.profit >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                        <td className="px-3 py-3 font-medium">{emp.employee_name}</td>
+                        <td className="px-3 py-3 text-gray-600 text-xs">{emp.company_name}</td>
+                        <td className="px-3 py-3">{formatNum(emp.total_salary_revenue)} ر.ي</td>
+                        <td className="px-3 py-3">{formatNum(emp.base_salary)} ر.ي</td>
+                        <td className="px-3 py-3">{emp.present_days}/{emp.days_in_month}</td>
+                        <td className="px-3 py-3">{formatNum(emp.basic_paid)} ر.ي</td>
+                        <td className="px-3 py-3">{formatNum(emp.resident_paid)} ر.ي</td>
+                        <td className="px-3 py-3">{formatNum(emp.overtime_amount || 0)} ر.ي</td>
+                        <td className="px-3 py-3">{formatNum(emp.insurance_cost)} ر.ي</td>
+                        <td className="px-3 py-3">{formatNum(emp.health_cost)} ر.ي</td>
+                        <td className="px-3 py-3">{formatNum(emp.clothing_cost)} ر.ي</td>
+                        <td className={`px-3 py-3 font-bold ${emp.profit >= 0 ? 'text-green-600' : 'text-red-600'}`}>
                           {formatNum(emp.profit)} ر.ي
                         </td>
                       </tr>
@@ -929,6 +968,60 @@ export default function ReportsPage() {
               </div>
             </CardContent>
           </Card>
+        </div>
+      )}
+
+      {/* Column Chooser Modal */}
+      {showColumnModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={() => setShowColumnModal(false)}>
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-md mx-4" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between p-4 border-b">
+              <h3 className="text-lg font-bold text-gray-900 flex items-center gap-2"><Settings2 className="w-5 h-5" /> تخصيص أعمدة التقرير</h3>
+              <button onClick={() => setShowColumnModal(false)} className="text-gray-400 hover:text-gray-600"><X className="w-5 h-5" /></button>
+            </div>
+            <div className="p-4 space-y-2 max-h-80 overflow-y-auto">
+              {exportData.cols.map((col: any) => (
+                <label key={col.key} className="flex items-center gap-3 p-2 rounded-lg hover:bg-gray-50 cursor-pointer">
+                  <input type="checkbox" checked={exportColumns[col.key] !== false}
+                    onChange={e => setExportColumns(prev => ({ ...prev, [col.key]: e.target.checked }))}
+                    className="w-4 h-4 text-primary-600 rounded border-gray-300" />
+                  <span className="text-sm text-gray-700">{col.label}</span>
+                  {col.default !== false && <Badge className="text-xs bg-green-100 text-green-700">افتراضي</Badge>}
+                </label>
+              ))}
+            </div>
+            <div className="flex justify-end gap-2 p-4 border-t">
+              <Button variant="outline" onClick={() => setShowColumnModal(false)}>إلغاء</Button>
+              <Button onClick={() => {
+                const activeCols = exportData.cols.filter((c: any) => exportColumns[c.key] !== false);
+                const titles: Record<string,string> = { overview:'التقرير الشامل', employees:'تقرير الموظفين', attendance:'تقرير الحضور والغياب', evaluations:'تقرير التقييمات', workplans:'تقرير خطط العمل', financial:'التقرير المالي', contractor:'تقرير أرباح المتعهد' };
+                let summaryItems: {l:string;v:string;c?:string}[] = [];
+                if (exportType === 'contractor') {
+                  const s = contractorProfit?.summary || {};
+                  summaryItems = [
+                    {l:'إجمالي الإيرادات',v:formatNum(s.total_revenue||0)+' ر.ي'},
+                    {l:'المدفوع للعمال',v:formatNum((s.total_basic_paid||0)+(s.total_resident_paid||0))+' ر.ي',c:'#2563eb'},
+                    {l:'تكاليف صاحب العمل',v:formatNum(s.total_employer_costs||0)+' ر.ي',c:'#d97706'},
+                    {l:'صافي الربح',v:formatNum(s.total_profit||0)+' ر.ي',c:(s.total_profit||0)>=0?'#059669':'#dc2626'},
+                  ];
+                } else if (exportType === 'attendance') {
+                  const s = attendance?.summary || {};
+                  summaryItems = [
+                    {l:'نسبة الحضور',v:(attendance?.attendance_rate||0)+'%',c:'#059669'},
+                    {l:'حاضر',v:String(s.present||0),c:'#059669'},
+                    {l:'متأخر',v:String(s.late||0),c:'#d97706'},
+                    {l:'غائب',v:String(s.absent||0),c:'#dc2626'},
+                  ];
+                } else if (exportType === 'financial') {
+                  summaryItems = [
+                    {l:'الرصيد',v:formatNum(financial?.balance||0)+' ر.ي',c:(financial?.balance||0)>=0?'#059669':'#dc2626'},
+                  ];
+                }
+                openPrintWindow(titles[exportType]||'تقرير', selectedMonth, activeCols, exportData.data, summaryItems);
+                setShowColumnModal(false);
+              }} className="bg-primary-600 hover:bg-primary-700 text-white gap-1"><Check className="w-4 h-4" /> إنشاء التقرير</Button>
+            </div>
+          </div>
         </div>
       )}
     </div>

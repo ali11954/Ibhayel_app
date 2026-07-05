@@ -1,11 +1,12 @@
 import { useState, useEffect } from 'react';
-import { Plus, Edit, Trash2, Users, User, Building2, ChevronDown, ChevronUp, UserCheck, UserX, ArrowRight, Star, Calendar, DollarSign, Clock, FileText, Eye, X } from 'lucide-react';
+import { Plus, Edit, Trash2, Users, User, Building2, ChevronDown, ChevronUp, UserCheck, UserX, ArrowRight, Star, Calendar, DollarSign, Clock, FileText, Eye, X, Download } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Modal } from '@/components/ui/modal';
 import { formatNum } from '@/lib/utils';
+import { openEmployeeProfilePDF } from '@/lib/pdfExport';
 import api from '@/api/client';
 
 const emptyEmployee = {
@@ -16,6 +17,135 @@ const emptyEmployee = {
 };
 
 type Tab = 'table' | 'grouped' | 'structure' | 'detail';
+
+function BankInfoTab({ employeeId, employeeName }: { employeeId: number; employeeName: string }) {
+  const [items, setItems] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [showForm, setShowForm] = useState(false);
+  const [editItem, setEditItem] = useState<any>(null);
+  const [saving, setSaving] = useState(false);
+  const [form, setForm] = useState({ bank_name: '', account_number: '', iban: '', swift_code: '', branch_name: '', account_type: 'current', currency: 'YER', is_primary: true, notes: '' });
+
+  const load = async () => {
+    setLoading(true);
+    try {
+      const res = await api.get(`/employees/${employeeId}/bank-info`);
+      setItems(res.data?.data || []);
+    } catch { setItems([]); }
+    setLoading(false);
+  };
+  useEffect(() => { load(); }, [employeeId]);
+
+  const openAdd = () => { setEditItem(null); setForm({ bank_name: '', account_number: '', iban: '', swift_code: '', branch_name: '', account_type: 'current', currency: 'YER', is_primary: items.length === 0, notes: '' }); setShowForm(true); };
+  const openEdit = (item: any) => { setEditItem(item); setForm({ bank_name: item.bank_name, account_number: item.account_number, iban: item.iban || '', swift_code: item.swift_code || '', branch_name: item.branch_name || '', account_type: item.account_type || 'current', currency: item.currency || 'YER', is_primary: item.is_primary, notes: item.notes || '' }); setShowForm(true); };
+
+  const handleSave = async () => {
+    if (!form.bank_name || !form.account_number) return;
+    setSaving(true);
+    try {
+      if (editItem) {
+        await api.put(`/bank-info/${editItem.id}`, form);
+      } else {
+        await api.post(`/employees/${employeeId}/bank-info`, form);
+      }
+      setShowForm(false);
+      load();
+    } catch (e: any) { alert(e?.response?.data?.message || 'خطأ'); }
+    setSaving(false);
+  };
+
+  const handleDelete = async (id: number) => {
+    if (!confirm('هل أنت متأكد من الحذف؟')) return;
+    await api.delete(`/bank-info/${id}`);
+    load();
+  };
+
+  const bankTypes: Record<string, string> = { current: 'حساب جاري', savings: 'حساب توفير', salary: 'حساب راتب' };
+
+  return (
+    <Card>
+      <div className="p-4 border-b flex items-center justify-between">
+        <h3 className="font-bold text-gray-900">المعلومات البنكية — {employeeName}</h3>
+        <Button onClick={openAdd} className="text-xs"><Plus className="w-3.5 h-3.5" /> إضافة</Button>
+      </div>
+      {loading ? (
+        <div className="flex items-center justify-center h-32"><div className="w-6 h-6 border-2 border-primary-500/30 border-t-primary-500 rounded-full animate-spin" /></div>
+      ) : items.length === 0 ? (
+        <div className="text-center py-12 text-gray-400">
+          <Building2 className="w-10 h-10 mx-auto mb-2 opacity-30" />
+          <p className="text-sm">لا توجد معلومات بنكية</p>
+        </div>
+      ) : (
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead><tr className="bg-gray-50 border-b">
+              <th className="px-3 py-3 text-right font-semibold text-xs">البنك</th>
+              <th className="px-3 py-3 text-right font-semibold text-xs">رقم الحساب</th>
+              <th className="px-3 py-3 text-right font-semibold text-xs">الآيبان</th>
+              <th className="px-3 py-3 text-right font-semibold text-xs">الفرع</th>
+              <th className="px-3 py-3 text-right font-semibold text-xs">النوع</th>
+              <th className="px-3 py-3 text-right font-semibold text-xs">العملة</th>
+              <th className="px-3 py-3 text-right font-semibold text-xs">الأساسي</th>
+              <th className="px-3 py-3 text-right font-semibold text-xs">إجراءات</th>
+            </tr></thead>
+            <tbody>
+              {items.map((item: any) => (
+                <tr key={item.id} className="border-b hover:bg-gray-50">
+                  <td className="px-3 py-3 font-medium">{item.bank_name}</td>
+                  <td className="px-3 py-3 font-mono text-xs">{item.account_number}</td>
+                  <td className="px-3 py-3 font-mono text-xs">{item.iban || '—'}</td>
+                  <td className="px-3 py-3 text-xs">{item.branch_name || '—'}</td>
+                  <td className="px-3 py-3"><span className="px-2 py-0.5 rounded-full text-xs bg-blue-100 text-blue-700">{bankTypes[item.account_type] || item.account_type}</span></td>
+                  <td className="px-3 py-3 text-xs">{item.currency}</td>
+                  <td className="px-3 py-3">{item.is_primary ? <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full font-medium">أساسي</span> : '—'}</td>
+                  <td className="px-3 py-3">
+                    <div className="flex gap-1">
+                      <button onClick={() => openEdit(item)} className="p-1 hover:bg-blue-50 rounded"><Edit className="w-3.5 h-3.5 text-blue-600" /></button>
+                      <button onClick={() => handleDelete(item.id)} className="p-1 hover:bg-red-50 rounded"><Trash2 className="w-3.5 h-3.5 text-red-600" /></button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      <Modal open={showForm} onClose={() => setShowForm(false)} title={editItem ? 'تعديل معلومات بنكية' : 'إضافة معلومات بنكية'}>
+        <div className="space-y-3 p-1">
+          <div><label className="text-xs font-medium text-gray-600 mb-1 block">اسم البنك *</label><Input value={form.bank_name} onChange={(e) => setForm({ ...form, bank_name: e.target.value })} placeholder="مثال: بنك اليمن والخليج" /></div>
+          <div><label className="text-xs font-medium text-gray-600 mb-1 block">رقم الحساب *</label><Input value={form.account_number} onChange={(e) => setForm({ ...form, account_number: e.target.value })} placeholder="رقم الحساب" /></div>
+          <div className="grid grid-cols-2 gap-3">
+            <div><label className="text-xs font-medium text-gray-600 mb-1 block">الآيبان (IBAN)</label><Input value={form.iban} onChange={(e) => setForm({ ...form, iban: e.target.value })} placeholder="YE..." /></div>
+            <div><label className="text-xs font-medium text-gray-600 mb-1 block">SWIFT Code</label><Input value={form.swift_code} onChange={(e) => setForm({ ...form, swift_code: e.target.value })} placeholder="BOBYEAA" /></div>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div><label className="text-xs font-medium text-gray-600 mb-1 block">اسم الفرع</label><Input value={form.branch_name} onChange={(e) => setForm({ ...form, branch_name: e.target.value })} placeholder="الفرع" /></div>
+            <div><label className="text-xs font-medium text-gray-600 mb-1 block">العملة</label><Input value={form.currency} onChange={(e) => setForm({ ...form, currency: e.target.value })} placeholder="YER" /></div>
+          </div>
+          <div><label className="text-xs font-medium text-gray-600 mb-1 block">نوع الحساب</label>
+            <select value={form.account_type} onChange={(e) => setForm({ ...form, account_type: e.target.value })} className="w-full border rounded-lg px-3 py-2 text-sm">
+              <option value="current">حساب جاري</option>
+              <option value="savings">حساب توفير</option>
+              <option value="salary">حساب راتب</option>
+            </select>
+          </div>
+          <div><label className="text-xs font-medium text-gray-600 mb-1 block">ملاحظات</label><Input value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} placeholder="ملاحظات إضافية" /></div>
+          <label className="flex items-center gap-2">
+            <input type="checkbox" checked={form.is_primary} onChange={(e) => setForm({ ...form, is_primary: e.target.checked })} className="w-4 h-4 rounded" />
+            <span className="text-sm font-medium text-gray-700">حساب أساسي</span>
+          </label>
+          <div className="flex justify-end gap-2 pt-4 border-t">
+            <Button variant="outline" onClick={() => setShowForm(false)}>إلغاء</Button>
+            <Button onClick={handleSave} disabled={saving || !form.bank_name || !form.account_number}>
+              {saving ? 'جاري الحفظ...' : editItem ? 'تحديث' : 'حفظ'}
+            </Button>
+          </div>
+        </div>
+      </Modal>
+    </Card>
+  );
+}
 
 export default function EmployeesPage() {
   const [employees, setEmployees] = useState<any[]>([]);
@@ -34,7 +164,8 @@ export default function EmployeesPage() {
   const [selectedEmployee, setSelectedEmployee] = useState<any>(null);
   const [detailData, setDetailData] = useState<any>(null);
   const [detailLoading, setDetailLoading] = useState(false);
-  const [detailTab, setDetailTab] = useState<'profile' | 'salary' | 'attendance' | 'evaluations' | 'transactions' | 'leaves'>('profile');
+  const [detailTab, setDetailTab] = useState<'profile' | 'salary' | 'attendance' | 'evaluations' | 'transactions' | 'leaves' | 'bank'>('profile');
+  const [bankItems, setBankItems] = useState<any[]>([]);
 
   const loadData = () => {
     Promise.all([api.get('/employees'), api.get('/companies'), api.get('/regions'), api.get('/evaluation-criteria/job-titles')])
@@ -111,12 +242,13 @@ export default function EmployeesPage() {
     setDetailLoading(true);
     setTab('detail');
     try {
-      const [salRes, attRes, evalRes, txRes, leaveRes] = await Promise.all([
+      const [salRes, attRes, evalRes, txRes, leaveRes, bankRes] = await Promise.all([
         api.get(`/financial/salaries?employee_id=${emp.id}`).catch(() => ({ data: { data: [] } })),
         api.get(`/attendance?employee_id=${emp.id}`).catch(() => ({ data: { data: [] } })),
         api.get('/evaluations').catch(() => ({ data: { data: [] } })),
         api.get(`/financial/transactions?employee_id=${emp.id}`).catch(() => ({ data: { data: [] } })),
         api.get(`/leave-requests?employee_id=${emp.id}`).catch(() => ({ data: { data: [] } })),
+        api.get(`/employees/${emp.id}/bank-info`).catch(() => ({ data: { data: [] } })),
       ]);
       const allEvals = evalRes.data.data || [];
       const allLeaves = leaveRes.data.data || [];
@@ -127,6 +259,7 @@ export default function EmployeesPage() {
         transactions: txRes.data.data || [],
         leaves: allLeaves.filter((l: any) => l.employee_id === emp.id),
       });
+      setBankItems(bankRes.data?.data || []);
     } catch {
       setDetailData({ salaries: [], attendance: [], evaluations: [], transactions: [], leaves: [] });
     } finally {
@@ -240,6 +373,14 @@ export default function EmployeesPage() {
                   <p className="text-lg font-bold text-primary-600">{formatNum(selectedEmployee.total_salary || selectedEmployee.salary || 0)} ر.ي</p>
                   <p className="text-xs text-gray-400">الراتب الشامل</p>
                 </div>
+                <button
+                  onClick={() => openEmployeeProfilePDF(selectedEmployee, detailData, bankItems)}
+                  className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium bg-green-50 text-green-700 hover:bg-green-100 border border-green-200 transition"
+                  title="تصدير ملف الموظف كـ PDF"
+                >
+                  <Download className="w-4 h-4" />
+                  <span className="hidden sm:inline">تصدير PDF</span>
+                </button>
               </div>
             </CardContent>
           </Card>
@@ -252,6 +393,7 @@ export default function EmployeesPage() {
               ['evaluations', Star, 'التقييمات'],
               ['transactions', FileText, 'المعاملات'],
               ['leaves', Clock, 'الإجازات'],
+              ['bank', Building2, 'المعلومات البنكية'],
             ] as const).map(([key, Icon, label]) => (
               <button key={key} onClick={() => setDetailTab(key)} className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium whitespace-nowrap ${detailTab === key ? 'bg-primary-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>
                 <Icon className="w-3.5 h-3.5" /> {label}
@@ -458,6 +600,11 @@ export default function EmployeesPage() {
                     </table>
                   </div>
                 </Card>
+              )}
+
+              {/* Bank Info Tab */}
+              {detailTab === 'bank' && (
+                <BankInfoTab employeeId={selectedEmployee.id} employeeName={selectedEmployee.name} />
               )}
             </>
           )}

@@ -41,6 +41,19 @@ login_manager.init_app(app)
 login_manager.login_view = 'auth.login'
 login_manager.login_message_category = 'warning'
 
+@login_manager.unauthorized_handler
+def unauthorized():
+    if request_wants_json():
+        return jsonify(error='Unauthorized', message='يرجى تسجيل الدخول'), 401
+    return redirect(url_for('auth.login'))
+
+@app.before_request
+def log_request():
+    if request.path.startswith('/api/'):
+        from flask_login import current_user
+        uid = getattr(current_user, 'id', 'anon') if current_user.is_authenticated else 'anon'
+        logging.info(f"API {request.method} {request.path} user={uid}")
+
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
