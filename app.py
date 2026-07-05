@@ -275,6 +275,37 @@ def forbidden(e):
 def request_wants_json():
     return request.path.startswith('/api/') or request.accept_mimetypes.best == 'application/json'
 
+@app.route('/debug/dist-info')
+def debug_dist_info():
+    import os as _dos
+    base = _dos.path.dirname(_dos.path.abspath(__file__))
+    cwd = _dos.getcwd()
+    candidates = [
+        _dos.path.join(base, 'frontend', 'dist'),
+        _dos.path.join(base, 'dist'),
+        _dos.path.join(cwd, 'frontend', 'dist'),
+        _dos.path.join(cwd, 'dist'),
+    ]
+    result = {
+        'base': base,
+        'cwd': cwd,
+        'candidates': {}
+    }
+    for c in candidates:
+        exists = _dos.path.isdir(c)
+        info = {'exists': exists}
+        if exists:
+            try:
+                info['files'] = _dos.listdir(c)
+            except Exception as e:
+                info['error'] = str(e)
+        result['candidates'][c] = info
+    try:
+        result['base_contents'] = _dos.listdir(base)
+    except:
+        pass
+    return jsonify(result)
+
 # ==================== Serve React Build (Production) ====================
 import os as _os
 _base = _os.path.dirname(_os.path.abspath(__file__))
