@@ -1,0 +1,819 @@
+{% extends "base.html" %}
+
+{% block title %}إعدادات النظام - طلعت هائل{% endblock %}
+
+{% block extra_css %}
+<style>
+    .settings-header {
+        background: linear-gradient(135deg, #6c757d 0%, #495057 100%);
+        border-radius: 20px;
+        padding: 1.5rem;
+        margin-bottom: 1.5rem;
+        color: white;
+        position: relative;
+        overflow: hidden;
+    }
+
+    .settings-header::before {
+        content: '';
+        position: absolute;
+        top: -50%;
+        right: -50%;
+        width: 200%;
+        height: 200%;
+        background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, transparent 70%);
+        animation: rotate 20s linear infinite;
+    }
+
+    @keyframes rotate {
+        from { transform: rotate(0deg); }
+        to { transform: rotate(360deg); }
+    }
+
+    .settings-card {
+        border: none;
+        border-radius: 20px;
+        box-shadow: var(--shadow-lg);
+        margin-bottom: 1.5rem;
+        overflow: hidden;
+    }
+
+    .settings-card-header {
+        background: linear-gradient(135deg, #ffffff, #f8f9fa);
+        border-bottom: 3px solid #6c757d;
+        padding: 1rem 1.5rem;
+        cursor: pointer;
+        transition: all 0.3s ease;
+    }
+
+    .settings-card-header:hover {
+        background: linear-gradient(135deg, #f8f9fa, #e9ecef);
+    }
+
+    .settings-card-header h5 {
+        margin: 0;
+        color: var(--dark-color);
+        font-weight: 700;
+    }
+
+    .settings-card-header i {
+        margin-left: 10px;
+        transition: transform 0.3s ease;
+    }
+
+    .settings-card-header.collapsed i {
+        transform: rotate(-180deg);
+    }
+
+    .settings-card-body {
+        padding: 1.5rem;
+        transition: all 0.3s ease;
+    }
+
+    .settings-card-body.closed {
+        display: none;
+    }
+
+    .setting-group {
+        background: #f8f9fa;
+        border-radius: 15px;
+        padding: 1rem;
+        margin-bottom: 1rem;
+        transition: all 0.3s ease;
+    }
+
+    .setting-group:hover {
+        background: #e9ecef;
+        transform: translateX(-5px);
+    }
+
+    .setting-label {
+        font-weight: 600;
+        color: var(--dark-color);
+        margin-bottom: 0.3rem;
+    }
+
+    .setting-label i {
+        color: #6c757d;
+        margin-left: 8px;
+        width: 20px;
+    }
+
+    .setting-unit {
+        font-size: 0.8rem;
+        color: #6c757d;
+        margin-right: 5px;
+    }
+
+    .allowance-table th {
+        background: linear-gradient(135deg, #6c757d, #495057);
+        color: white;
+        padding: 0.8rem;
+        border: none;
+    }
+
+    .allowance-table td {
+        vertical-align: middle;
+        padding: 0.8rem;
+    }
+
+    .allowance-table input {
+        border-radius: 10px;
+        border: 1px solid #dee2e6;
+        padding: 0.4rem 0.8rem;
+    }
+
+    .btn-add-allowance {
+        border-radius: 12px;
+        padding: 0.5rem 1rem;
+        font-weight: 600;
+    }
+
+    .toggle-switch {
+        position: relative;
+        display: inline-block;
+        width: 50px;
+        height: 24px;
+    }
+
+    .toggle-switch input {
+        opacity: 0;
+        width: 0;
+        height: 0;
+    }
+
+    .toggle-slider {
+        position: absolute;
+        cursor: pointer;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background-color: #ccc;
+        transition: 0.3s;
+        border-radius: 24px;
+    }
+
+    .toggle-slider:before {
+        position: absolute;
+        content: "";
+        height: 18px;
+        width: 18px;
+        left: 3px;
+        bottom: 3px;
+        background-color: white;
+        transition: 0.3s;
+        border-radius: 50%;
+    }
+
+    input:checked + .toggle-slider {
+        background-color: #28a745;
+    }
+
+    input:checked + .toggle-slider:before {
+        transform: translateX(26px);
+    }
+
+    .action-buttons {
+        margin-top: 2rem;
+        padding-top: 1rem;
+        border-top: 1px solid #e9ecef;
+    }
+
+    .info-text {
+        font-size: 0.8rem;
+        color: #6c757d;
+        margin-top: 0.5rem;
+    }
+
+    .modal-content {
+        border-radius: 20px;
+        overflow: hidden;
+    }
+
+    .modal-header {
+        background: linear-gradient(135deg, #6c757d, #495057);
+        color: white;
+    }
+
+    .employee-avatar-large {
+        width: 80px;
+        height: 80px;
+        border-radius: 20px;
+        background: rgba(255,255,255,0.2);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        font-size: 2rem;
+        font-weight: bold;
+        margin-bottom: 1rem;
+        backdrop-filter: blur(10px);
+    }
+
+    .btn-custom {
+        padding: 0.7rem 1.5rem;
+        border-radius: 12px;
+        font-weight: 600;
+        transition: all 0.3s ease;
+    }
+
+    .btn-custom i {
+        margin-left: 8px;
+    }
+
+    .btn-custom:hover {
+        transform: translateY(-2px);
+    }
+
+    .form-select-sm, .form-control-sm {
+        min-width: 120px;
+    }
+
+    .method-badge-add {
+        background-color: #28a745;
+        color: white;
+        padding: 0.2rem 0.5rem;
+        border-radius: 12px;
+        font-size: 0.7rem;
+    }
+
+    .method-badge-subtract-basic {
+        background-color: #fd7e14;
+        color: white;
+        padding: 0.2rem 0.5rem;
+        border-radius: 12px;
+        font-size: 0.7rem;
+    }
+
+    .method-badge-subtract-total {
+        background-color: #dc3545;
+        color: white;
+        padding: 0.2rem 0.5rem;
+        border-radius: 12px;
+        font-size: 0.7rem;
+    }
+
+    .paid-to-employee {
+        background-color: #28a745;
+        color: white;
+        padding: 0.2rem 0.5rem;
+        border-radius: 12px;
+        font-size: 0.7rem;
+    }
+
+    .paid-to-company {
+        background-color: #fd7e14;
+        color: white;
+        padding: 0.2rem 0.5rem;
+        border-radius: 12px;
+        font-size: 0.7rem;
+    }
+
+    .account-warning {
+        font-size: 0.7rem;
+        color: #dc3545;
+        margin-top: 0.2rem;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="settings-header">
+    <div class="row align-items-center">
+        <div class="col-md-8">
+            <h2 class="mb-2">
+                <i class="fas fa-cog me-2"></i>
+                إعدادات النظام
+            </h2>
+            <p class="mb-0 opacity-75">التحكم في البدلات والتأمينات وحسابات الرواتب</p>
+        </div>
+        <div class="col-md-4 text-center">
+            <div class="employee-avatar-large mx-auto">
+                <i class="fas fa-sliders-h fa-2x"></i>
+            </div>
+        </div>
+    </div>
+</div>
+
+<form method="POST" action="{{ url_for('update_system_settings') }}" id="settingsForm">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+    <!-- الإعدادات الرئيسية -->
+    <div class="settings-card">
+        <div class="settings-card-header" data-card="main">
+            <div class="d-flex justify-content-between align-items-center">
+                <h5><i class="fas fa-chart-line"></i> الإعدادات الرئيسية للرواتب</h5>
+                <i class="fas fa-chevron-down"></i>
+            </div>
+        </div>
+        <div class="settings-card-body">
+            <div class="row">
+                {% for setting in main_settings %}
+                <div class="col-md-6">
+                    <div class="setting-group">
+                        <div class="setting-label">
+                            <i class="fas fa-info-circle"></i>
+                            {{ setting.setting_name_ar }}
+                            <small class="text-muted">({{ setting.setting_name }})</small>
+                        </div>
+                        <div class="d-flex align-items-center gap-2">
+                            <input type="number"
+                                   class="form-control"
+                                   name="setting_{{ setting.setting_key }}"
+                                   value="{{ setting.value }}"
+                                   step="0.01"
+                                   style="width: 200px;">
+                            <span class="setting-unit">{{ setting.get_display_value() }}</span>
+                        </div>
+                        <div class="info-text">
+                            <i class="fas fa-info-circle"></i> {{ setting.description or 'لا يوجد وصف' }}
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+
+    <!-- البدلات الإضافية -->
+    <div class="settings-card">
+        <div class="settings-card-header" data-card="allowances">
+            <div class="d-flex justify-content-between align-items-center">
+                <h5><i class="fas fa-plus-circle"></i> البدلات الإضافية</h5>
+                <i class="fas fa-chevron-down"></i>
+            </div>
+        </div>
+        <div class="settings-card-body">
+            <div class="table-responsive">
+                <table class="table allowance-table">
+                    <thead>
+                        <tr>
+                            <th style="width: 5%">#</th>
+                            <th style="width: 12%">اسم البدل</th>
+                            <th style="width: 8%">النوع</th>
+                            <th style="width: 10%">القيمة</th>
+                            <th style="width: 10%">طريقة الحساب</th>
+                            <th style="width: 8%">جهة الصرف</th>
+                            <th style="width: 8%">التطبيق</th>
+                            <th style="width: 15%">الحساب المحاسبي</th>
+                            <th style="width: 6%">الحالة</th>
+                            <th style="width: 8%">الإجراءات</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for allowance in allowances %}
+                        <tr>
+                            <td>{{ loop.index }}</td>
+                            <td>
+                                <strong>{{ allowance.name_ar }}</strong><br>
+                                <small class="text-muted">{{ allowance.name }}</small>
+                            </td>
+                            <td>
+                                {% if allowance.allowance_type == 'fixed' %}
+                                <span class="badge bg-info">ثابت</span>
+                                {% elif allowance.allowance_type == 'percentage' %}
+                                <span class="badge bg-warning">نسبة مئوية</span>
+                                {% elif allowance.allowance_type == 'daily' %}
+                                <span class="badge bg-success">يومي</span>
+                                {% elif allowance.allowance_type == 'monthly' %}
+                                <span class="badge bg-primary">شهري</span>
+                                {% elif allowance.allowance_type == 'yearly' %}
+                                <span class="badge bg-secondary">سنوي</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <input type="hidden" name="allowance_ids[]" value="{{ allowance.id }}">
+                                <input type="number"
+                                       name="allowance_value_{{ allowance.id }}"
+                                       value="{{ allowance.value }}"
+                                       step="0.01"
+                                       {% if allowance.allowance_type == 'percentage' %}min="0" max="100"{% endif %}
+                                       class="form-control form-control-sm"
+                                       style="width: 100px;">
+                                <small class="text-muted d-block">
+                                    {% if allowance.allowance_type == 'percentage' %}%
+                                    {% elif allowance.allowance_type == 'daily' %}ريال/يوم
+                                    {% elif allowance.allowance_type == 'monthly' %}ريال/شهر
+                                    {% elif allowance.allowance_type == 'yearly' %}ريال/سنة
+                                    {% else %}ريال
+                                    {% endif %}
+                                </small>
+                            </td>
+                            <td>
+                                <select name="calculation_method_{{ allowance.id }}" class="form-select form-select-sm">
+                                    <option value="add" {% if allowance.calculation_method == 'add' %}selected{% endif %}>➕ إضافة على الراتب</option>
+                                    <option value="subtract_basic" {% if allowance.calculation_method == 'subtract_basic' %}selected{% endif %}>➖ خصم من الراتب الأساسي</option>
+                                    <option value="subtract_total" {% if allowance.calculation_method == 'subtract_total' %}selected{% endif %}>➖ خصم من الراتب الشامل</option>
+                                </select>
+                                <small class="text-muted d-block mt-1">
+                                    {% if allowance.calculation_method == 'add' %}
+                                    <span class="method-badge-add">+ يضاف</span>
+                                    {% elif allowance.calculation_method == 'subtract_basic' %}
+                                    <span class="method-badge-subtract-basic">- يخصم من الأساسي</span>
+                                    {% elif allowance.calculation_method == 'subtract_total' %}
+                                    <span class="method-badge-subtract-total">- يخصم من الشامل</span>
+                                    {% endif %}
+                                </small>
+                            </td>
+                            <td>
+                                {% if allowance.paid_to == 'employee' %}
+                                <span class="paid-to-employee">👤 الموظف</span>
+                                <small class="text-muted d-block">يضاف للراتب النقدي</small>
+                                {% else %}
+                                <span class="paid-to-company">🏢 الشركة</span>
+                                <small class="text-muted d-block">يقيد في الحسابات</small>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if allowance.applies_to == 'resident_only' %}
+                                <span class="badge bg-success">الساكنين فقط</span>
+                                {% elif allowance.applies_to == 'non_resident_only' %}
+                                <span class="badge bg-warning">غير الساكنين فقط</span>
+                                {% elif allowance.applies_to == 'worker_only' %}
+                                <span class="badge bg-info">العمال فقط</span>
+                                {% elif allowance.applies_to == 'admin_only' %}
+                                <span class="badge bg-danger">الإدارة فقط</span>
+                                {% else %}
+                                <span class="badge bg-secondary">الجميع</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <select name="allowance_account_{{ allowance.id }}" class="form-select form-select-sm">
+                                    <option value="">-- اختر الحساب --</option>
+                                    <optgroup label="📊 حسابات المصروفات (للإضافات)">
+                                        <option value="511001" {% if allowance.account_code == '511001' %}selected{% endif %}>511001 - مصروف رواتب العمال الأساسية</option>
+                                        <option value="511002" {% if allowance.account_code == '511002' %}selected{% endif %}>511002 - مصروف بدل سكن العمال</option>
+                                        <option value="511003" {% if allowance.account_code == '511003' %}selected{% endif %}>511003 - مصروف تأمين العمال</option>
+                                        <option value="511004" {% if allowance.account_code == '511004' %}selected{% endif %}>511004 - مصروف بدل ملابس العمال</option>
+                                        <option value="511005" {% if allowance.account_code == '511005' %}selected{% endif %}>511005 - مصروف بطائق صحية للعمال</option>
+                                        <option value="511008" {% if allowance.account_code == '511008' %}selected{% endif %}>511008 - مصروف وجبات</option>
+                                        <option value="511009" {% if allowance.account_code == '511009' %}selected{% endif %}>511009 - مصروف بوفية</option>
+                                        <option value="511010" {% if allowance.account_code == '511010' %}selected{% endif %}>511010 - مصروف مطعم</option>
+                                    </optgroup>
+                                    <optgroup label="🏦 حسابات الخصوم (للخصومات)">
+                                        <option value="210001" {% if allowance.account_code == '210001' %}selected{% endif %}>210001 - الرواتب المستحقة</option>
+                                        <option value="210002" {% if allowance.account_code == '210002' %}selected{% endif %}>210002 - مستحقات الإضافي</option>
+                                        <option value="211001" {% if allowance.account_code == '211001' %}selected{% endif %}>211001 - رواتب العمال المستحقة</option>
+                                        <option value="211002" {% if allowance.account_code == '211002' %}selected{% endif %}>211002 - بدلات العمال المستحقة</option>
+                                        <option value="211003" {% if allowance.account_code == '211003' %}selected{% endif %}>211003 - تأمينات مستحقة</option>
+                                    </optgroup>
+                                    <optgroup label="💰 حسابات الأصول (للمستحقات)">
+                                        <option value="130001" {% if allowance.account_code == '130001' %}selected{% endif %}>130001 - السلف</option>
+                                        <option value="130002" {% if allowance.account_code == '130002' %}selected{% endif %}>130002 - ذمم موظفين وجبات</option>
+                                        <option value="130003" {% if allowance.account_code == '130003' %}selected{% endif %}>130003 - ذمم موظفين بوفية</option>
+                                        <option value="130004" {% if allowance.account_code == '130004' %}selected{% endif %}>130004 - ذمم موظفين مطعم</option>
+                                    </optgroup>
+                                </select>
+                            </td>
+                            <td>
+                                <label class="toggle-switch">
+                                    <input type="checkbox" name="allowance_active_{{ allowance.id }}" {% if allowance.is_active %}checked{% endif %}>
+                                    <span class="toggle-slider"></span>
+                                </label>
+                            </td>
+                            <td>
+                                <div class="btn-group btn-group-sm">
+                                    <a href="{{ url_for('edit_allowance', allowance_id=allowance.id) }}" class="btn btn-sm btn-primary" title="تعديل">
+                                        <i class="fas fa-edit"></i>
+                                    </a>
+                                    <button type="button" class="btn btn-sm btn-danger delete-allowance"
+                                            data-id="{{ allowance.id }}" data-name="{{ allowance.name_ar }}">
+                                        <i class="fas fa-trash"></i>
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+                        {% else %}
+                        <tr>
+                            <td colspan="10" class="text-center text-muted py-4">
+                                <i class="fas fa-info-circle"></i> لا توجد بدلات إضافية
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="text-center mt-3">
+                <button type="button" class="btn btn-primary btn-add-allowance" data-bs-toggle="modal" data-bs-target="#addAllowanceModal">
+                    <i class="fas fa-plus"></i> إضافة بدل جديد
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- أزرار الإجراءات -->
+    <div class="action-buttons">
+        <button type="submit" class="btn btn-primary btn-custom">
+            <i class="fas fa-save"></i> حفظ الإعدادات
+        </button>
+        <a href="{{ url_for('index') }}" class="btn btn-secondary btn-custom">
+            <i class="fas fa-times"></i> إلغاء
+        </a>
+    </div>
+</form>
+
+<!-- نافذة إضافة بدل جديد -->
+<div class="modal fade" id="addAllowanceModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="fas fa-plus-circle"></i> إضافة بدل جديد
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="POST" action="{{ url_for('add_allowance') }}" id="addAllowanceForm">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <div class="modal-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">الاسم (عربي) <span class="text-danger">*</span></label>
+                                <input type="text" class="form-control" name="name_ar" required>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">الاسم (إنجليزي) <span class="text-danger">*</span></label>
+                                <input type="text" class="form-control" name="name" required>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">نوع البدل</label>
+                                <select class="form-select" name="allowance_type" id="allowanceType" required>
+                                    <option value="fixed">ثابت (مبلغ محدد)</option>
+                                    <option value="percentage">نسبة مئوية</option>
+                                    <option value="daily">يومي</option>
+                                    <option value="monthly">شهري</option>
+                                    <option value="yearly">سنوي</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">القيمة <span class="text-danger">*</span></label>
+                                <input type="number" class="form-control" name="value" id="allowanceValue" step="0.01" required>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6" id="basedOnDiv" style="display: none;">
+                            <div class="mb-3">
+                                <label class="form-label">محسوب على أساس</label>
+                                <select class="form-select" name="based_on">
+                                    <option value="basic_salary">الراتب الأساسي</option>
+                                    <option value="attendance_days">أيام الحضور</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">طريقة الحساب</label>
+                                <select class="form-select" name="calculation_method" id="calculationMethodModal">
+                                    <option value="add">➕ إضافة على الراتب (زيادة)</option>
+                                    <option value="subtract_basic">➖ خصم من الراتب الأساسي (نقصان)</option>
+                                    <option value="subtract_total">➖ خصم من الراتب الشامل (نقصان)</option>
+                                </select>
+                                <small class="text-muted">
+                                    <span id="methodHelp" class="text-info">سيتم إضافة المبلغ إلى الراتب النهائي</span>
+                                </small>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">جهة الصرف</label>
+                                <select class="form-select" name="paid_to" id="paidToSelect">
+                                    <option value="employee">👤 الموظف (يضاف للراتب النقدي)</option>
+                                    <option value="company">🏢 الشركة (يقيد في حسابات الشركة)</option>
+                                </select>
+                                <small class="text-muted" id="paidToHelp">سيتم إضافة هذا البدل إلى الراتب النقدي للموظف</small>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">يطبق على</label>
+                                <select class="form-select" name="applies_to">
+                                    <option value="all">الجميع</option>
+                                    <option value="resident_only">الساكنين فقط</option>
+                                    <option value="non_resident_only">غير الساكنين فقط</option>
+                                    <option value="worker_only">العمال فقط</option>
+                                    <option value="admin_only">الإدارة فقط</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">الحساب المحاسبي</label>
+                                <select class="form-select" name="account_code" id="accountSelectModal">
+                                    <option value="">-- اختر الحساب --</option>
+                                    <optgroup label="📊 حسابات المصروفات (للإضافات)">
+                                        <option value="511001">511001 - مصروف رواتب العمال الأساسية</option>
+                                        <option value="511002">511002 - مصروف بدل سكن العمال</option>
+                                        <option value="511003">511003 - مصروف تأمين العمال</option>
+                                        <option value="511004">511004 - مصروف بدل ملابس العمال</option>
+                                        <option value="511005">511005 - مصروف بطائق صحية للعمال</option>
+                                        <option value="511008">511008 - مصروف وجبات</option>
+                                        <option value="511009">511009 - مصروف بوفية</option>
+                                        <option value="511010">511010 - مصروف مطعم</option>
+                                    </optgroup>
+                                    <optgroup label="🏦 حسابات الخصوم (للخصومات)">
+                                        <option value="210001">210001 - الرواتب المستحقة</option>
+                                        <option value="210002">210002 - مستحقات الإضافي</option>
+                                        <option value="211001">211001 - رواتب العمال المستحقة</option>
+                                        <option value="211002">211002 - بدلات العمال المستحقة</option>
+                                        <option value="211003">211003 - تأمينات مستحقة</option>
+                                    </optgroup>
+                                    <optgroup label="💰 حسابات الأصول (للمستحقات)">
+                                        <option value="130001">130001 - السلف</option>
+                                        <option value="130002">130002 - ذمم موظفين وجبات</option>
+                                        <option value="130003">130003 - ذمم موظفين بوفية</option>
+                                        <option value="130004">130004 - ذمم موظفين مطعم</option>
+                                    </optgroup>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">الوصف</label>
+                                <textarea class="form-control" name="description" rows="2" placeholder="وصف اختياري للبدل"></textarea>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">إلغاء</button>
+                    <button type="submit" class="btn btn-primary">إضافة البدل</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+// حفظ حالة البطاقات في localStorage
+function loadCardStates() {
+    const mainState = localStorage.getItem('card_main_open');
+    const allowancesState = localStorage.getItem('card_allowances_open');
+
+    const mainBody = document.querySelector('.settings-card-header[data-card="main"]').nextElementSibling;
+    const allowancesBody = document.querySelector('.settings-card-header[data-card="allowances"]').nextElementSibling;
+
+    if (mainState === 'closed') {
+        mainBody.classList.add('closed');
+        document.querySelector('.settings-card-header[data-card="main"] i').classList.add('collapsed');
+    }
+    if (allowancesState === 'closed') {
+        allowancesBody.classList.add('closed');
+        document.querySelector('.settings-card-header[data-card="allowances"] i').classList.add('collapsed');
+    }
+}
+
+function saveCardState(cardId, isOpen) {
+    localStorage.setItem(`card_${cardId}_open`, isOpen ? 'open' : 'closed');
+}
+
+// تبديل البطاقة
+document.querySelectorAll('.settings-card-header').forEach(header => {
+    header.addEventListener('click', function() {
+        const body = this.nextElementSibling;
+        const icon = this.querySelector('i');
+        const cardId = this.getAttribute('data-card');
+        const isOpen = body.classList.contains('closed');
+
+        if (isOpen) {
+            body.classList.remove('closed');
+            icon.classList.remove('collapsed');
+        } else {
+            body.classList.add('closed');
+            icon.classList.add('collapsed');
+        }
+
+        saveCardState(cardId, !isOpen);
+    });
+});
+
+// حذف بدل مع CSRF
+document.querySelectorAll('.delete-allowance').forEach(btn => {
+    btn.addEventListener('click', function() {
+        const id = this.getAttribute('data-id');
+        const name = this.getAttribute('data-name');
+
+        if (confirm(`⚠️ هل أنت متأكد من حذف البدل "${name}"؟\nهذا الإجراء لا يمكن التراجع عنه.`)) {
+            const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') ||
+                              document.querySelector('input[name="csrf_token"]')?.value;
+
+            const form = document.createElement('form');
+            form.method = 'POST';
+            form.action = `/system/settings/delete-allowance/${id}`;
+            form.style.display = 'none';
+
+            const csrfInput = document.createElement('input');
+            csrfInput.type = 'hidden';
+            csrfInput.name = 'csrf_token';
+            csrfInput.value = csrfToken;
+            form.appendChild(csrfInput);
+
+            document.body.appendChild(form);
+            form.submit();
+        }
+    });
+});
+
+// إظهار/إخفاء حقل "محسوب على أساس" حسب نوع البدل
+const allowanceTypeSelect = document.getElementById('allowanceType');
+const allowanceValueInput = document.getElementById('allowanceValue');
+const paidToSelect = document.getElementById('paidToSelect');
+const paidToHelp = document.getElementById('paidToHelp');
+
+if (allowanceTypeSelect) {
+    allowanceTypeSelect.addEventListener('change', function() {
+        const basedOnDiv = document.getElementById('basedOnDiv');
+        if (this.value === 'percentage') {
+            basedOnDiv.style.display = 'block';
+            allowanceValueInput.min = 0;
+            allowanceValueInput.max = 100;
+            allowanceValueInput.placeholder = 'نسبة (0-100)';
+        } else {
+            basedOnDiv.style.display = 'none';
+            allowanceValueInput.min = 0;
+            allowanceValueInput.max = null;
+            allowanceValueInput.placeholder = 'المبلغ';
+        }
+    });
+}
+
+// تحديث شرح جهة الصرف
+if (paidToSelect && paidToHelp) {
+    paidToSelect.addEventListener('change', function() {
+        if (this.value === 'employee') {
+            paidToHelp.innerHTML = 'سيتم إضافة هذا البدل إلى الراتب النقدي للموظف';
+            paidToHelp.className = 'text-success';
+        } else {
+            paidToHelp.innerHTML = 'سيتم تسجيل هذا البدل كالتزام على الشركة ولا يصرف للموظف نقداً';
+            paidToHelp.className = 'text-warning';
+        }
+    });
+}
+
+// تحديث شرح طريقة الحساب في المودال
+const calculationMethodModal = document.getElementById('calculationMethodModal');
+const methodHelp = document.getElementById('methodHelp');
+
+if (calculationMethodModal && methodHelp) {
+    calculationMethodModal.addEventListener('change', function() {
+        const value = this.value;
+        if (value === 'add') {
+            methodHelp.innerHTML = '✅ سيتم إضافة المبلغ إلى الراتب النهائي';
+            methodHelp.className = 'text-success';
+        } else if (value === 'subtract_basic') {
+            methodHelp.innerHTML = '⚠️ سيتم خصم المبلغ من الراتب الأساسي قبل إضافة البدلات';
+            methodHelp.className = 'text-warning';
+        } else if (value === 'subtract_total') {
+            methodHelp.innerHTML = '🔴 سيتم خصم المبلغ من الراتب النهائي (بعد جميع الإضافات)';
+            methodHelp.className = 'text-danger';
+        }
+    });
+}
+
+// التحقق من صحة النسبة المئوية
+if (allowanceValueInput) {
+    allowanceValueInput.addEventListener('change', function() {
+        if (allowanceTypeSelect && allowanceTypeSelect.value === 'percentage') {
+            let value = parseFloat(this.value);
+            if (value < 0) this.value = 0;
+            if (value > 100) this.value = 100;
+        }
+    });
+}
+
+// تأكيد حفظ الإعدادات
+const settingsForm = document.getElementById('settingsForm');
+if (settingsForm) {
+    settingsForm.addEventListener('submit', function(e) {
+        if (!confirm('⚠️ هل أنت متأكد من حفظ التغييرات؟\nسيتم تطبيق الإعدادات الجديدة على حسابات الرواتب القادمة.')) {
+            e.preventDefault();
+        }
+    });
+}
+
+// تحميل حالة البطاقات عند تحميل الصفحة
+document.addEventListener('DOMContentLoaded', function() {
+    loadCardStates();
+
+    // تفعيل Bootstrap 5 Tooltips
+    var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+    tooltipTriggerList.map(function (el) {
+        return new bootstrap.Tooltip(el);
+    });
+});
+</script>
+{% endblock %}

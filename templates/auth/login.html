@@ -1,201 +1,135 @@
 {% extends "base.html" %}
 
-{% block title %}تسجيل الدخول - طلعت هائل للخدمات والاستشارات الزراعية{% endblock %}
+{% block title %}تسجيل الدخول - طلعت هائل{% endblock %}
 
 {% block full_content %}
 <style>
     .login-wrapper {
         min-height: 100vh;
-        background: linear-gradient(135deg, #e8f5e9 0%, #c8e6c9 100%);
+        background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 50%, #bbf7d0 100%);
         display: flex;
         align-items: center;
         justify-content: center;
         padding: 20px;
-        margin: 0;
     }
 
     .login-card {
         background: white;
-        border-radius: 20px;
-        box-shadow: 0 20px 60px rgba(0,0,0,0.15);
+        border-radius: 24px;
+        box-shadow: 0 25px 60px rgba(0,0,0,0.12);
         overflow: hidden;
         width: 100%;
-        max-width: 450px;
+        max-width: 420px;
         animation: fadeInUp 0.6s ease;
     }
 
-    @keyframes fadeInUp {
-        from {
-            opacity: 0;
-            transform: translateY(30px);
-        }
-        to {
-            opacity: 1;
-            transform: translateY(0);
-        }
-    }
+    @keyframes fadeInUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
 
     .login-header {
-        background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%);
-        color: #2d6a4f;
-        padding: 30px 25px 25px;
+        background: linear-gradient(135deg, #f0fdf4, #dcfce7);
+        padding: 2.5rem 2rem 2rem;
         text-align: center;
-        border-bottom: 1px solid #e0e0e0;
+        border-bottom: 1px solid #e5e7eb;
     }
 
-    .login-header img {
-        transition: transform 0.3s ease;
-        margin-bottom: 15px;
-        height: 65px;
-    }
+    .login-header img { height: 60px; margin-bottom: 1rem; transition: transform 0.3s ease; }
+    .login-header img:hover { transform: scale(1.05); }
 
-    .login-header img:hover {
-        transform: scale(1.05);
-    }
-
-    .login-header .company-name-arabic {
-        font-size: 20px;
+    .login-header h1 {
+        font-size: 1.4rem;
         font-weight: 800;
-        margin: 10px 0 5px;
-        color: #1b5e20;
+        color: #166534;
+        margin: 0.5rem 0 0.25rem;
     }
 
-    .login-header .company-name-english {
-        font-size: 10px;
-        color: #6c757d;
-        margin-bottom: 10px;
-    }
+    .login-header p { font-size: 0.75rem; color: #6b7280; margin: 0; }
 
-    .login-header .company-tagline {
-        font-size: 13px;
-        color: #2d6a4f;
-        font-weight: 500;
-    }
+    .login-body { padding: 2rem; }
 
-    .company-details {
-        background: linear-gradient(135deg, #e8f5e9, #c8e6c9);
-        padding: 10px;
+    .form-floating { margin-bottom: 1.25rem; }
+
+    .form-floating .form-control {
+        border: 2px solid #e5e7eb;
         border-radius: 12px;
-        margin-top: 15px;
+        padding: 1rem 1rem 0.5rem;
+        height: 56px;
+        font-size: 0.95rem;
+        transition: all 0.2s ease;
     }
 
-    .company-details small {
+    .form-floating .form-control:focus {
+        border-color: #22c55e;
+        box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.1);
+    }
+
+    .form-floating label { padding: 1rem; color: #9ca3af; font-size: 0.9rem; }
+
+    .input-group-text {
+        position: absolute;
+        right: 12px;
+        top: 50%;
+        transform: translateY(-50%);
+        background: none;
+        border: none;
+        color: #9ca3af;
+        cursor: pointer;
+        z-index: 5;
+        padding: 0.5rem;
+    }
+
+    .input-group-text:hover { color: #16a34a; }
+
+    .btn-login {
+        width: 100%;
+        padding: 0.85rem;
+        background: linear-gradient(135deg, #16a34a, #15803d);
+        color: white;
+        border: none;
+        border-radius: 12px;
+        font-size: 1rem;
+        font-weight: 700;
+        cursor: pointer;
+        transition: all 0.3s ease;
         display: flex;
         align-items: center;
         justify-content: center;
         gap: 8px;
-        font-size: 10px;
-        color: #2d6a4f;
-        margin: 5px 0;
-    }
-
-    .login-body {
-        padding: 30px 25px;
-    }
-
-    .form-group {
-        margin-bottom: 20px;
-    }
-
-    .form-group label {
-        display: block;
-        margin-bottom: 8px;
-        color: #333;
-        font-weight: 600;
-        font-size: 13px;
-    }
-
-    .form-group label i {
-        margin-left: 8px;
-        color: #2d6a4f;
-    }
-
-    .input-group {
-        position: relative;
-    }
-
-    .input-group input {
-        width: 100%;
-        padding: 10px 15px;
-        border: 2px solid #e0e0e0;
-        border-radius: 10px;
-        font-size: 14px;
-        transition: all 0.3s ease;
-    }
-
-    .input-group input:focus {
-        outline: none;
-        border-color: #2d6a4f;
-        box-shadow: 0 0 0 3px rgba(46, 125, 50, 0.1);
-    }
-
-    .toggle-password {
-        position: absolute;
-        left: 15px;
-        top: 50%;
-        transform: translateY(-50%);
-        cursor: pointer;
-        color: #999;
-    }
-
-    .btn-login {
-        width: 100%;
-        padding: 12px;
-        background: linear-gradient(135deg, #2d6a4f 0%, #1b5e20 100%);
-        color: white;
-        border: none;
-        border-radius: 10px;
-        font-size: 15px;
-        font-weight: 600;
-        cursor: pointer;
-        transition: all 0.3s ease;
-        margin-top: 10px;
     }
 
     .btn-login:hover {
         transform: translateY(-2px);
-        box-shadow: 0 5px 20px rgba(46, 125, 50, 0.3);
+        box-shadow: 0 8px 25px rgba(22, 163, 74, 0.3);
     }
+
+    .btn-login:active { transform: translateY(0); }
 
     .login-footer {
-        background: #f8f9fa;
-        padding: 15px 25px;
+        background: #f9fafb;
+        padding: 1rem 2rem;
         text-align: center;
-        border-top: 1px solid #e0e0e0;
+        border-top: 1px solid #f3f4f6;
     }
 
-    .login-footer small {
-        color: #666;
-        font-size: 10px;
-        display: block;
-        margin: 3px 0;
-    }
+    .login-footer small { color: #9ca3af; font-size: 0.7rem; display: block; margin: 2px 0; }
 
-    .info-badge {
-        background: linear-gradient(135deg, #e8f5e9, #c8e6c9);
-        color: #2d6a4f;
-        padding: 8px 12px;
-        border-radius: 50px;
-        font-size: 11px;
-        margin-top: 15px;
+    .security-badge {
         display: inline-flex;
         align-items: center;
-        gap: 8px;
+        gap: 6px;
+        background: #f0fdf4;
+        color: #166534;
+        padding: 0.4rem 1rem;
+        border-radius: 50px;
+        font-size: 0.72rem;
+        font-weight: 600;
+        margin-top: 1rem;
     }
 
-    @media (max-width: 576px) {
-        .login-body {
-            padding: 25px 20px;
-        }
-        .login-header {
-            padding: 25px 20px;
-        }
-        .login-header img {
-            height: 50px;
-        }
-        .login-header .company-name-arabic {
-            font-size: 16px;
-        }
+    @media (max-width: 480px) {
+        .login-header { padding: 2rem 1.5rem 1.5rem; }
+        .login-body { padding: 1.5rem; }
+        .login-header img { height: 50px; }
+        .login-header h1 { font-size: 1.2rem; }
     }
 </style>
 
@@ -203,13 +137,11 @@
     <div class="login-card">
         <div class="login-header">
             <img src="{{ url_for('static', filename='images/logo.png') }}" alt="طلعت هائل">
-            <div class="company-name-arabic">طلعت هائل</div>
-            <div class="company-name-english">TALAAT HAIL</div>
-            <div class="company-tagline">للخدمات والاستشارات الزراعية</div>
-
-            <div class="company-details">
-                <small><i class="fas fa-map-marker-alt"></i> الجمهورية اليمنية - محافظة الحديدة</small>
-                <small><i class="fas fa-globe"></i> Republic of Yemen - Al Hudaydah Governorate</small>
+            <h1>طلعت هائل</h1>
+            <p>للخدمات والاستشارات الزراعية</p>
+            <div class="security-badge">
+                <i class="fas fa-shield-alt"></i>
+                نظام آمن ومحمي
             </div>
         </div>
 
@@ -217,7 +149,7 @@
             {% with messages = get_flashed_messages(with_categories=true) %}
                 {% if messages %}
                     {% for category, message in messages %}
-                        <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+                        <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert" style="font-size: 0.85rem; padding: 0.6rem 1rem;">
                             {{ message }}
                             <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
                         </div>
@@ -225,51 +157,30 @@
                 {% endif %}
             {% endwith %}
 
-            <form method="POST" action="{{ url_for('login') }}">
-                <div class="form-group">
-                    <label><i class="fas fa-user"></i> اسم المستخدم</label>
-                    <input type="text" class="form-control" name="username" required>
+            <form method="POST" action="{{ url_for('login') }}" class="needs-validation" novalidate>
+                <div class="form-floating position-relative">
+                    <input type="text" class="form-control" name="username" id="username" placeholder="اسم المستخدم" required autofocus>
+                    <label for="username"><i class="fas fa-user me-2"></i>اسم المستخدم</label>
                 </div>
 
-                <div class="form-group">
-                    <label><i class="fas fa-lock"></i> كلمة المرور</label>
-                    <div class="input-group">
-                        <input type="password" class="form-control" name="password" id="password" required>
-                        <span class="toggle-password" onclick="togglePassword()">
-                            <i class="fas fa-eye" id="toggleIcon"></i>
-                        </span>
-                    </div>
+                <div class="form-floating position-relative">
+                    <input type="password" class="form-control" name="password" id="password" placeholder="كلمة المرور" required>
+                    <label for="password"><i class="fas fa-lock me-2"></i>كلمة المرور</label>
+                    <span class="input-group-text" onclick="togglePassword()">
+                        <i class="fas fa-eye" id="toggleIcon"></i>
+                    </span>
                 </div>
 
-                <button type="submit" class="btn-login"><i class="fas fa-sign-in-alt"></i> دخول</button>
+                <button type="submit" class="btn-login">
+                    <i class="fas fa-sign-in-alt"></i> تسجيل الدخول
+                </button>
             </form>
-
-            <div class="text-center">
-                <div class="info-badge">
-                </div>
-            </div>
         </div>
 
         <div class="login-footer">
-            <small><i class="fas fa-leaf"></i> طلعت هائل للخدمات والاستشارات الزراعية</small>
-            <small><i class="fas fa-shield-alt"></i> نظام آمن ومحمي</small>
+            <small><i class="fas fa-leaf" style="color: #22c55e;"></i> طلعت هائل للخدمات والاستشارات الزراعية</small>
+            <small>الجمهورية اليمنية - محافظة الحديدة</small>
         </div>
     </div>
 </div>
-
-<script>
-    function togglePassword() {
-        const input = document.getElementById('password');
-        const icon = document.getElementById('toggleIcon');
-        if (input.type === 'password') {
-            input.type = 'text';
-            icon.classList.remove('fa-eye');
-            icon.classList.add('fa-eye-slash');
-        } else {
-            input.type = 'password';
-            icon.classList.remove('fa-eye-slash');
-            icon.classList.add('fa-eye');
-        }
-    }
-</script>
 {% endblock %}

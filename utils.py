@@ -5,6 +5,21 @@ from flask_login import current_user
 from datetime import datetime, timedelta
 from models import db
 
+
+def safe_float(value, default=0.0):
+    """تحويل آمن إلى float مع التعامل مع القيم غير الرقمية"""
+    try:
+        if value is None:
+            return default
+        if isinstance(value, (int, float)):
+            return float(value)
+        cleaned = str(value).strip()
+        if not cleaned or cleaned.lower() in ('none', 'null', ''):
+            return default
+        return float(cleaned)
+    except (TypeError, ValueError):
+        return default
+
 def role_required(*roles):
     """محدد الصلاحيات"""
 
@@ -22,7 +37,6 @@ def role_required(*roles):
         return decorated_function
 
     return decorator
-
 
 def get_financial_month_dates(month_year):
     """الحصول على تواريخ الشهر المالي (من 26 إلى 25)"""
@@ -93,42 +107,34 @@ def filter_by_user_role(query, model, user, company_field='company_id'):
         return query.filter(False)
     return query.filter(False)
 
-
-# ==================== دوال مساعدة لاستخراج بيانات الحضور ====================
 def get_employee_attendance_summary(employee, start_date, end_date):
-    """الحصول على ملخص الحضور للموظف في فترة محددة
-    مع دعم الإجازات السنوية (مدفوعة وبدون أجر)
-    """
+    """الحصول على ملخص الحضور للموظف في فترة محددة"""
     from models import Attendance
     from datetime import timedelta
 
-    # جلب سجلات الحضور للموظف في الفترة
     attendances = Attendance.query.filter(
         Attendance.employee_id == employee.id,
         Attendance.date >= start_date,
         Attendance.date <= end_date
     ).all()
 
-    # تحويل السجلات إلى قاموس للوصول السريع
     attendance_dict = {att.date: att for att in attendances}
 
-    # تهيئة النتائج
     summary = {
-        'attendance_days': 0,          # أيام الحضور الفعلية (تحسب في الراتب)
-        'absent_days': 0,              # أيام الغياب (تحسب كخصم)
-        'sick_days': 0,                # أيام الإجازة المرضية
-        'late_minutes_total': 0,       # إجمالي دقائق التأخير
-        'paid_leave_days': 0,          # أيام الإجازة السنوية المدفوعة (تحسب في الراتب)
-        'unpaid_leave_days': 0,        # أيام الإجازة السنوية بدون أجر
-        'friday_attendance_days': 0,   # أيام الجمعة التي تم الحضور فيها
+        'attendance_days': 0,
+        'absent_days': 0,
+        'sick_days': 0,
+        'late_minutes_total': 0,
+        'paid_leave_days': 0,
+        'unpaid_leave_days': 0,  # ✅ أضف هذا
+        'friday_attendance_days': 0,
         'total_days': (end_date - start_date).days + 1,
         'work_days': 0,
     }
 
-    # المرور على كل يوم في الفترة
     current_date = start_date
     while current_date <= end_date:
-        is_friday = current_date.weekday() == 4  # الجمعة = 4
+        is_friday = current_date.weekday() == 4
 
         if current_date in attendance_dict:
             att = attendance_dict[current_date]
@@ -144,14 +150,12 @@ def get_employee_attendance_summary(employee, start_date, end_date):
                     summary['friday_attendance_days'] += 1
 
             elif att.attendance_status == 'annual_leave':
-                # إجازة سنوية مدفوعة الأجر
                 days = att.annual_leave_days or 1
                 summary['paid_leave_days'] += days
                 if is_friday:
                     summary['friday_attendance_days'] += 1
 
-            elif att.attendance_status == 'annual_leave_unpaid':
-                # إجازة سنوية بدون أجر
+            elif att.attendance_status == 'annual_leave_unpaid':  # ✅ دعم الإجازة بدون أجر
                 days = att.annual_leave_days or 1
                 summary['unpaid_leave_days'] += days
 
@@ -167,15 +171,12 @@ def get_employee_attendance_summary(employee, start_date, end_date):
                 if is_friday:
                     summary['friday_attendance_days'] += 1
         else:
-            # لا يوجد تسجيل لهذا اليوم
-            if is_friday:
-                pass
-            else:
+            if not is_friday:
                 summary['absent_days'] += 1
 
         current_date += timedelta(days=1)
 
-    # حساب أيام العمل الفعلية
+    # حساب أيام العمل
     friday_count = 0
     current_date = start_date
     while current_date <= end_date:
@@ -399,9 +400,66 @@ def get_rating_text(score):
 
 
 # ==================== دوال المحاسبة ====================
-def create_journal_entry(date, description, entries, reference_type=None, reference_id=None):
+# ==================== دوال المحاسبة ====================
+
+def can_create_journal_entry_before_salary():
     """
-    إنشاء قيد يومي جديد
+    التحقق من إمكانية إنشاء قيد محاسبي قبل احتساب الراتب
+    """
+    from models import Salary, AttendancePeriodTransfer
+
+    # التحقق من وجود رواتب غير محسوبة
+    pending_salaries = Salary.query.filter_by(is_paid=False).count()
+    if pending_salaries > 0:
+        return False, f"⚠️ يوجد {pending_salaries} راتب غير مدفوع. يرجى صرف الرواتب أولاً"
+
+    # التحقق من وجود فترات دوام غير مترحلة
+    pending_transfers = AttendancePeriodTransfer.query.filter_by(is_transferred=False).count()
+    if pending_transfers > 0:
+        return False, f"⚠️ يوجد {pending_transfers} فترة دوام غير مرحل. يرجى ترحيل فترات الدوام أولاً"
+
+    return True, "يمكن إنشاء القيد"
+
+
+def validate_account_balance(account_id, amount, account_type):
+    """
+    التحقق من صحة رصيد الحساب قبل إنشاء القيد
+    منع عمل قيد لحساب موجب أو سالب بشكل غير صحيح
+
+    Returns:
+        (is_valid, message)
+    """
+    from models import Account
+
+    account = Account.query.get(account_id)
+    if not account:
+        return False, f"الحساب غير موجود"
+
+    current_balance = account.get_balance()
+
+    # الحسابات التي لا يمكن أن تصبح سالبة (أصول ومصروفات)
+    # طبيعتها مدين (Debit)
+    if account.nature == 'debit':
+        # عند إضافة مدين، يجب ألا يصبح الرصيد سالباً بشكل مفرط
+        if account_type == 'debit' and amount > 0:
+            # التحقق من أن الرصيد لن يصبح سالباً جداً (أقل من -1000 مثلاً)
+            if current_balance + amount < -1000:
+                return False, f"❌ لا يمكن إضافة مدين {amount:,.0f} ريال لحساب {account.name_ar} برصيد {current_balance:,.0f} ريال (سيصبح سالباً بشكل كبير)"
+
+    # الحسابات التي لا يمكن أن تصبح مدينة (خصوم وإيرادات)
+    # طبيعتها دائن (Credit)
+    if account.nature == 'credit':
+        # عند إضافة دائن، يجب ألا يصبح الرصيد سالباً
+        if account_type == 'credit' and amount > 0:
+            if current_balance - amount < -1000:
+                return False, f"❌ لا يمكن إضافة دائن {amount:,.0f} ريال لحساب {account.name_ar} برصيد {current_balance:,.0f} ريال"
+
+    return True, "الحساب صالح"
+
+
+def create_journal_entry(date, description, entries, reference_type=None, reference_id=None, skip_validation=False):
+    """
+    إنشاء قيد يومي جديد مع ضوابط أمان
 
     Args:
         date: تاريخ القيد
@@ -409,13 +467,19 @@ def create_journal_entry(date, description, entries, reference_type=None, refere
         entries: قائمة من tuples (account_id, debit, credit, description)
         reference_type: نوع المرجع
         reference_id: معرف المرجع
+        skip_validation: تخطي التحقق (للاستخدام الداخلي فقط)
     """
-    from models import db, JournalEntry, JournalEntryDetail, Account  # ✅ أضف db
-    from models import JournalEntry, JournalEntryDetail, db
+    from models import db, JournalEntry, JournalEntryDetail, Account
     from flask_login import current_user
     from datetime import datetime
 
-    # التحقق من صحة المدخلات
+    # ========== 1. التحقق من إمكانية إنشاء القيد (منع القيود المباشرة) ==========
+    if not skip_validation and reference_type not in ['salary', 'salary_payment', 'adjustment']:
+        can_create, msg = can_create_journal_entry_before_salary()
+        if not can_create:
+            raise ValueError(msg)
+
+    # ========== 2. التحقق من صحة المدخلات ==========
     if not entries:
         raise ValueError("لا توجد تفاصيل للقيد")
 
@@ -425,6 +489,19 @@ def create_journal_entry(date, description, entries, reference_type=None, refere
     if abs(total_debit - total_credit) > 0.01:
         raise ValueError(f"القيد غير متوازن: مدين={total_debit}, دائن={total_credit}")
 
+    # ========== 3. التحقق من صحة الحسابات (منع الأرصدة الموجبة/السالبة الخاطئة) ==========
+    if not skip_validation:
+        for account_id, debit, credit, entry_description in entries:
+            if debit > 0:
+                valid, msg = validate_account_balance(account_id, debit, 'debit')
+                if not valid:
+                    raise ValueError(msg)
+            if credit > 0:
+                valid, msg = validate_account_balance(account_id, credit, 'credit')
+                if not valid:
+                    raise ValueError(msg)
+
+    # ========== 4. إنشاء القيد ==========
     # إنشاء رقم القيد
     entry_number = get_next_entry_number()
 
@@ -460,11 +537,47 @@ def create_journal_entry(date, description, entries, reference_type=None, refere
     for account_id, debit, credit, _ in entries:
         account = db.session.get(Account, account_id)
         if account:
-            # تحديث الرصيد في الكائن (سيتم حسابه عند الطلب)
             db.session.expire(account, ['balances'])
 
+    print(f"✅ تم إنشاء القيد: {entry_number}")
     return journal_entry
 
+def safe_transfer_transaction(transaction_id):
+    """
+    ترحيل معاملة مالية بشكل آمن مع التحقق
+    """
+    from models import FinancialTransaction, db
+    from datetime import datetime
+
+    transaction = FinancialTransaction.query.get(transaction_id)
+
+    if not transaction:
+        return {'success': False, 'error': 'المعاملة غير موجودة'}
+
+    if transaction.is_settled:
+        return {'success': False, 'error': 'المعاملة تم ترحيلها مسبقاً'}
+
+    # التحقق من إمكانية الترحيل
+    can_create, msg = can_create_journal_entry_before_salary()
+    if not can_create:
+        return {'success': False, 'error': msg}
+
+    try:
+        # محاولة إنشاء القيد
+        journal_entry = create_transaction_journal_entry(transaction)
+
+        if journal_entry:
+            transaction.is_settled = True
+            transaction.settled_date = datetime.now().date()
+            transaction.journal_entry_id = journal_entry.id
+            db.session.commit()
+            return {'success': True, 'message': 'تم ترحيل المعاملة بنجاح'}
+        else:
+            return {'success': False, 'error': 'فشل في إنشاء القيد المحاسبي'}
+
+    except Exception as e:
+        db.session.rollback()
+        return {'success': False, 'error': str(e)}
 
 def generate_supplier_invoice_number():
     """توليد رقم فاتورة مورد تلقائي"""
@@ -558,7 +671,6 @@ def auto_close_expenses():
         return existing
 
     # إنشاء قيد الإقفال
-    from utils import get_next_entry_number
     entry_number = get_next_entry_number()
 
     journal_entry = JournalEntry(
@@ -610,7 +722,6 @@ def redistribute_expenses():
     """
     from models import Account, JournalEntry, JournalEntryDetail, db
     from datetime import datetime
-    from utils import get_next_entry_number
 
     general_expense = Account.query.filter_by(code='530005').first()
     if not general_expense:
@@ -706,7 +817,6 @@ def refresh_all_reports():
 def create_salary_accrual(salary):
     """إنشاء قيد استحقاق الراتب (يتم عند حساب الراتب)"""
     from models import db, JournalEntry, JournalEntryDetail, Account
-    from utils import get_next_entry_number
 
     # ✅ تعريف الحسابات داخل الدالة
     salary_expense = Account.query.filter_by(code='510001').first()
@@ -771,344 +881,566 @@ def create_salary_accrual(salary):
     db.session.commit()
     return journal_entry
 
+def transfer_meal_deductions_to_salary(salary, meal_deductions):
+    """
+    تحديث راتب الموظف بقيم خصم البوفية والمطعم
+    """
+    cafeteria_total = sum(m.amount for m in meal_deductions if m.deduction_type == 'cafeteria' and not m.is_transferred)
+    restaurant_total = sum(m.amount for m in meal_deductions if m.deduction_type == 'restaurant' and not m.is_transferred)
+
+    if cafeteria_total > 0:
+        salary.cafeteria_deduction = (salary.cafeteria_deduction or 0) + cafeteria_total
+        print(f"   🍽️ إضافة خصم بوفية: {cafeteria_total:,.0f} ريال")
+
+    if restaurant_total > 0:
+        salary.restaurant_deduction = (salary.restaurant_deduction or 0) + restaurant_total
+        print(f"   🍽️ إضافة خصم مطعم: {restaurant_total:,.0f} ريال")
+
+    # تحديث حالة الخصومات
+    for m in meal_deductions:
+        m.is_transferred = True
+        m.transferred_date = datetime.now().date()
+
+    return salary
+
+
+def create_meal_supplier_settlement_journal_entry(meal_type, amount, payment_method='bank_transfer', supplier_id=None):
+    """
+    إنشاء قيد تسوية مستحقات المطعم/البوفية للموردين
+    """
+    from models import Account, Supplier
+    from datetime import datetime
+
+    # البحث عن حساب المورد المرتبط
+    credit_account = None
+    if supplier_id:
+        supplier = Supplier.query.get(supplier_id)
+        if supplier and supplier.payable_account_id:
+            credit_account = Account.query.get(supplier.payable_account_id)
+    
+    if not credit_account:
+        # حساب افتراضي حسب النوع
+        if meal_type == 'cafeteria':
+            credit_account = Account.query.filter_by(code='22020003').first()  # بوفية الشركة
+        else:
+            credit_account = Account.query.filter_by(code='22020002').first()  # مطعم الشركة
+
+    if meal_type == 'cafeteria':
+        name_ar = 'البوفية'
+    else:
+        name_ar = 'المطعم'
+
+    # حساب الدفع
+    if payment_method == 'bank_transfer':
+        payment_account = get_or_create_account('110002', 'البنك', 'asset', 'debit')
+        payment_name = 'البنك'
+    else:
+        payment_account = get_or_create_account('110001', 'الصندوق', 'asset', 'debit')
+        payment_name = 'الصندوق'
+
+    if not payable_account or not payment_account:
+        raise ValueError(f"الحسابات المحاسبية لـ {name_ar} غير مهيأة")
+
+    entries = [
+        (payable_account.id, amount, 0, f'سداد مستحقات {name_ar}'),
+        (payment_account.id, 0, amount, f'دفع عبر {payment_name}')
+    ]
+
+    return create_journal_entry(
+        date=datetime.now().date(),
+        description=f'تسوية مستحقات {name_ar} - سداد {amount:,.0f} ريال',
+        entries=entries,
+        reference_type='meal_settlement',
+        reference_id=None
+    )
 
 def create_salary_journal_entry(salary):
     """
-    إنشاء قيد محاسبي مفصل للراتب
-    يقوم بتوزيع المصروفات على الحسابات التفصيلية:
-    - مصروف رواتب العمال الأساسية (511001)
-    - مصروف بدل سكن العمال (511002)
-    - مصروف بدل ملابس العمال (511004)
-    - مصروف بطائق صحية للعمال (511005)
-    - مصروف تأمين العمال (511003)
+    إنشاء قيد محاسبي صحيح لاستحقاق الراتب
+    وفقاً لمبادئ المحاسبة المزدوجة
     """
     from models import db, JournalEntry, JournalEntryDetail, Account, Employee
     from datetime import datetime
     from utils import get_next_entry_number
+    from decimal import Decimal, getcontext
 
-    employee = Employee.query.get(salary.employee_id)
+    getcontext().prec = 28
 
-    # ========== 1. التأكد من وجود الحسابات ==========
+    # ✅ 1. التحقق من وجود قيد مسبق
+    existing = JournalEntry.query.filter_by(
+        reference_type='salary',
+        reference_id=salary.id
+    ).first()
 
-    # حسابات المصروفات التفصيلية
-    basic_expense = Account.query.filter_by(code='511001').first()
-    if not basic_expense:
-        basic_expense = Account(
-            code='511001', name='Labor Basic Salary', name_ar='مصروف رواتب العمال الأساسية',
-            account_type='expense', nature='debit', opening_balance=0, is_active=True
+    if existing:
+        print(f"⚠️ قيد محاسبي موجود مسبقاً للراتب: {existing.entry_number}")
+        return existing
+
+    # ✅ 2. استخدام db.session.get
+    employee = db.session.get(Employee, salary.employee_id)
+    if not employee:
+        raise ValueError(f"الموظف {salary.employee_id} غير موجود")
+
+    # ✅ 3. التحقق من وجود الحسابات
+    accounts = {}
+    required_accounts = {
+        'basic_expense': ('511001', 'مصروف رواتب العمال الأساسية'),
+        'resident_expense': ('511002', 'مصروف بدل سكن العمال'),
+        'clothing_expense': ('511004', 'مصروف بدل ملابس العمال'),
+        'health_expense': ('511005', 'مصروف بطائق صحية للعمال'),
+        'insurance_expense': ('511003', 'مصروف تأمين العمال'),
+        'cafeteria_expense': ('511009', 'مصروف بوفية'),
+        'restaurant_expense': ('511010', 'مصروف مطعم'),
+        'salaries_payable': ('210001', 'الرواتب المستحقة'),
+        'allowances_payable': ('211002', 'بدلات العمال المستحقة'),
+        'insurance_payable': ('211003', 'تأمينات مستحقة'),
+        'cafeteria_payable': ('22020003', 'ذمم دائنة بوفية الشركة'),
+        'restaurant_payable': ('22020002', 'ذمم دائنة مطعم الشركة'),
+        'advances_receivable': ('130001', 'سلف الموظفين'),
+        'penalties_revenue': ('410002', 'إيرادات الجزاءات'),
+        'deductions_revenue': ('410003', 'إيرادات الخصومات'),
+    }
+
+    missing_accounts = []
+    for key, (code, name_ar) in required_accounts.items():
+        account = Account.query.filter_by(code=code, is_active=True).first()
+        if not account:
+            missing_accounts.append(f"{code} - {name_ar}")
+        accounts[key] = account
+
+    if missing_accounts:
+        raise ValueError(f"الحسابات التالية غير موجودة:\n" + "\n".join(missing_accounts))
+
+    # ✅ 4. تحويل القيم إلى Decimal
+    def to_decimal(value):
+        return Decimal(str(value or 0)).quantize(Decimal('0.01'))
+
+    basic_amount = to_decimal(salary.basic_salary_amount)
+    resident_amount = to_decimal(salary.resident_allowance_amount)
+    clothing_amount = to_decimal(salary.clothing_allowance_amount)
+    health_amount = to_decimal(salary.health_card_amount)
+    insurance_amount = to_decimal(salary.insurance_amount)
+    cafeteria_amount = to_decimal(getattr(salary, 'cafeteria_deduction', 0))
+    restaurant_amount = to_decimal(getattr(salary, 'restaurant_deduction', 0))
+    advances = to_decimal(salary.advance_amount)
+    penalties = to_decimal(salary.penalty_amount)
+    deductions = to_decimal(getattr(salary, 'deduction_amount', 0))
+
+    # ✅ 5. حساب الإجماليات
+    total_debit = basic_amount + resident_amount + clothing_amount + health_amount + insurance_amount + cafeteria_amount + restaurant_amount
+    total_credit = (basic_amount + resident_amount) + clothing_amount + health_amount + insurance_amount + cafeteria_amount + restaurant_amount + advances + penalties + deductions
+
+    # ✅ 6. التحقق من التوازن (بدون rollback)
+    if abs(total_debit - total_credit) > Decimal('0.01'):
+        error_msg = (
+            f"❌ القيد غير متوازن محاسبياً!\n"
+            f"   إجمالي المدين: {total_debit:,.2f} ريال\n"
+            f"   إجمالي الدائن: {total_credit:,.2f} ريال\n"
+            f"   الفرق: {abs(total_debit - total_credit):,.2f} ريال\n"
+            f"   الموظف: {employee.name}\n"
+            f"   الفترة: {salary.month_year}"
         )
-        db.session.add(basic_expense)
+        print(error_msg)
+        # ❌ لا نعمل rollback هنا
+        raise ValueError(error_msg)
 
-    resident_expense = Account.query.filter_by(code='511002').first()
-    if not resident_expense:
-        resident_expense = Account(
-            code='511002', name='Labor Resident Allowance', name_ar='مصروف بدل سكن العمال',
-            account_type='expense', nature='debit', opening_balance=0, is_active=True
-        )
-        db.session.add(resident_expense)
-
-    insurance_expense = Account.query.filter_by(code='511003').first()
-    if not insurance_expense:
-        insurance_expense = Account(
-            code='511003', name='Labor Insurance', name_ar='مصروف تأمين العمال',
-            account_type='expense', nature='debit', opening_balance=0, is_active=True
-        )
-        db.session.add(insurance_expense)
-
-    clothing_expense = Account.query.filter_by(code='511004').first()
-    if not clothing_expense:
-        clothing_expense = Account(
-            code='511004', name='Labor Clothing Allowance', name_ar='مصروف بدل ملابس العمال',
-            account_type='expense', nature='debit', opening_balance=0, is_active=True
-        )
-        db.session.add(clothing_expense)
-
-    health_expense = Account.query.filter_by(code='511005').first()
-    if not health_expense:
-        health_expense = Account(
-            code='511005', name='Labor Health Cards', name_ar='مصروف بطائق صحية للعمال',
-            account_type='expense', nature='debit', opening_balance=0, is_active=True
-        )
-        db.session.add(health_expense)
-
-    # حسابات المستحقات
-    salaries_payable = Account.query.filter_by(code='210001').first()
-    if not salaries_payable:
-        salaries_payable = Account(
-            code='210001', name='Salaries Payable', name_ar='الرواتب المستحقة',
-            account_type='liability', nature='credit', opening_balance=0, is_active=True
-        )
-        db.session.add(salaries_payable)
-
-    allowances_payable = Account.query.filter_by(code='211002').first()
-    if not allowances_payable:
-        allowances_payable = Account(
-            code='211002', name='Allowances Payable', name_ar='بدلات العمال المستحقة',
-            account_type='liability', nature='credit', opening_balance=0, is_active=True
-        )
-        db.session.add(allowances_payable)
-
-    insurance_payable = Account.query.filter_by(code='211003').first()
-    if not insurance_payable:
-        insurance_payable = Account(
-            code='211003', name='Insurance Payable', name_ar='تأمينات مستحقة',
-            account_type='liability', nature='credit', opening_balance=0, is_active=True
-        )
-        db.session.add(insurance_payable)
-
-    db.session.commit()
-
-    # ========== 2. المبالغ المراد ترحيلها ==========
-
-    if employee and employee.employee_type == 'worker':
-        basic_amount = salary.basic_salary_amount or 0
-        resident_amount = salary.resident_allowance_amount or 0
-        clothing_amount = salary.clothing_allowance_amount or 0
-        health_amount = salary.health_card_amount or 0
-        insurance_amount = salary.insurance_amount or 0
-        cash_amount = salary.total_salary or 0
-    else:
-        # للمشرفين والإداريين
-        basic_amount = salary.total_salary or 0
-        resident_amount = 0
-        clothing_amount = 0
-        health_amount = 0
-        insurance_amount = 0
-        cash_amount = salary.total_salary or 0
-
-    # ========== 3. إنشاء القيد المحاسبي ==========
-
+    # ✅ 7. إنشاء القيد المحاسبي
     entry_number = get_next_entry_number()
 
     journal_entry = JournalEntry(
         entry_number=entry_number,
         date=datetime.now().date(),
-        description=f'استحقاق راتب {salary.employee.name} عن {salary.notes or salary.month_year}',
+        description=f'استحقاق راتب {employee.name} عن {salary.notes or salary.month_year}',
         reference_type='salary',
         reference_id=salary.id
     )
     db.session.add(journal_entry)
     db.session.flush()
 
-    # ========== 4. المدين: المصروفات ==========
+    # إضافة تفاصيل القيد (مدين)
+    debit_items = [
+        (accounts['basic_expense'], basic_amount, f'الراتب الأساسي - {employee.name}'),
+        (accounts['resident_expense'], resident_amount, f'بدل سكن - {employee.name}'),
+        (accounts['clothing_expense'], clothing_amount, f'بدل ملابس - {employee.name}'),
+        (accounts['health_expense'], health_amount, f'بطاقة صحية - {employee.name}'),
+        (accounts['insurance_expense'], insurance_amount, f'تأمين - {employee.name}'),
+        (accounts['cafeteria_expense'], cafeteria_amount, f'بوفية - {employee.name}'),
+        (accounts['restaurant_expense'], restaurant_amount, f'مطعم - {employee.name}'),
+    ]
 
-    if basic_amount > 0:
-        detail = JournalEntryDetail(
-            entry_id=journal_entry.id,
-            account_id=basic_expense.id,
-            debit=basic_amount,
-            credit=0,
-            description=f'الراتب الأساسي - {salary.employee.name}'
-        )
-        db.session.add(detail)
-        print(f'   ✅ مدين: مصروف رواتب العمال الأساسية: {basic_amount:,.0f} ريال')
+    for account, amount, desc in debit_items:
+        if amount > 0:
+            detail = JournalEntryDetail(
+                entry_id=journal_entry.id,
+                account_id=account.id,
+                debit=amount,
+                credit=Decimal('0'),
+                description=desc
+            )
+            db.session.add(detail)
 
-    if resident_amount > 0:
-        detail = JournalEntryDetail(
-            entry_id=journal_entry.id,
-            account_id=resident_expense.id,
-            debit=resident_amount,
-            credit=0,
-            description=f'بدل سكن - {salary.employee.name}'
-        )
-        db.session.add(detail)
-        print(f'   ✅ مدين: مصروف بدل سكن العمال: {resident_amount:,.0f} ريال')
+    # إضافة تفاصيل القيد (دائن)
+    credit_items = [
+        (accounts['salaries_payable'], basic_amount + resident_amount, f'راتب مستحق - {employee.name}'),
+        (accounts['allowances_payable'], clothing_amount + health_amount, f'بدلات مستحقة - {employee.name}'),
+        (accounts['insurance_payable'], insurance_amount, f'تأمينات مستحقة - {employee.name}'),
+        (accounts['cafeteria_payable'], cafeteria_amount, f'مستحق بوفية - {employee.name}'),
+        (accounts['restaurant_payable'], restaurant_amount, f'مستحق مطعم - {employee.name}'),
+        (accounts['advances_receivable'], advances, f'سلف - {employee.name}'),
+        (accounts['penalties_revenue'], penalties, f'جزاءات - {employee.name}'),
+        (accounts['deductions_revenue'], deductions, f'خصومات - {employee.name}'),
+    ]
 
-    if clothing_amount > 0:
-        detail = JournalEntryDetail(
-            entry_id=journal_entry.id,
-            account_id=clothing_expense.id,
-            debit=clothing_amount,
-            credit=0,
-            description=f'بدل ملابس - {salary.employee.name}'
-        )
-        db.session.add(detail)
-        print(f'   ✅ مدين: مصروف بدل ملابس العمال: {clothing_amount:,.0f} ريال')
+    for account, amount, desc in credit_items:
+        if amount > 0:
+            detail = JournalEntryDetail(
+                entry_id=journal_entry.id,
+                account_id=account.id,
+                debit=Decimal('0'),
+                credit=amount,
+                description=desc
+            )
+            db.session.add(detail)
 
-    if health_amount > 0:
-        detail = JournalEntryDetail(
-            entry_id=journal_entry.id,
-            account_id=health_expense.id,
-            debit=health_amount,
-            credit=0,
-            description=f'بطاقة صحية - {salary.employee.name}'
-        )
-        db.session.add(detail)
-        print(f'   ✅ مدين: مصروف بطائق صحية للعمال: {health_amount:,.0f} ريال')
-
-    if insurance_amount > 0:
-        detail = JournalEntryDetail(
-            entry_id=journal_entry.id,
-            account_id=insurance_expense.id,
-            debit=insurance_amount,
-            credit=0,
-            description=f'تأمين - {salary.employee.name}'
-        )
-        db.session.add(detail)
-        print(f'   ✅ مدين: مصروف تأمين العمال: {insurance_amount:,.0f} ريال')
-
-    # ========== 5. الدائن: المستحقات ==========
-
-    if cash_amount > 0:
-        detail = JournalEntryDetail(
-            entry_id=journal_entry.id,
-            account_id=salaries_payable.id,
-            debit=0,
-            credit=cash_amount,
-            description=f'راتب نقدي مستحق - {salary.employee.name}'
-        )
-        db.session.add(detail)
-        print(f'   ✅ دائن: الرواتب المستحقة: {cash_amount:,.0f} ريال')
-
-    total_allowances = clothing_amount + health_amount
-    if total_allowances > 0:
-        detail = JournalEntryDetail(
-            entry_id=journal_entry.id,
-            account_id=allowances_payable.id,
-            debit=0,
-            credit=total_allowances,
-            description=f'بدلات مستحقة - {salary.employee.name}'
-        )
-        db.session.add(detail)
-        print(f'   ✅ دائن: بدلات العمال المستحقة: {total_allowances:,.0f} ريال')
-
-    if insurance_amount > 0:
-        detail = JournalEntryDetail(
-            entry_id=journal_entry.id,
-            account_id=insurance_payable.id,
-            debit=0,
-            credit=insurance_amount,
-            description=f'تأمينات مستحقة - {salary.employee.name}'
-        )
-        db.session.add(detail)
-        print(f'   ✅ دائن: تأمينات مستحقة: {insurance_amount:,.0f} ريال')
-
-    db.session.commit()
-
+    # ربط القيد بالراتب
     salary.journal_entry_id = journal_entry.id
-    db.session.commit()
 
     print(f'\n✅ تم إنشاء القيد المحاسبي: {entry_number}')
-    print(
-        f'   إجمالي المدين: {basic_amount + resident_amount + clothing_amount + health_amount + insurance_amount:,.0f} ريال')
-    print(f'   إجمالي الدائن: {cash_amount + total_allowances + insurance_amount:,.0f} ريال')
+    print(f'   إجمالي المدين: {total_debit:,.2f} ريال')
+    print(f'   إجمالي الدائن: {total_credit:,.2f} ريال')
 
     return journal_entry
 
 def create_transaction_journal_entry(transaction):
-    """إنشاء قيد محاسبي للمعاملة المالية"""
-    from models import Account
+    """إنشاء قيد محاسبي للمعاملة المالية - نسخة محسنة وآمنة محاسبياً"""
+    from models import Account, JournalEntry, JournalEntryDetail, db
+    from flask_login import current_user
+    from utils import get_next_entry_number
 
-    if transaction.transaction_type == 'advance':
-        # سلفة: من حساب السلف (أصل) إلى حساب الصندوق (أصل) أو العكس
-        advance_account = Account.query.filter_by(code='130001').first()  # السلف
-        cash_account = Account.query.filter_by(code='110001').first()  # الصندوق
-
-        if not advance_account or not cash_account:
-            raise ValueError("الحسابات المحاسبية غير مهيأة بشكل صحيح")
-
-        entries = [
-            (advance_account.id, transaction.amount, 0, f'سلفة {transaction.employee.name}'),
-            (cash_account.id, 0, transaction.amount, f'صرف سلفة')
-        ]
-    elif transaction.transaction_type == 'overtime':
-        # إضافي: من مصروف الإضافي إلى حساب المستحق
-        overtime_account = Account.query.filter_by(code='510003').first()  # مصروف الإضافي
-        payable_account = Account.query.filter_by(code='210002').first()  # مستحقات الإضافي
-
-        if not overtime_account or not payable_account:
-            raise ValueError("الحسابات المحاسبية غير مهيأة بشكل صحيح")
-
-        entries = [
-            (overtime_account.id, transaction.amount, 0, f'إضافي {transaction.employee.name}'),
-            (payable_account.id, 0, transaction.amount, f'استحقاق إضافي')
-        ]
-    elif transaction.transaction_type == 'deduction':
-        # خصم: من حساب المستحق إلى حساب الخصومات
-        payable_account = Account.query.filter_by(code='210001').first()  # الرواتب المستحقة
-        deduction_account = Account.query.filter_by(code='510002').first()  # الخصومات
-
-        if not payable_account or not deduction_account:
-            raise ValueError("الحسابات المحاسبية غير مهيأة بشكل صحيح")
-
-        entries = [
-            (payable_account.id, transaction.amount, 0, f'خصم من راتب {transaction.employee.name}'),
-            (deduction_account.id, 0, transaction.amount, f'تسجيل خصم')
-        ]
-    elif transaction.transaction_type == 'penalty':
-        # جزاء: من حساب المستحق إلى حساب الجزاءات
-        payable_account = Account.query.filter_by(code='210001').first()  # الرواتب المستحقة
-        penalty_account = Account.query.filter_by(code='510002').first()  # الخصومات والجزاءات
-
-        if not payable_account or not penalty_account:
-            raise ValueError("الحسابات المحاسبية غير مهيأة بشكل صحيح")
-
-        entries = [
-            (payable_account.id, transaction.amount, 0, f'جزاء على {transaction.employee.name}'),
-            (penalty_account.id, 0, transaction.amount, f'تسجيل جزاء')
-        ]
-    else:
+    # ========= تحقق من البيانات =========
+    if not transaction:
+        print("❌ المعاملة غير موجودة")
         return None
 
-    return create_journal_entry(
-        date=transaction.date,
-        description=f'{transaction.get_type_name()} للموظف {transaction.employee.name}',
-        entries=entries,
-        reference_type='transaction',
-        reference_id=transaction.id
+    if not transaction.amount or transaction.amount <= 0:
+        print("❌ المبلغ غير صالح")
+        return None
+
+    employee_name = (
+        transaction.employee.name
+        if hasattr(transaction, "employee") and transaction.employee
+        else "غير محدد"
     )
 
+    # ========= إعداد أنواع المعاملات =========
+    TRANSACTION_MAP = {
+        # سلفة (أصل على الموظف)
+        'advance': {
+            'debit': '130001',   # ذمم الموظفين (سلف)
+            'credit': '110001',  # الصندوق
+            'name': 'سلفة'
+        },
+
+        # إضافي (مصروف + التزام)
+        'overtime': {
+            'debit': '510003',   # مصروف إضافي
+            'credit': '210002',  # مستحقات إضافي
+            'name': 'إضافي'
+        },
+
+        # خصم (تقليل التزام الرواتب)
+        'deduction': {
+            'debit': '210001',   # الرواتب المستحقة (تقليل الالتزام)
+            'credit': '130001',  # أو إيراد / أو ذمم حسب سياستك
+            'name': 'خصم'
+        },
+
+        # جزاء (يفضل يكون إيراد)
+        'penalty': {
+            'debit': '210001',   # الرواتب المستحقة
+            'credit': '410001',  # إيرادات جزاءات (يفضل إنشاء حساب)
+            'name': 'جزاء'
+        },
+
+        # بوفية (ذمة على الموظف)
+        'cafeteria': {
+            'debit': '130003',   # ذمم موظفين بوفية (مدين) - يزيد المستحق على الموظف
+            'credit': '511009',  # مصروف بوفية (دائن) - يسجل المصروف
+      # ذمم موظفين بوفية
+            'name': 'بوفية'
+        },
+
+        # مطعم
+        'restaurant': {
+            'debit': '130004',   # ذمم موظفين مطعم (مدين)
+            'credit': '511010',  # مصروف مطعم (دائن)
+
+            'name': 'مطعم'
+        },
+
+        # وجبات
+        'meal': {
+            'credit': '511008',
+            'debit': '130002',
+            'name': 'وجبات'
+        }
+    }
+
+    config = TRANSACTION_MAP.get(transaction.transaction_type)
+
+    if not config:
+        print(f"⚠️ نوع المعاملة غير مدعوم: {transaction.transaction_type}")
+        return None
+
+    debit_code = config['debit']
+    credit_code = config['credit']
+    type_name = config['name']
+
+    # ========= جلب الحسابات =========
+    accounts = Account.query.filter(
+        Account.code.in_([debit_code, credit_code])
+    ).all()
+
+    accounts_dict = {acc.code: acc for acc in accounts}
+
+    debit_account = accounts_dict.get(debit_code)
+    credit_account = accounts_dict.get(credit_code)
+
+    if not debit_account or not credit_account:
+        print(f"❌ الحسابات غير موجودة: {debit_code}, {credit_code}")
+        return None
+
+    try:
+        # ========= إنشاء القيد =========
+        entry_number = get_next_entry_number()
+
+        journal_entry = JournalEntry(
+            entry_number=entry_number,
+            date=transaction.date,
+            description=f"{type_name} | الموظف: {employee_name} | مبلغ: {transaction.amount}",
+            reference_type='transaction',
+            reference_id=transaction.id,
+            created_by=getattr(current_user, 'id', 1)
+        )
+
+        db.session.add(journal_entry)
+        db.session.flush()
+
+        # ========= طرف مدين =========
+        db.session.add(JournalEntryDetail(
+            entry_id=journal_entry.id,
+            account_id=debit_account.id,
+            debit=transaction.amount,
+            credit=0,
+            description=f"{type_name} - {employee_name}"
+        ))
+
+        # ========= طرف دائن =========
+        db.session.add(JournalEntryDetail(
+            entry_id=journal_entry.id,
+            account_id=credit_account.id,
+            debit=0,
+            credit=transaction.amount,
+            description=f"مقابل {type_name}"
+        ))
+
+        db.session.commit()
+
+        print(f"✅ تم إنشاء قيد {type_name}: {entry_number}")
+        return journal_entry
+
+    except Exception as e:
+        db.session.rollback()
+        print(f"❌ خطأ في إنشاء القيد: {e}")
+        return None
 
 def create_invoice_journal_entry(invoice):
-    """إنشاء قيد محاسبي للفاتورة (عملاء)"""
-    from models import Account, db
-    from utils import create_journal_entry
+    """إنشاء قيد محاسبي للفاتورة"""
 
-    # الحصول على حسابات العملاء والإيرادات
-    receivable_account = Account.query.filter_by(code='120001').first()
-    revenue_account = Account.query.filter_by(code='410003').first()  # إيرادات الفواتير الإضافية
+    from models import Account, JournalEntry, JournalEntryDetail, db
+    from flask_login import current_user
+    from utils import get_next_entry_number
 
-    if not receivable_account:
-        raise ValueError("حساب العملاء (120001) غير موجود")
+    try:
 
-    if not revenue_account:
-        raise ValueError("حساب إيرادات الفواتير الإضافية (410003) غير موجود")
+        # =========================
+        # حساب العميل
+        # =========================
+        customer_account = None
 
-    entries = [
-        (receivable_account.id, invoice.amount, 0, f'فاتورة رقم {invoice.invoice_number}'),
-        (revenue_account.id, 0, invoice.amount, f'إيرادات فاتورة {invoice.invoice_number}')
-    ]
+        if invoice.contract and invoice.contract.company:
+            customer_account = invoice.contract.company.get_or_create_receivable_account()
 
-    return create_journal_entry(
-        date=invoice.invoice_date,
-        description=f'فاتورة رقم {invoice.invoice_number} - {invoice.contract.company.name if invoice.contract else "عميل"}',
-        entries=entries,
-        reference_type='invoice',
-        reference_id=invoice.id
-    )
+        if not customer_account:
+            customer_account = Account.query.filter_by(code='120001').first()
 
+        if not customer_account:
+            customer_account = Account(
+                code='120001',
+                name='Customers',
+                name_ar='العملاء',
+                account_type='asset',
+                nature='debit',
+                opening_balance=0,
+                current_balance=0,
+                is_active=True
+            )
+            db.session.add(customer_account)
+            db.session.flush()
+
+        # =========================
+        # حساب الإيرادات
+        # =========================
+        revenue_account = Account.query.filter_by(code='410001').first()
+
+        if not revenue_account:
+            revenue_account = Account(
+                code='410001',
+                name='Annual Contract Revenue',
+                name_ar='إيرادات العقود السنوية',
+                account_type='revenue',
+                nature='credit',
+                opening_balance=0,
+                current_balance=0,
+                is_active=True
+            )
+            db.session.add(revenue_account)
+            db.session.flush()
+
+        # =========================
+        # رقم القيد
+        # =========================
+        entry_number = get_next_entry_number()
+
+        customer_name = 'عميل'
+
+        if invoice.contract and invoice.contract.company:
+            customer_name = (
+                invoice.contract.company.name
+                or invoice.contract.company.name
+                or 'عميل'
+            )
+
+        # =========================
+        # إنشاء القيد
+        # =========================
+        journal_entry = JournalEntry(
+            entry_number=entry_number,
+            date=invoice.invoice_date,
+            description=f'فاتورة رقم {invoice.invoice_number} - {customer_name}',
+            reference_type='invoice',
+            reference_id=invoice.id,
+            created_by=getattr(current_user, 'id', 1)
+        )
+
+        db.session.add(journal_entry)
+        db.session.flush()
+
+        # =========================
+        # الطرف المدين
+        # =========================
+        debit_detail = JournalEntryDetail(
+            entry_id=journal_entry.id,
+            account_id=customer_account.id,
+            debit=float(invoice.amount),
+            credit=0,
+            description=f'فاتورة رقم {invoice.invoice_number}'
+        )
+
+        db.session.add(debit_detail)
+
+        # =========================
+        # الطرف الدائن
+        # =========================
+        credit_detail = JournalEntryDetail(
+            entry_id=journal_entry.id,
+            account_id=revenue_account.id,
+            debit=0,
+            credit=float(invoice.amount),
+            description=f'إيرادات فاتورة {invoice.invoice_number}'
+        )
+
+        db.session.add(credit_detail)
+
+        # =========================
+        # ربط القيد بالفاتورة
+        # =========================
+        invoice.journal_entry_id = journal_entry.id
+
+        db.session.commit()
+
+        print(f"✅ تم إنشاء القيد {entry_number}")
+
+        return journal_entry
+
+    except Exception as e:
+        db.session.rollback()
+
+        import traceback
+        traceback.print_exc()
+
+        print(f"❌ خطأ إنشاء قيد الفاتورة: {e}")
+
+        return None
 def create_invoice_payment_journal_entry(invoice, paid_amount, payment_method):
-    """إنشاء قيد محاسبي لتسديد فاتورة"""
+    """إنشاء قيد تحصيل فاتورة"""
+
     from models import Account
+    from datetime import datetime
 
-    bank_account = Account.query.filter_by(code='110002').first()  # البنك
-    receivable_account = Account.query.filter_by(code='120001').first()  # المدينون
+    # =========================
+    # حساب التحصيل
+    # =========================
+    if payment_method == 'cash':
+        collection_account = Account.query.filter_by(code='110001').first()
 
-    if not bank_account or not receivable_account:
-        raise ValueError("الحسابات المحاسبية غير مهيأة بشكل صحيح")
+    elif payment_method == 'bank':
+        collection_account = Account.query.filter_by(code='110002').first()
 
+    else:
+        collection_account = Account.query.filter_by(code='110001').first()
+
+    # =========================
+    # حساب العميل
+    # =========================
+    if invoice.contract and invoice.contract.company:
+        receivable_account = invoice.contract.company.get_or_create_receivable_account()
+    else:
+        receivable_account = Account.query.filter_by(code='120001').first()
+
+    # =========================
+    # التحقق
+    # =========================
+    if not collection_account or not receivable_account:
+        raise ValueError("الحسابات المحاسبية غير مهيأة")
+
+    # =========================
+    # القيود
+    # =========================
     entries = [
-        (bank_account.id, paid_amount, 0, f'تسديد فاتورة {invoice.invoice_number}'),
-        (receivable_account.id, 0, paid_amount, f'تحصيل قيمة فاتورة {invoice.invoice_number}')
+        (
+            collection_account.id,
+            float(paid_amount),
+            0,
+            f'تحصيل فاتورة {invoice.invoice_number}'
+        ),
+        (
+            receivable_account.id,
+            0,
+            float(paid_amount),
+            f'إغلاق مديونية فاتورة {invoice.invoice_number}'
+        )
     ]
 
     return create_journal_entry(
         date=datetime.now().date(),
-        description=f'تسديد فاتورة رقم {invoice.invoice_number} - طريقة الدفع: {payment_method}',
+        description=f'تحصيل فاتورة رقم {invoice.invoice_number}',
         entries=entries,
         reference_type='invoice_payment',
         reference_id=invoice.id
     )
+
+# ==================== دوال مساعدة عامة ====================
 
 
 def create_salary_payment_journal_entry(salary):
@@ -1116,7 +1448,6 @@ def create_salary_payment_journal_entry(salary):
     from models import Account, JournalEntry, JournalEntryDetail, db
     from flask_login import current_user
     from datetime import datetime
-    from utils import get_next_entry_number  # ✅ أضف هذا السطر
 
 
     # البحث عن الحسابات
@@ -1164,136 +1495,52 @@ def create_salary_payment_journal_entry(salary):
     return journal_entry
 
 
-def create_company_payment_journal_entry(payment):
-    """إنشاء قيد محاسبي لدفع مبلغ لشركة (مصروف)"""
-    from models import Account
-
-    # حساب المصروفات (مصروف خدمات / مصروف مشتريات)
-    expense_account = Account.query.filter_by(code='520001').first()  # مصروف خدمات الشركات
-
-    # حساب البنك أو الصندوق
-    if payment.payment_method == 'cash':
-        bank_account = Account.query.filter_by(code='110001').first()  # الصندوق
-    else:
-        bank_account = Account.query.filter_by(code='110002').first()  # البنك
-
-    if not expense_account or not bank_account:
-        raise ValueError("الحسابات المحاسبية غير مهيأة بشكل صحيح")
-
-    entries = [
-        (expense_account.id, payment.amount, 0, f'دفع لشركة {payment.company.name}'),
-        (bank_account.id, 0, payment.amount, f'تسديد مستحقات شركة {payment.company.name}')
-    ]
-
-    return create_journal_entry(
-        date=payment.payment_date,
-        description=f'دفع مستحقات للشركة {payment.company.name} - {payment.reference_number or ""}',
-        entries=entries,
-        reference_type='company_payment',
-        reference_id=payment.id
-    )
-
-
 def create_supplier_invoice_journal_entry(invoice):
     """إنشاء قيد محاسبي لفاتورة واردة من مورد"""
-    from models import Account, JournalEntry, JournalEntryDetail, db
-    from flask_login import current_user
-    from datetime import datetime
-    from utils import get_next_entry_number, create_journal_entry
+    from models import Account
 
-    # حساب المصروفات حسب الفئة
-    expense_accounts = {
-        'utilities': '530001',  # كهرباء وماء
-        'rent': '530002',  # إيجار
-        'office': '530003',  # مستلزمات مكتبية
-        'equipment': '530004',  # معدات وأدوات
-        'general': '590001'  # مصروفات عامة
-    }
+    if not invoice.supplier:
+        raise ValueError("الفاتورة غير مرتبطة بمورد")
 
-    # تحديد الحساب بناءً على فئة المصروف
-    category_name = invoice.category.name if invoice.category else 'general'
-    account_code = expense_accounts.get(category_name, '590001')
+    # ✅ استخدام حساب المورد الفرعي
+    payable_account = invoice.supplier.get_payable_account()
 
-    expense_account = Account.query.filter_by(code=account_code).first()
-    payable_account = Account.query.filter_by(code='220001').first()
+    # ✅ استخدام account_code من ExpenseCategory
+    if invoice.category and invoice.category.account_code:
+        expense_account = Account.query.filter_by(code=invoice.category.account_code).first()
+    else:
+        # حساب المصروفات العامة الافتراضي
+        expense_account = Account.query.filter_by(code='530005').first()
+
+        # إذا لم يكن موجوداً، قم بإنشائه
+        if not expense_account:
+            expense_account = Account(
+                code='530005',
+                name='General Expense',
+                name_ar='مصروفات عامة',
+                account_type='expense',
+                nature='debit',
+                opening_balance=0,
+                is_active=True
+            )
+            db.session.add(expense_account)
+            db.session.commit()
 
     if not expense_account:
-        raise ValueError(f"حساب المصروف غير موجود للكود: {account_code}")
+        raise ValueError("حساب المصروف غير موجود")
 
-    if not payable_account:
-        raise ValueError("حساب الدائنون (220001) غير موجود")
-
-    # إنشاء قيد محاسبي
     entries = [
-        (expense_account.id, invoice.amount, 0, f'فاتورة {invoice.invoice_number}'),
+        (expense_account.id, invoice.amount, 0, f'فاتورة {invoice.invoice_number} - {invoice.supplier.name_ar}'),
         (payable_account.id, 0, invoice.amount, f'استحقاق فاتورة {invoice.invoice_number}')
     ]
 
     return create_journal_entry(
         date=invoice.invoice_date,
-        description=f'فاتورة واردة من {invoice.supplier.name_ar} - {invoice.category.name_ar if invoice.category else "مصروفات"}',
+        description=f'فاتورة واردة من {invoice.supplier.name_ar}',
         entries=entries,
         reference_type='supplier_invoice',
         reference_id=invoice.id
     )
-
-def create_supplier_invoice_payment_journal_entry(invoice, payment_amount, payment_method):
-    """إنشاء قيد محاسبي لتسديد فاتورة مورد"""
-    from models import Account, JournalEntry, JournalEntryDetail, db
-    from flask_login import current_user
-    from utils import get_next_entry_number  # ✅ أضف هذا السطر
-
-
-    payable_account = Account.query.filter_by(code='220001').first()  # الدائنون
-
-    if payment_method == 'cash':
-        bank_account = Account.query.filter_by(code='110001').first()  # الصندوق
-    else:
-        bank_account = Account.query.filter_by(code='110002').first()  # البنك
-
-    if not payable_account or not bank_account:
-        raise ValueError("الحسابات المحاسبية غير مهيأة بشكل صحيح")
-
-    # إنشاء رقم القيد
-    today = datetime.now().date()
-    year = today.strftime('%Y')
-    count = JournalEntry.query.filter(JournalEntry.date >= f'{year}-01-01').count() + 1
-    entry_number = f'JE-{year}-{str(count).zfill(5)}'
-
-    description = f'تسديد فاتورة مورد رقم {invoice.invoice_number} - {invoice.supplier.name_ar}'
-
-    journal_entry = JournalEntry(
-        entry_number=entry_number,
-        date=today,
-        description=description,
-        reference_type='supplier_payment',
-        reference_id=invoice.id,
-        created_by=current_user.id if hasattr(current_user, 'id') else 1
-    )
-    db.session.add(journal_entry)
-    db.session.flush()
-
-    # إضافة تفاصيل القيد (مدين للدائنون، دائن للصندوق/البنك)
-    detail1 = JournalEntryDetail(
-        entry_id=journal_entry.id,
-        account_id=payable_account.id,
-        debit=payment_amount,
-        credit=0,
-        description=f'تسديد فاتورة {invoice.invoice_number}'
-    )
-    db.session.add(detail1)
-
-    detail2 = JournalEntryDetail(
-        entry_id=journal_entry.id,
-        account_id=bank_account.id,
-        debit=0,
-        credit=payment_amount,
-        description=f'دفع مستحقات {invoice.supplier.name_ar}'
-    )
-    db.session.add(detail2)
-
-    db.session.commit()
-    return journal_entry
 
 def create_expense_invoice_journal_entry(invoice):
     """إنشاء قيد محاسبي لفاتورة مصروف واردة"""
@@ -1362,7 +1609,6 @@ def reverse_journal_entry(journal_entry_id):
     from models import JournalEntry, JournalEntryDetail, db
     from flask_login import current_user
     from datetime import datetime
-    from utils import get_next_entry_number  # ✅ أضف هذا السطر
 
 
     original_entry = JournalEntry.query.get(journal_entry_id)
@@ -1450,100 +1696,53 @@ def get_employee_overtime_hours(employee, start_date, end_date):
     return round(total_hours, 1)  # تقريب إلى أقرب 0.5 ساعة
 
 
-# ==================== دوال القيود المحاسبية للعقود والفواتير (إضافية) ====================
 def create_contract_journal_entry(contract, month_date=None):
     """
-    إنشاء قيد محاسبي للعقد (عند استحقاق القسط الشهري)
-
-    المدين: العملاء (120001)
-    الدائن: حساب الإيرادات حسب نوع العقد:
-        - annual: إيرادات العقود السنوية (410001)
-        - monthly: إيرادات العقود الشهرية (410002)
-        - quarterly: إيرادات العقود الربع سنوية (410003)
+    إنشاء قيد محاسبي للعقد باستخدام حساب العميل الفرعي
     """
-    from models import db, JournalEntry, JournalEntryDetail, Account
+    from models import Account, JournalEntry, JournalEntryDetail, db
     from datetime import datetime
     from flask_login import current_user
 
-    # الحصول على حسابات العملاء
-    customers = Account.query.filter_by(code='120001').first()
-    if not customers:
-        customers = Account(
-            code='120001',
-            name='Customers',
-            name_ar='العملاء',
-            account_type='asset',
-            nature='debit',
-            opening_balance=0,
-            is_active=True
-        )
-        db.session.add(customers)
-        db.session.commit()
+    if not contract.company:
+        raise ValueError("العقد غير مرتبط بأي شركة")
+
+    # ✅ استخدام حساب العميل الفرعي (إنشاء تلقائي إذا لم يكن موجوداً)
+    customer_account = contract.company.get_or_create_receivable_account()
 
     # تحديد حساب الإيرادات حسب نوع العقد
     if contract.contract_type == 'annual':
-        # ✅ استخدام الحساب الصحيح للعقود السنوية
         revenue_account = Account.query.filter_by(code='410001').first()
         if not revenue_account:
             revenue_account = Account(
-                code='410001',
-                name='Annual Contract Revenue',
-                name_ar='إيرادات العقود السنوية',
-                account_type='revenue',
-                nature='credit',
-                opening_balance=0,
-                is_active=True
+                code='410001', name='Annual Contract Revenue', name_ar='إيرادات العقود السنوية',
+                account_type='revenue', nature='credit', opening_balance=0, is_active=True
             )
             db.session.add(revenue_account)
+            db.session.flush()
         monthly_amount = contract.contract_value / 12
-        revenue_type = 'annual'
-
     elif contract.contract_type == 'monthly':
-        # ✅ استخدام الحساب الصحيح للعقود الشهرية
         revenue_account = Account.query.filter_by(code='410002').first()
         if not revenue_account:
             revenue_account = Account(
-                code='410002',
-                name='Monthly Contract Revenue',
-                name_ar='إيرادات العقود الشهرية',
-                account_type='revenue',
-                nature='credit',
-                opening_balance=0,
-                is_active=True
+                code='410002', name='Monthly Contract Revenue', name_ar='إيرادات العقود الشهرية',
+                account_type='revenue', nature='credit', opening_balance=0, is_active=True
             )
             db.session.add(revenue_account)
+            db.session.flush()
         monthly_amount = contract.contract_value
-        revenue_type = 'monthly'
-
-    elif contract.contract_type == 'quarterly':
-        # ✅ استخدام الحساب الصحيح للعقود الربع سنوية
-        revenue_account = Account.query.filter_by(code='410003').first()
+    else:
+        revenue_account = Account.query.filter_by(code='410001').first()
         if not revenue_account:
             revenue_account = Account(
-                code='410003',
-                name='Quarterly Contract Revenue',
-                name_ar='إيرادات العقود الربع سنوية',
-                account_type='revenue',
-                nature='credit',
-                opening_balance=0,
-                is_active=True
+                code='410001', name='Annual Contract Revenue', name_ar='إيرادات العقود السنوية',
+                account_type='revenue', nature='credit', opening_balance=0, is_active=True
             )
             db.session.add(revenue_account)
-        monthly_amount = contract.contract_value / 3
-        revenue_type = 'quarterly'
-    else:
-        # افتراضي: إيرادات الخدمات
-        revenue_account = Account.query.filter_by(code='410001').first()
+            db.session.flush()
         monthly_amount = contract.contract_value
-        revenue_type = 'service'
 
-    db.session.commit()
-
-    # تاريخ القيد
-    if month_date:
-        entry_date = month_date
-    else:
-        entry_date = datetime.now().date()
+    entry_date = month_date or datetime.now().date()
 
     # التحقق من عدم وجود قيد مسبق لنفس الشهر والعقد
     month_str = entry_date.strftime('%Y-%m')
@@ -1557,14 +1756,12 @@ def create_contract_journal_entry(contract, month_date=None):
         print(f"⚠️ يوجد قيد مسبق للعقد {contract.id} للشهر {month_str}")
         return existing
 
-    # إنشاء رقم قيد فريد
     entry_number = get_next_entry_number()
 
-    # إنشاء القيد المحاسبي
     journal_entry = JournalEntry(
         entry_number=entry_number,
         date=entry_date,
-        description=f'قسط عقد {revenue_type} - شركة {contract.company.name} - {entry_date.strftime("%B %Y")}',
+        description=f'قسط عقد - شركة {contract.company.name} - {entry_date.strftime("%B %Y")}',
         reference_type='contract',
         reference_id=contract.id,
         created_by=current_user.id if hasattr(current_user, 'id') else 1
@@ -1572,17 +1769,17 @@ def create_contract_journal_entry(contract, month_date=None):
     db.session.add(journal_entry)
     db.session.flush()
 
-    # مدين: العملاء
+    # مدين: حساب العميل الفرعي
     detail1 = JournalEntryDetail(
         entry_id=journal_entry.id,
-        account_id=customers.id,
+        account_id=customer_account.id,
         debit=monthly_amount,
         credit=0,
-        description=f'قسط عقد {contract.company.name} لشهر {entry_date.strftime("%B")}'
+        description=f'قسط عقد {contract.company.name}'
     )
     db.session.add(detail1)
 
-    # دائن: حساب الإيرادات حسب نوع العقد
+    # دائن: إيرادات العقود
     detail2 = JournalEntryDetail(
         entry_id=journal_entry.id,
         account_id=revenue_account.id,
@@ -1594,10 +1791,126 @@ def create_contract_journal_entry(contract, month_date=None):
 
     db.session.commit()
 
-    print(f"✅ تم إنشاء قيد محاسبي للعقد {contract.id} ({contract.company.name}): {monthly_amount:,.2f} ريال")
-    print(f"   الحساب الدائن: {revenue_account.code} - {revenue_account.name_ar}")
+    print(f"✅ تم إنشاء قيد للعقد {contract.id}: {entry_number}")
+    print(f"   مدين: {customer_account.code} - {customer_account.name_ar} ({monthly_amount:,.2f} ريال)")
+    print(f"   دائن: {revenue_account.code} - {revenue_account.name_ar} ({monthly_amount:,.2f} ريال)")
+
     return journal_entry
 
+
+def get_or_create_receivable_account(self):
+    """الحصول على حساب العميل الفرعي أو إنشاؤه تلقائياً"""
+    from models import Account
+    if self.receivable_account_id:
+        account = Account.query.get(self.receivable_account_id)
+        if account:
+            return account
+
+    # إنشاء حساب فرعي جديد
+    parent = Account.query.filter_by(code='120001').first()
+    if not parent:
+        parent = Account(
+            code='120001', name='Customers', name_ar='العملاء',
+            account_type='asset', nature='debit', opening_balance=0, is_active=True
+        )
+        db.session.add(parent)
+        db.session.flush()
+
+    # تنسيق رقم الحساب الفرعي 1201XXXX
+    sub_code = f"1201{self.id:04d}"
+
+    account = Account(
+        code=sub_code,
+        name=f'AR - {self.name}',
+        name_ar=f'ذمم مدينة - {self.name}',
+        account_type='asset',
+        nature='debit',
+        parent_id=parent.id,
+        opening_balance=0,
+        is_active=True,
+        notes=f'حساب عميل فرعي للشركة {self.name}'
+    )
+    db.session.add(account)
+    db.session.flush()
+
+    self.receivable_account_id = account.id
+    db.session.commit()
+
+    print(f"✅ تم إنشاء حساب عميل فرعي للشركة {self.name}: {account.code}")
+    return account
+
+
+def create_supplier_invoice_payment_journal_entry(invoice, payment_amount, payment_method):
+    """إنشاء قيد محاسبي لتسديد فاتورة مورد باستخدام حساب المورد الفرعي"""
+    from models import Account, JournalEntry, JournalEntryDetail, db
+    from flask_login import current_user
+    from datetime import datetime
+
+    if not invoice.supplier:
+        raise ValueError("الفاتورة غير مرتبطة بمورد")
+
+    # ✅ استخدام حساب المورد الفرعي
+    payable_account = invoice.supplier.get_or_create_payable_account()
+
+    # حساب الدفع
+    if payment_method == 'cash':
+        bank_account = Account.query.filter_by(code='110001').first()  # الصندوق
+        payment_name = 'الصندوق'
+    else:
+        bank_account = Account.query.filter_by(code='110002').first()  # البنك
+        payment_name = 'البنك'
+
+    if not payable_account:
+        raise ValueError(f"حساب المورد {invoice.supplier.name_ar} غير موجود")
+
+    if not bank_account:
+        raise ValueError(f"حساب {payment_name} غير موجود")
+
+    # إنشاء رقم القيد
+    today = datetime.now().date()
+    year = today.strftime('%Y')
+    count = JournalEntry.query.filter(JournalEntry.date >= f'{year}-01-01').count() + 1
+    entry_number = get_next_entry_number()
+
+    description = f'تسديد فاتورة مورد رقم {invoice.invoice_number} - {invoice.supplier.name_ar}'
+
+    journal_entry = JournalEntry(
+        entry_number=entry_number,
+        date=today,
+        description=description,
+        reference_type='supplier_payment',
+        reference_id=invoice.id,
+        created_by=current_user.id if hasattr(current_user, 'id') else 1
+    )
+    db.session.add(journal_entry)
+    db.session.flush()
+
+    # إضافة تفاصيل القيد (مدين لحساب المورد الفرعي، دائن للصندوق/البنك)
+    detail1 = JournalEntryDetail(
+        entry_id=journal_entry.id,
+        account_id=payable_account.id,
+        debit=payment_amount,
+        credit=0,
+        description=f'تسديد فاتورة {invoice.invoice_number}'
+    )
+    db.session.add(detail1)
+
+    detail2 = JournalEntryDetail(
+        entry_id=journal_entry.id,
+        account_id=bank_account.id,
+        debit=0,
+        credit=payment_amount,
+        description=f'دفع مستحقات {invoice.supplier.name_ar}'
+    )
+    db.session.add(detail2)
+
+    db.session.commit()
+
+    print(f"✅ تم إنشاء قيد تسديد فاتورة {invoice.invoice_number}: {entry_number}")
+    print(f"   مدين: {payable_account.code} - {payable_account.name_ar} ({payment_amount:,.0f} ريال)")
+    print(f"   دائن: {bank_account.code} - {bank_account.name_ar} ({payment_amount:,.0f} ريال)")
+
+    return journal_entry
 
 def fix_contract_revenue_accounts():
     """
@@ -1606,7 +1919,6 @@ def fix_contract_revenue_accounts():
     """
     from models import db, Account, JournalEntry, JournalEntryDetail, Contract
     from datetime import datetime
-    from utils import get_next_entry_number
 
     # الحسابات
     service_revenue = Account.query.filter_by(code='410001').first()
@@ -1994,7 +2306,6 @@ def create_company_payment_journal_entry(payment):
 
 
 # ==================== دوال مساعدة للتحقق من الحسابات ====================
-
 def ensure_accounts_exist():
     """التأكد من وجود جميع الحسابات المحاسبية الأساسية"""
     from models import db, Account
@@ -2005,6 +2316,11 @@ def ensure_accounts_exist():
         ('110002', 'Bank Account', 'البنك', 'asset', 'debit'),
         ('120001', 'Customers', 'العملاء', 'asset', 'debit'),
         ('130001', 'Advances', 'السلف', 'asset', 'debit'),
+
+        # ✅ حسابات خصم البوفية والمطعم (ذمم موظفين)
+        ('130002', 'Meals Employee Receivable', 'ذمم موظفين وجبات', 'asset', 'debit'),
+        ('130003', 'Cafeteria Employee Receivable', 'ذمم موظفين بوفية', 'asset', 'debit'),
+        ('130004', 'Restaurant Employee Receivable', 'ذمم موظفين مطعم', 'asset', 'debit'),
 
         # الخصوم (2xxxxx)
         ('210001', 'Salaries Payable', 'الرواتب المستحقة', 'liability', 'credit'),
@@ -2031,6 +2347,16 @@ def ensure_accounts_exist():
         ('530003', 'Office Supplies', 'مستلزمات مكتبية', 'expense', 'debit'),
         ('530004', 'Equipment Expense', 'معدات وأدوات', 'expense', 'debit'),
         ('530005', 'General Expense', 'مصروفات عامة', 'expense', 'debit'),
+
+        # ✅ حسابات خصم البوفية والمطعم (مصروفات)
+        ('511008', 'Meals Expense', 'مصروف وجبات', 'expense', 'debit'),
+        ('511009', 'Cafeteria Expense', 'مصروف بوفية', 'expense', 'debit'),
+        ('511010', 'Restaurant Expense', 'مصروف مطعم', 'expense', 'debit'),
+
+        # ✅ حسابات خصم البوفية والمطعم (مستحقات)
+        ('211001', 'Labor Salaries Payable', 'رواتب العمال المستحقة', 'liability', 'credit'),
+        ('211002', 'Labor Allowances Payable', 'بدلات العمال المستحقة', 'liability', 'credit'),
+        ('211003', 'Labor Insurance Payable', 'تأمينات العمال المستحقة', 'liability', 'credit'),
     ]
 
     created_count = 0
@@ -2056,7 +2382,6 @@ def ensure_accounts_exist():
         print("✅ جميع الحسابات المحاسبية موجودة مسبقاً")
 
     return created_count
-
 
 def get_next_entry_number():
     """الحصول على رقم القيد التالي بشكل فريد وآمن"""
@@ -2184,6 +2509,7 @@ def create_management_salary_transfer():
 # أضف هذه الدالة في ملف utils.py أو في مكان مناسب
 
 def check_existing_transfer(payroll_type, company_id=None, region=None, start_date=None, end_date=None):
+
     """
     التحقق من وجود ترحيل مسبق لنفس الفترة والنوع
 
@@ -2198,6 +2524,7 @@ def check_existing_transfer(payroll_type, company_id=None, region=None, start_da
         AttendancePeriodTransfer or None: الترحيل الموجود أو None
     """
     from models import AttendancePeriodTransfer
+    from datetime import datetime  # ✅ أضف هذا
 
     query = AttendancePeriodTransfer.query.filter(
         AttendancePeriodTransfer.payroll_type == payroll_type
@@ -2933,7 +3260,6 @@ def create_labor_salary_journal_entry(salary_calculation):
     """
     from models import Account, JournalEntry, JournalEntryDetail, db
     from datetime import datetime
-    from utils import get_next_entry_number
 
     summary = salary_calculation['summary']
 
@@ -3037,7 +3363,6 @@ def create_contractor_annual_journal_entry(year, company_id):
     """
     from models import Account, ContractorAnnualCost, JournalEntry, JournalEntryDetail, db
     from datetime import datetime
-    from utils import get_next_entry_number
 
     # البحث عن سجل التكلفة السنوية
     annual_cost = ContractorAnnualCost.query.filter_by(
@@ -3150,7 +3475,6 @@ def create_contractor_liability_journal_entry(year, company_id):
     """
     from models import Account, ContractorAnnualCost, JournalEntry, JournalEntryDetail, db
     from datetime import datetime
-    from utils import get_next_entry_number
 
     annual_cost = ContractorAnnualCost.query.filter_by(
         year=year,
@@ -3295,3 +3619,153 @@ def update_salary_with_breakdown(salary, breakdown):
     salary.attendance_amount = breakdown['cash_payout']
     salary.total_salary = breakdown['cash_payout']
     return salary
+
+
+# ==================== إعدادات النظام ====================
+
+
+def get_system_setting(key, default=0):
+    """الحصول على قيمة إعداد من النظام"""
+    from models import SystemSettings
+
+    setting = SystemSettings.query.filter_by(setting_key=key, is_active=True).first()
+    if setting:
+        return setting.value
+    return default
+
+
+def get_system_setting_object(key):
+    """الحصول على كامل كائن الإعداد"""
+    from models import SystemSettings
+
+    return SystemSettings.query.filter_by(setting_key=key, is_active=True).first()
+
+
+def init_default_settings():
+    """تهيئة الإعدادات الافتراضية للنظام مع ربط الحسابات المحاسبية"""
+    from models import SystemSettings, AllowanceSetting, db, Account
+
+    print("🔧 جاري تهيئة إعدادات النظام الافتراضية...")
+
+    # الحصول على الحسابات المحاسبية
+    accounts = {
+        'salary': Account.query.filter_by(code='511001').first(),
+        'resident': Account.query.filter_by(code='511002').first(),
+        'insurance': Account.query.filter_by(code='511003').first(),
+        'clothing': Account.query.filter_by(code='511004').first(),
+        'health': Account.query.filter_by(code='511005').first(),
+        'cafeteria': Account.query.filter_by(code='511009').first(),
+        'restaurant': Account.query.filter_by(code='511010').first(),
+    }
+
+    default_settings = [
+        # الإعدادات الأساسية
+        ('base_worker_salary', 'العمال - الراتب الأساسي الشهري', 'BASE_WORKER_AMOUNT', 60000, 'monthly', False, 'allowance',
+         '511001', 'مصروف رواتب العمال الأساسية', 'الراتب الأساسي الشهري للعامل عن 30 يوم'),
+
+        ('daily_rate', 'العمال - قيمة اليوم الواحد', 'DAILY_RATE', 2000, 'daily', False, 'allowance',
+         '511001', 'مصروف رواتب العمال الأساسية', 'قيمة اليوم الواحد للعامل'),
+
+        ('daily_resident_allowance', 'العمال - بدل السكن اليومي', 'DAILY_RESIDENT', 500, 'daily', False, 'allowance',
+         '511002', 'مصروف بدل سكن العمال', 'بدل السكن اليومي للموظف الساكن'),
+
+        ('monthly_clothing', 'العمال - بدل الملابس الشهري', 'MONTHLY_CLOTHING', 2040.00, 'monthly', False, 'allowance',
+         '511004', 'مصروف بدل ملابس العمال', 'بدل الملابس الشهري للعامل (24,480 سنوياً ÷ 12)'),
+
+        ('monthly_health', 'العمال - بدل البطائق الصحية الشهري', 'MONTHLY_HEALTH', 1250.00, 'monthly', False, 'allowance',
+         '511005', 'مصروف بطائق صحية للعمال', 'بدل البطائق الصحية الشهري (15,000 سنوياً ÷ 12)'),
+
+        ('monthly_insurance', 'العمال - التأمين الشهري', 'MONTHLY_INSURANCE', 10800.00, 'monthly', False, 'insurance',
+         '511003', 'مصروف تأمين العمال', 'التأمين الشهري للعامل'),
+
+        ('cafeteria_meal_price', 'البوفية - سعر الوجبة', 'CAFETERIA_MEAL_PRICE', 500, 'daily', False, 'meal',
+         '511009', 'مصروف بوفية', 'سعر وجبة البوفية'),
+
+        ('restaurant_meal_price', 'المطعم - سعر الوجبة', 'RESTAURANT_MEAL_PRICE', 750, 'daily', False, 'meal',
+         '511010', 'مصروف مطعم', 'سعر وجبة المطعم'),
+    ]
+
+    created_count = 0
+    for data in default_settings:
+        existing = SystemSettings.query.filter_by(setting_key=data[0]).first()
+        if not existing:
+            setting = SystemSettings(
+                setting_key=data[0],
+                setting_name=data[2],
+                setting_name_ar=data[1],
+                value=data[3],
+                value_type=data[4],
+                is_percentage=data[5],
+                category=data[6],
+                account_code=data[7],
+                account_name=data[8],
+                description=data[9],
+                is_active=True,
+                display_order=created_count + 1
+            )
+            db.session.add(setting)
+            created_count += 1
+            print(f"   ✅ تم إضافة: {data[1]} = {data[3]:,.2f}")
+
+    db.session.commit()
+    print(f"✅ تم تهيئة {created_count} إعداد افتراضي للنظام")
+    return created_count
+
+
+def get_or_create_account_by_code(code, name, name_ar, account_type, nature):
+    """الحصول على حساب أو إنشاؤه إذا لم يكن موجوداً"""
+    from models import Account, db
+
+    account = Account.query.filter_by(code=code).first()
+    if not account:
+        account = Account(
+            code=code,
+            name=name,
+            name_ar=name_ar,
+            account_type=account_type,
+            nature=nature,
+            opening_balance=0,
+            is_active=True
+        )
+        db.session.add(account)
+        db.session.commit()
+        print(f"   ✅ تم إنشاء حساب جديد: {code} - {name_ar}")
+    return account
+
+
+def create_labor_accounts():
+    """إنشاء حسابات العمال المحاسبية"""
+    from models import Account, db
+
+    accounts = [
+        ('511001', 'مصروف رواتب العمال الأساسية', 'مصروف رواتب العمال الأساسية', 'expense', 'debit'),
+        ('511002', 'مصروف بدل سكن العمال', 'مصروف بدل سكن العمال', 'expense', 'debit'),
+        ('511003', 'مصروف تأمين العمال', 'مصروف تأمين العمال', 'expense', 'debit'),
+        ('511004', 'مصروف بدل ملابس العمال', 'مصروف بدل ملابس العمال', 'expense', 'debit'),
+        ('511005', 'مصروف بطائق صحية للعمال', 'مصروف بطائق صحية للعمال', 'expense', 'debit'),
+        ('511008', 'مصروف وجبات', 'مصروف وجبات', 'expense', 'debit'),
+        ('511009', 'مصروف بوفية', 'مصروف بوفية', 'expense', 'debit'),
+        ('511010', 'مصروف مطعم', 'مصروف مطعم', 'expense', 'debit'),
+        ('211001', 'رواتب العمال المستحقة', 'رواتب العمال المستحقة', 'liability', 'credit'),
+        ('211002', 'بدلات العمال المستحقة', 'بدلات العمال المستحقة', 'liability', 'credit'),
+        ('211003', 'تأمينات العمال المستحقة', 'تأمينات العمال المستحقة', 'liability', 'credit'),
+        ('521001', 'مصروف ضريبة المتعهدين', 'مصروف ضريبة المتعهدين', 'expense', 'debit'),
+        ('521002', 'مصروف زكاة المتعهدين', 'مصروف زكاة المتعهدين', 'expense', 'debit'),
+        ('221001', 'ضريبة مستحقة للجهات الضريبية', 'ضريبة مستحقة للجهات الضريبية', 'liability', 'credit'),
+        ('221002', 'زكاة مستحقة', 'زكاة مستحقة', 'liability', 'credit'),
+    ]
+
+    created = 0
+    for code, name, name_ar, account_type, nature in accounts:
+        if not Account.query.filter_by(code=code).first():
+            account = Account(
+                code=code, name=name, name_ar=name_ar,
+                account_type=account_type, nature=nature,
+                opening_balance=0, is_active=True
+            )
+            db.session.add(account)
+            created += 1
+
+    db.session.commit()
+    print(f"✅ تم إنشاء {created} حساب للعمال")
+    return created

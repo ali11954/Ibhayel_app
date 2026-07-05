@@ -32,17 +32,46 @@
         font-size: 2.5rem;
         color: var(--primary-color);
     }
+
+    .quick-stat {
+        border-radius: 15px;
+        padding: 1rem;
+        text-align: center;
+    }
+
+    .btn-add-company {
+        border-radius: 12px;
+        padding: 0.5rem 1.2rem;
+        font-weight: 600;
+    }
+
+    .header-actions {
+        display: flex;
+        gap: 1rem;
+        align-items: center;
+    }
 </style>
 {% endblock %}
 
 {% block content %}
 <div class="container-fluid">
     <div class="page-header mb-4">
-        <h2>
-            <i class="fas fa-building"></i>
-            لوحة الشركات والعقود
-        </h2>
-        <p class="text-muted mb-0">إدارة الشركات والعقود والفواتير</p>
+        <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+            <div>
+                <h2>
+                    <i class="fas fa-building"></i>
+                    لوحة الشركات والعقود
+                </h2>
+                <p class="text-muted mb-0">إدارة الشركات والعقود والفواتير</p>
+            </div>
+            <!-- ✅ زر إضافة شركة جديد في رأس الصفحة -->
+            <div class="header-actions">
+                <a href="{{ url_for('add_company') }}" class="btn btn-success btn-add-company">
+                    <i class="fas fa-plus-circle me-2"></i>
+                    إضافة شركة جديدة
+                </a>
+            </div>
+        </div>
     </div>
 
     <!-- إحصائيات -->
@@ -73,7 +102,7 @@
     <!-- الروابط الرئيسية -->
     <div class="row mb-4">
         <div class="col-md-4 mb-3">
-            <div class="company-card card" onclick="window.location.href='{{ url_for('companies_list') }}'">
+            <div class="company-card card" onclick="window.location.href='{{ url_for('companies_dashboard') }}'">
                 <div class="card-body text-center">
                     <div class="company-logo-icon">
                         <i class="fas fa-building"></i>
@@ -112,8 +141,12 @@
 
     <!-- قائمة الشركات -->
     <div class="card">
-        <div class="card-header">
-            <h5><i class="fas fa-list"></i> قائمة الشركات</h5>
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <h5 class="mb-0"><i class="fas fa-list"></i> قائمة الشركات</h5>
+            <!-- ✅ زر إضافة شركة في رأس الجدول -->
+            <a href="{{ url_for('add_company') }}" class="btn btn-sm btn-success">
+                <i class="fas fa-plus"></i> شركة جديدة
+            </a>
         </div>
         <div class="card-body p-0">
             <div class="table-responsive">
@@ -122,9 +155,10 @@
                         <tr>
                             <th>#</th>
                             <th>اسم الشركة</th>
-                            <th>المنطقة</th>
-                            <th>عدد الموظفين</th>
                             <th>جهة الاتصال</th>
+                            <th>الهاتف</th>
+                            <th>عدد الموظفين</th>
+                            <th>حساب العميل</th>
                             <th>الإجراءات</th>
                         </tr>
                     </thead>
@@ -133,25 +167,50 @@
                             {% for company in companies %}
                             <tr>
                                 <td>{{ loop.index }}</td>
-                                <td>{{ company.name }}</td>
-                                <td>{{ company.region or '-' }}</td>
                                 <td>
-                                    <span class="badge bg-info">{{ company.employee_count|default(0) }}</span>
+                                    <strong>{{ company.name }}</strong>
+                                    {% if company.email %}
+                                    <br><small class="text-muted">{{ company.email }}</small>
+                                    {% endif %}
                                 </td>
                                 <td>{{ company.contact_person or '-' }}</td>
+                                <td>{{ company.phone or '-' }}</td>
                                 <td>
-                                    <a href="{{ url_for('contracts_list') }}?company={{ company.id }}" class="btn btn-sm btn-outline-primary">
-                                        <i class="fas fa-file-contract"></i>
-                                    </a>
+                                    <span class="badge bg-info">{{ company.company_employees|length }}</span>
+                                </td>
+                                <td>
+                                    {% if company.receivable_account %}
+                                    <code>{{ company.receivable_account.code }}</code>
+                                    {% else %}
+                                    <span class="text-muted">غير مفعل</span>
+                                    {% endif %}
+                                </td>
+                                <td class="text-nowrap">
+                                    <div class="btn-group btn-group-sm">
+                                        <a href="{{ url_for('company_details', company_id=company.id) }}" class="btn btn-primary" title="تفاصيل">
+                                            <i class="fas fa-eye"></i>
+                                        </a>
+                                        <a href="{{ url_for('edit_company', company_id=company.id) }}" class="btn btn-warning" title="تعديل">
+                                            <i class="fas fa-edit"></i>
+                                        </a>
+                                        <!-- ✅ زر حذف الشركة -->
+                                        <button type="button" class="btn btn-danger" title="حذف"
+                                                onclick="deleteCompany({{ company.id }}, '{{ company.name }}')">
+                                            <i class="fas fa-trash"></i>
+                                        </button>
+                                    </div>
                                 </td>
                             </tr>
                             {% endfor %}
                         {% else %}
                             <tr>
-                                <td colspan="6" class="text-center text-muted py-4">
-                                    <i class="fas fa-inbox fa-2x mb-2 d-block"></i>
-                                    لا توجد شركات مسجلة
-                                    <a href="{{ url_for('add_company') }}" class="d-block mt-2">إضافة شركة جديدة</a>
+                                <td colspan="7" class="text-center text-muted py-4">
+                                    <i class="fas fa-building fa-3x mb-3 d-block"></i>
+                                    <h5>لا توجد شركات مسجلة</h5>
+                                    <p class="mb-3">قم بإضافة شركة جديدة للبدء</p>
+                                    <a href="{{ url_for('add_company') }}" class="btn btn-primary">
+                                        <i class="fas fa-plus-circle"></i> إضافة شركة جديدة
+                                    </a>
                                 </td>
                             </tr>
                         {% endif %}
@@ -161,4 +220,31 @@
         </div>
     </div>
 </div>
+
+<script>
+function deleteCompany(id, name) {
+    if(confirm(`⚠️ تحذير!\n\nهل أنت متأكد من حذف شركة "${name}"؟\nسيتم حذف جميع المناطق والمواقع المرتبطة بها.\nهذا الإجراء لا يمكن التراجع عنه.`)) {
+        fetch(`/companies/${id}/delete`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || ''
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if(data.success) {
+                alert('✅ ' + data.message);
+                window.location.reload();
+            } else {
+                alert('❌ خطأ: ' + data.error);
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('❌ حدث خطأ أثناء الحذف');
+        });
+    }
+}
+</script>
 {% endblock %}

@@ -125,6 +125,14 @@
         margin-top: 0.5rem;
     }
 
+    .total-salary-preview {
+        background: linear-gradient(135deg, #d4edda, #c3e6cb);
+        border-radius: 12px;
+        padding: 0.8rem;
+        margin-top: 0.5rem;
+        border-right: 3px solid #28a745;
+    }
+
     .info-box {
         background: linear-gradient(135deg, #e3f2fd, #bbdef5);
         border-radius: 15px;
@@ -178,6 +186,12 @@
     .type-option.selected {
         border-color: #2e7d32 !important;
         background: linear-gradient(135deg, #e8f5e9, #c8e6c9) !important;
+    }
+
+    .salary-info-icon {
+        cursor: help;
+        margin-right: 5px;
+        color: #28a745;
     }
 </style>
 {% endblock %}
@@ -353,27 +367,55 @@
                     </div>
                 </div>
 
-                <!-- الراتب الأساسي -->
+                <!-- حقلان للراتب: الأساسي والشامل -->
                 <div class="col-md-6 form-group-custom">
                     <label class="form-label-custom">
                         <i class="fas fa-money-bill"></i>
-                        الراتب الأساسي
+                        الراتب الأساسي <span class="required">*</span>
                     </label>
                     <div class="input-icon">
                         <i class="fas fa-riyal-sign"></i>
                         <input type="number" class="form-control form-control-custom"
-                               id="salary" name="salary" value="60000" step="1000" min="0">
+                               id="salary" name="salary" value="60000" step="1000" min="0" required>
                     </div>
                     <div class="salary-preview" id="salaryPreview">
                         <small class="text-muted">
                             <i class="fas fa-info-circle"></i>
-                            الراتب: <strong id="formattedSalary">60,000</strong> ر.ي
+                            الراتب الأساسي: <strong id="formattedSalary">60,000</strong> ر.ي
+                        </small>
+                        <small class="text-muted d-block">
+                            <i class="fas fa-calculator"></i>
+                            الراتب اليومي: <strong id="dailySalary">2,000</strong> ر.ي/يوم
+                        </small>
+                    </div>
+                </div>
+
+                <div class="col-md-6 form-group-custom">
+                    <label class="form-label-custom">
+                        <i class="fas fa-chart-line text-success"></i>
+                        الراتب الشامل <span class="required">*</span>
+                        <i class="fas fa-info-circle salary-info-icon" data-bs-toggle="tooltip"
+                           title="الراتب الشامل = الراتب الأساسي + جميع البدلات والإضافات"></i>
+                    </label>
+                    <div class="input-icon">
+                        <i class="fas fa-riyal-sign text-success"></i>
+                        <input type="number" class="form-control form-control-custom"
+                               id="total_salary" name="total_salary" value="60000" step="1000" min="0" required>
+                    </div>
+                    <div class="total-salary-preview" id="totalSalaryPreview">
+                        <small class="text-muted">
+                            <i class="fas fa-chart-line text-success"></i>
+                            الراتب الشامل: <strong id="formattedTotalSalary" class="text-success">60,000</strong> ر.ي
+                        </small>
+                        <small class="text-muted d-block">
+                            <i class="fas fa-percent"></i>
+                            نسبة الزيادة عن الأساسي: <strong id="increasePercent">0</strong>%
                         </small>
                     </div>
                 </div>
 
                 <!-- حالة السكن -->
-                <div class="col-md-6 form-group-custom">
+                <div class="col-md-12 form-group-custom">
                     <label class="form-label-custom">
                         <i class="fas fa-home"></i>
                         حالة السكن
@@ -442,6 +484,7 @@
                                     <i class="fas fa-check-circle text-success me-1"></i> رقم البطاقة وكود التعريف يجب أن يكونا فريدين<br>
                                     <i class="fas fa-check-circle text-success me-1"></i> يمكن تعديل بيانات الموظف لاحقاً<br>
                                     <i class="fas fa-check-circle text-success me-1"></i> بدل السكن يضاف تلقائياً عند حساب الراتب<br>
+                                    <i class="fas fa-check-circle text-success me-1"></i> الراتب الشامل يشمل جميع البدلات والإضافات<br>
                                     <i class="fas fa-check-circle text-success me-1"></i> المشرفون والإداريون يحتاجون إلى بيانات دخول للوصول للنظام
                                 </small>
                             </div>
@@ -530,6 +573,45 @@
         }
     }
 
+    function calculateSalaryValues() {
+        const basicSalary = parseFloat(document.getElementById('salary').value) || 0;
+        const totalSalary = parseFloat(document.getElementById('total_salary').value) || basicSalary;
+
+        // تنسيق الأرقام
+        document.getElementById('formattedSalary').textContent = new Intl.NumberFormat('ar-SA').format(basicSalary);
+        document.getElementById('formattedTotalSalary').textContent = new Intl.NumberFormat('ar-SA').format(totalSalary);
+
+        // حساب الراتب اليومي
+        const dailySalary = basicSalary / 30;
+        document.getElementById('dailySalary').textContent = new Intl.NumberFormat('ar-SA').format(Math.round(dailySalary));
+
+        // حساب نسبة الزيادة
+        if (basicSalary > 0) {
+            const increasePercent = ((totalSalary - basicSalary) / basicSalary * 100).toFixed(1);
+            document.getElementById('increasePercent').textContent = increasePercent;
+
+            if (totalSalary > basicSalary) {
+                document.getElementById('increasePercent').style.color = '#28a745';
+            } else if (totalSalary < basicSalary) {
+                document.getElementById('increasePercent').style.color = '#dc3545';
+            } else {
+                document.getElementById('increasePercent').style.color = '#6c757d';
+            }
+        }
+    }
+
+    // مزامنة الراتب الشامل مع الراتب الأساسي (اختياري)
+    function syncTotalSalary() {
+        const basicSalary = parseFloat(document.getElementById('salary').value) || 0;
+        const totalSalaryField = document.getElementById('total_salary');
+
+        // إذا كان الراتب الشامل أقل من الأساسي أو صفر، قم بمزامنته
+        if (parseFloat(totalSalaryField.value) < basicSalary || totalSalaryField.value === '') {
+            totalSalaryField.value = basicSalary;
+        }
+        calculateSalaryValues();
+    }
+
     $(document).ready(function() {
         // عند تغيير الشركة
         $('#company_id').on('change', function() {
@@ -548,12 +630,18 @@
             }
         });
 
-        // تنسيق الراتب
+        // تنسيق الراتب الأساسي
         $('#salary').on('input', function() {
-            var value = $(this).val();
-            var formatted = new Intl.NumberFormat('ar-SA').format(value);
-            $('#formattedSalary').text(formatted);
+            syncTotalSalary();
         });
+
+        // تنسيق الراتب الشامل
+        $('#total_salary').on('input', function() {
+            calculateSalaryValues();
+        });
+
+        // تفعيل tooltips
+        $('[data-bs-toggle="tooltip"]').tooltip();
 
         // التحقق من صحة النموذج
         $('#addEmployeeForm').on('submit', function(e) {
@@ -562,6 +650,8 @@
             var code = $('#code').val().trim();
             var companyId = $('#company_id').val();
             var employeeType = $('#employee_type').val();
+            var basicSalary = parseFloat($('#salary').val()) || 0;
+            var totalSalary = parseFloat($('#total_salary').val()) || 0;
 
             if (!name) {
                 e.preventDefault();
@@ -588,6 +678,20 @@
                 e.preventDefault();
                 alert('❌ الرجاء اختيار الشركة');
                 $('#company_id').focus();
+                return false;
+            }
+
+            if (basicSalary <= 0) {
+                e.preventDefault();
+                alert('❌ الرجاء إدخال راتب أساسي صحيح');
+                $('#salary').focus();
+                return false;
+            }
+
+            if (totalSalary <= 0) {
+                e.preventDefault();
+                alert('❌ الرجاء إدخال راتب شامل صحيح');
+                $('#total_salary').focus();
                 return false;
             }
 
@@ -621,6 +725,9 @@
 
             return true;
         });
+
+        // تهيئة القيم
+        calculateSalaryValues();
     });
 </script>
 {% endblock %}

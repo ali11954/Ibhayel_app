@@ -1,0 +1,547 @@
+<!-- templates/financial/meal_deductions.html -->
+{% extends "base.html" %}
+
+{% block title %}خصميات البوفية والمطعم - ابن هائل{% endblock %}
+
+{% block extra_css %}
+<style>
+    .deduction-card {
+        background: white;
+        border-radius: 15px;
+        padding: 1rem;
+        margin-bottom: 1rem;
+        border-right: 4px solid;
+        transition: all 0.3s ease;
+    }
+    .deduction-cafeteria { border-right-color: #f39c12; }
+    .deduction-restaurant { border-right-color: #e74a3b; }
+    .deduction-meal { border-right-color: #27ae60; }
+    .amount-cafeteria { color: #f39c12; }
+    .amount-restaurant { color: #e74a3b; }
+    .amount-meal { color: #27ae60; }
+
+    .stats-card {
+        transition: transform 0.3s ease;
+        cursor: pointer;
+    }
+    .stats-card:hover {
+        transform: translateY(-5px);
+    }
+
+    .filter-badge {
+        cursor: pointer;
+        transition: all 0.2s ease;
+    }
+    .filter-badge.active {
+        transform: scale(1.05);
+    }
+
+    .progress-bar-custom {
+        background: linear-gradient(90deg, #28a745, #20c997);
+        border-radius: 10px;
+        transition: width 0.5s ease;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+    <!-- Header -->
+    <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
+        <div>
+            <h2><i class="fas fa-utensils text-warning"></i> خصميات البوفية والمطعم</h2>
+            <p class="text-muted mb-0">إدارة خصومات الوجبات وترحيلها إلى الرواتب</p>
+        </div>
+        <div class="btn-group">
+            <button class="btn btn-warning" onclick="showAddDeductionModal('cafeteria')">
+                <i class="fas fa-coffee"></i> خصم بوفية
+            </button>
+            <button class="btn btn-danger" onclick="showAddDeductionModal('restaurant')">
+                <i class="fas fa-utensils"></i> خصم مطعم
+            </button>
+            <button class="btn btn-success" onclick="showAddDeductionModal('meal')">
+                <i class="fas fa-hamburger"></i> خصم وجبات
+            </button>
+            <button class="btn btn-info" onclick="showSettingsModal()">
+                <i class="fas fa-cog"></i> إعدادات
+            </button>
+        </div>
+    </div>
+
+    <!-- Statistics Cards -->
+    <div class="row mb-4 g-3">
+        <div class="col-md-3">
+            <div class="card stats-card bg-warning bg-opacity-10 border-warning">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="text-muted mb-1">خصم البوفية</h6>
+                            <h3 class="mb-0">{{ "{:,.0f}".format(stats.total_cafeteria) }} <small class="text-muted">ر.ي</small></h3>
+                        </div>
+                        <div class="rounded-circle bg-warning p-3">
+                            <i class="fas fa-coffee text-white fa-lg"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card stats-card bg-danger bg-opacity-10 border-danger">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="text-muted mb-1">خصم المطعم</h6>
+                            <h3 class="mb-0">{{ "{:,.0f}".format(stats.total_restaurant) }} <small class="text-muted">ر.ي</small></h3>
+                        </div>
+                        <div class="rounded-circle bg-danger p-3">
+                            <i class="fas fa-utensils text-white fa-lg"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card stats-card bg-success bg-opacity-10 border-success">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="text-muted mb-1">خصم الوجبات</h6>
+                            <h3 class="mb-0">{{ "{:,.0f}".format(stats.total_meal) }} <small class="text-muted">ر.ي</small></h3>
+                        </div>
+                        <div class="rounded-circle bg-success p-3">
+                            <i class="fas fa-hamburger text-white fa-lg"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card stats-card bg-primary bg-opacity-10 border-primary">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="text-muted mb-1">إجمالي غير مرحل</h6>
+                            <h3 class="mb-0">{{ "{:,.0f}".format(stats.total_all) }} <small class="text-muted">ر.ي</small></h3>
+                        </div>
+                        <div class="rounded-circle bg-primary p-3">
+                            <i class="fas fa-chart-line text-white fa-lg"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Progress Bar -->
+    <div class="card mb-4">
+        <div class="card-body">
+            <div class="d-flex justify-content-between mb-2">
+                <span><i class="fas fa-check-circle text-success"></i> نسبة الترحيل</span>
+                <span class="fw-bold">{{ "%.1f"|format(meal_deductions_stats.transferred_rate) }}%</span>
+            </div>
+            <div class="progress" style="height: 10px;">
+                <div class="progress-bar progress-bar-custom"
+                     style="width: {{ meal_deductions_stats.transferred_rate }}%"></div>
+            </div>
+            <small class="text-muted mt-2 d-block">
+                <i class="fas fa-info-circle"></i>
+                تم ترحيل {{ meal_deductions_stats.transferred_rate|round }}% من إجمالي الخصومات
+                ({{ stats.transferred|default(0)|round }} ريال)
+            </small>
+        </div>
+    </div>
+
+    <!-- Filters -->
+    <div class="card mb-4">
+        <div class="card-body">
+            <div class="d-flex gap-2 flex-wrap align-items-center">
+                <span class="fw-bold me-2"><i class="fas fa-filter"></i> فلترة:</span>
+                <div class="btn-group btn-group-sm">
+                    <button class="btn btn-outline-secondary filter-btn active" data-filter="all">
+                        <i class="fas fa-list"></i> الكل
+                    </button>
+                    <button class="btn btn-outline-warning filter-btn" data-filter="cafeteria">
+                        <i class="fas fa-coffee"></i> بوفية
+                    </button>
+                    <button class="btn btn-outline-danger filter-btn" data-filter="restaurant">
+                        <i class="fas fa-utensils"></i> مطعم
+                    </button>
+                    <button class="btn btn-outline-success filter-btn" data-filter="meal">
+                        <i class="fas fa-hamburger"></i> وجبات
+                    </button>
+                </div>
+                <div class="ms-auto">
+                    <button class="btn btn-sm btn-secondary" onclick="selectAllDeductions()">
+                        <i class="fas fa-check-double"></i> تحديد الكل
+                    </button>
+                    <button class="btn btn-sm btn-primary" onclick="transferSelected()">
+                        <i class="fas fa-arrow-right"></i> ترحيل المحدد
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Deductions Table -->
+    <div class="card">
+        <div class="card-header">
+            <h6><i class="fas fa-table"></i> قائمة خصميات الوجبات</h6>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover mb-0" id="deductionsTable">
+                    <thead class="table-light">
+                        <tr>
+                            <th style="width: 40px;"><input type="checkbox" id="selectAllCheckbox"></th>
+                            <th>الموظف</th>
+                            <th>النوع</th>
+                            <th>التاريخ</th>
+                            <th>المبلغ</th>
+                            <th>الوصف</th>
+                            <th>الحالة</th>
+                            <th style="width: 80px;">الإجراءات</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for deduction in meal_deductions %}
+                        <tr data-type="{{ deduction.deduction_type }}" data-transferred="{{ deduction.is_transferred|lower }}">
+                            <td>
+                                {% if not deduction.is_transferred %}
+                                <input type="checkbox" class="deduction-checkbox" value="{{ deduction.id }}" data-amount="{{ deduction.amount }}">
+                                {% endif %}
+                            </td>
+                            <td>{{ deduction.employee.name if deduction.employee else '-' }}</td>
+                            <td>
+                                {% if deduction.deduction_type == 'cafeteria' %}
+                                <span class="badge bg-warning"><i class="fas fa-coffee"></i> بوفية</span>
+                                {% elif deduction.deduction_type == 'restaurant' %}
+                                <span class="badge bg-danger"><i class="fas fa-utensils"></i> مطعم</span>
+                                {% else %}
+                                <span class="badge bg-success"><i class="fas fa-hamburger"></i> وجبات</span>
+                                {% endif %}
+                            </td>
+                            <td>{{ deduction.deduction_date.strftime('%Y-%m-%d') }}</td>
+                            <td class="fw-bold amount-{{ deduction.deduction_type }}">
+                                {{ "{:,.0f}".format(deduction.amount) }} ر.ي
+                            </td>
+                            <td>{{ deduction.description or '-' }}</td>
+                            <td>
+                                {% if deduction.is_transferred %}
+                                <span class="badge bg-success">
+                                    <i class="fas fa-check-circle"></i> مرحل
+                                </span>
+                                {% else %}
+                                <span class="badge bg-warning">
+                                    <i class="fas fa-clock"></i> غير مرحل
+                                </span>
+                                {% endif %}
+                             </td>
+                            <td>
+                                {% if not deduction.is_transferred %}
+                                <button class="btn btn-sm btn-danger" onclick="deleteDeduction({{ deduction.id }})" title="حذف">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                                {% endif %}
+                             </td>
+                         </tr>
+                        {% else %}
+                        <tr>
+                            <td colspan="8" class="text-center text-muted py-5">
+                                <i class="fas fa-info-circle fa-2x mb-2 d-block"></i>
+                                لا توجد خصومات
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Add Deduction Modal -->
+<div class="modal fade" id="addDeductionModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header" id="modalHeader">
+                <h5 class="modal-title">إضافة خصم</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form id="addDeductionForm">
+                <div class="modal-body">
+                    <input type="hidden" name="deduction_type" id="deduction_type">
+                    <div class="mb-3">
+                        <label class="form-label">الموظف <span class="text-danger">*</span></label>
+                        <select name="employee_ids" class="form-select" multiple required style="height: 150px;">
+                            {% for emp in employees %}
+                            <option value="{{ emp.id }}">{{ emp.name }} ({{ emp.code or 'بدون كود' }})</option>
+                            {% endfor %}
+                        </select>
+                        <small class="text-muted">يمكن اختيار عدة موظفين (Ctrl+Click)</small>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">المبلغ <span class="text-danger">*</span></label>
+                        <input type="number" name="amount" class="form-control" step="0.01" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">التاريخ <span class="text-danger">*</span></label>
+                        <input type="date" name="deduction_date" class="form-control" value="{{ today.strftime('%Y-%m-%d') }}" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">الوصف</label>
+                        <textarea name="description" class="form-control" rows="2" placeholder="اختياري..."></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">إلغاء</button>
+                    <button type="submit" class="btn btn-primary">حفظ</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Settings Modal -->
+<div class="modal fade" id="settingsModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header bg-info text-white">
+                <h5 class="modal-title"><i class="fas fa-cog"></i> إعدادات خصم الوجبات</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <ul class="nav nav-tabs" id="settingsTabs">
+                    <li class="nav-item">
+                        <a class="nav-link active" data-bs-toggle="tab" href="#mealSettings">
+                            <i class="fas fa-hamburger"></i> الوجبات
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" data-bs-toggle="tab" href="#cafeteriaSettings">
+                            <i class="fas fa-coffee"></i> البوفية
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" data-bs-toggle="tab" href="#restaurantSettings">
+                            <i class="fas fa-utensils"></i> المطعم
+                        </a>
+                    </li>
+                </ul>
+                <div class="tab-content mt-3">
+                    <div class="tab-pane fade show active" id="mealSettings">
+                        <form method="POST" action="{{ url_for('add_meal_deduction') }}">
+                            <input type="hidden" name="deduction_type" value="meal">
+                            <div class="mb-3">
+                                <label class="form-label">الاسم (عربي)</label>
+                                <input type="text" name="name_ar" class="form-control" value="خصم الوجبات" required>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">المبلغ الافتراضي</label>
+                                <input type="number" name="default_amount" class="form-control" step="0.01" value="0">
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">الحساب المحاسبي</label>
+                                <select name="account_code" class="form-select" required>
+                                    <option value="511008">511008 - مصروف وجبات</option>
+                                    <option value="130002">130002 - ذمم موظفين وجبات</option>
+                                </select>
+                            </div>
+                            <button type="submit" class="btn btn-primary">حفظ الإعدادات</button>
+                        </form>
+                    </div>
+                    <div class="tab-pane fade" id="cafeteriaSettings">
+                        <form method="POST" action="{{ url_for('add_meal_deduction') }}">
+                            <input type="hidden" name="deduction_type" value="cafeteria">
+                            <div class="mb-3">
+                                <label class="form-label">الاسم (عربي)</label>
+                                <input type="text" name="name_ar" class="form-control" value="خصم البوفية" required>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">المبلغ الافتراضي</label>
+                                <input type="number" name="default_amount" class="form-control" step="0.01" value="0">
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">الحساب المحاسبي</label>
+                                <select name="account_code" class="form-select" required>
+                                    <option value="511009">511009 - مصروف بوفية</option>
+                                    <option value="130003">130003 - ذمم موظفين بوفية</option>
+                                </select>
+                            </div>
+                            <button type="submit" class="btn btn-primary">حفظ الإعدادات</button>
+                        </form>
+                    </div>
+                    <div class="tab-pane fade" id="restaurantSettings">
+                        <form method="POST" action="{{ url_for('add_meal_deduction') }}">
+                            <input type="hidden" name="deduction_type" value="restaurant">
+                            <div class="mb-3">
+                                <label class="form-label">الاسم (عربي)</label>
+                                <input type="text" name="name_ar" class="form-control" value="خصم المطعم" required>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">المبلغ الافتراضي</label>
+                                <input type="number" name="default_amount" class="form-control" step="0.01" value="0">
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">الحساب المحاسبي</label>
+                                <select name="account_code" class="form-select" required>
+                                    <option value="511010">511010 - مصروف مطعم</option>
+                                    <option value="130004">130004 - ذمم موظفين مطعم</option>
+                                </select>
+                            </div>
+                            <button type="submit" class="btn btn-primary">حفظ الإعدادات</button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Global variables
+let currentModal = null;
+
+// Show add deduction modal
+function showAddDeductionModal(type) {
+    const modal = new bootstrap.Modal(document.getElementById('addDeductionModal'));
+    const header = document.getElementById('modalHeader');
+    const titles = {
+        'cafeteria': 'خصم بوفية',
+        'restaurant': 'خصم مطعم',
+        'meal': 'خصم وجبات'
+    };
+    const colors = {
+        'cafeteria': 'warning',
+        'restaurant': 'danger',
+        'meal': 'success'
+    };
+    header.innerHTML = `<h5 class="modal-title">${titles[type]}</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button>`;
+    header.className = `modal-header bg-${colors[type]} text-white`;
+    document.getElementById('deduction_type').value = type;
+    modal.show();
+}
+
+// Show settings modal
+function showSettingsModal() {
+    new bootstrap.Modal(document.getElementById('settingsModal')).show();
+}
+
+// Add deduction form submit
+document.getElementById('addDeductionForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const formData = new FormData(e.target);
+    const data = Object.fromEntries(formData.entries());
+    data.employee_ids = formData.getAll('employee_ids');
+
+    if (data.employee_ids.length === 0) {
+        alert('الرجاء اختيار موظف واحد على الأقل');
+        return;
+    }
+    if (!data.amount || parseFloat(data.amount) <= 0) {
+        alert('الرجاء إدخال مبلغ صحيح');
+        return;
+    }
+
+    const response = await fetch('/meal-deductions/add', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data)
+    });
+    const result = await response.json();
+    if (result.success) {
+        bootstrap.Modal.getInstance(document.getElementById('addDeductionModal')).hide();
+        location.reload();
+    } else {
+        alert(result.message);
+    }
+});
+
+// Delete deduction
+function deleteDeduction(id) {
+    if (confirm('هل أنت متأكد من حذف هذا الخصم؟')) {
+        fetch(`/meal-deductions/delete/${id}`, { method: 'POST' })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) location.reload();
+                else alert(data.message);
+            });
+    }
+}
+// Transfer selected deductions - بنفس منطق bulk_transfer_transactions
+function transferSelected() {
+    const selected = [];
+    document.querySelectorAll('.deduction-checkbox:checked').forEach(cb => {
+        selected.push(cb.value);
+    });
+
+    if (selected.length === 0) {
+        alert('⚠️ الرجاء اختيار خصومات للترحيل');
+        return;
+    }
+
+    if (confirm(`✅ هل أنت متأكد من ترحيل ${selected.length} خصم إلى الراتب؟`)) {
+        // إظهار مؤشر التحميل
+        const btn = event.currentTarget;
+        const originalText = btn.innerHTML;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> جاري الترحيل...';
+        btn.disabled = true;
+
+        fetch('/meal-deductions/transfer-bulk', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest'
+            },
+            body: JSON.stringify({ deduction_ids: selected })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                alert(data.message);
+                location.reload();
+            } else {
+                alert('❌ ' + (data.message || 'حدث خطأ أثناء الترحيل'));
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('❌ حدث خطأ في الاتصال بالخادم');
+        })
+        .finally(() => {
+            btn.innerHTML = originalText;
+            btn.disabled = false;
+        });
+    }
+}
+
+// Select all deductions
+function selectAllDeductions() {
+    const checkboxes = document.querySelectorAll('.deduction-checkbox');
+    const allChecked = Array.from(checkboxes).every(cb => cb.checked);
+    checkboxes.forEach(cb => cb.checked = !allChecked);
+}
+
+// Filter functionality
+document.querySelectorAll('.filter-btn').forEach(btn => {
+    btn.addEventListener('click', function() {
+        const filter = this.dataset.filter;
+        document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+        this.classList.add('active');
+        const rows = document.querySelectorAll('#deductionsTable tbody tr');
+        rows.forEach(row => {
+            const type = row.dataset.type;
+            if (filter === 'all' || type === filter) {
+                row.style.display = '';
+            } else {
+                row.style.display = 'none';
+            }
+        });
+    });
+});
+
+// Select all checkbox
+document.getElementById('selectAllCheckbox')?.addEventListener('change', function() {
+    document.querySelectorAll('.deduction-checkbox').forEach(cb => cb.checked = this.checked);
+});
+</script>
+{% endblock %}

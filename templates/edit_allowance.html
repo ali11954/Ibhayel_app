@@ -1,0 +1,315 @@
+{% extends "base.html" %}
+
+{% block title %}تعديل بدل - طلعت هائل{% endblock %}
+
+{% block extra_css %}
+<style>
+    .edit-header {
+        background: linear-gradient(135deg, #17a2b8 0%, #138496 100%);
+        border-radius: 20px;
+        padding: 1.5rem;
+        margin-bottom: 1.5rem;
+        color: white;
+        position: relative;
+        overflow: hidden;
+    }
+
+    .edit-header::before {
+        content: '';
+        position: absolute;
+        top: -50%;
+        right: -50%;
+        width: 200%;
+        height: 200%;
+        background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, transparent 70%);
+        animation: rotate 20s linear infinite;
+    }
+
+    .form-card {
+        border: none;
+        border-radius: 20px;
+        box-shadow: var(--shadow-lg);
+        overflow: hidden;
+    }
+
+    .form-card-header {
+        background: linear-gradient(135deg, #ffffff, #f8f9fa);
+        border-bottom: 3px solid #17a2b8;
+        padding: 1.2rem 1.5rem;
+    }
+
+    .form-group-custom {
+        margin-bottom: 1.5rem;
+    }
+
+    .form-label-custom {
+        font-weight: 600;
+        color: var(--dark-color);
+        margin-bottom: 0.5rem;
+        display: block;
+    }
+
+    .form-label-custom i {
+        color: #17a2b8;
+        margin-left: 8px;
+    }
+
+    .info-box {
+        background: linear-gradient(135deg, #e3f2fd, #bbdef5);
+        border-radius: 15px;
+        padding: 1rem;
+        margin-top: 1rem;
+    }
+
+    .action-buttons {
+        display: flex;
+        gap: 1rem;
+        margin-top: 2rem;
+        padding-top: 1rem;
+        border-top: 1px solid #e9ecef;
+    }
+
+    .btn-custom {
+        padding: 0.7rem 1.5rem;
+        border-radius: 12px;
+        font-weight: 600;
+        transition: all 0.3s ease;
+    }
+
+    .paid-to-employee {
+        background-color: #28a745;
+        color: white;
+        padding: 0.3rem 0.8rem;
+        border-radius: 20px;
+        font-size: 0.8rem;
+    }
+
+    .paid-to-company {
+        background-color: #fd7e14;
+        color: white;
+        padding: 0.3rem 0.8rem;
+        border-radius: 20px;
+        font-size: 0.8rem;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="edit-header">
+    <div class="row align-items-center">
+        <div class="col-md-8">
+            <h2 class="mb-2">
+                <i class="fas fa-edit me-2"></i>
+                تعديل بدل إضافي
+            </h2>
+            <p class="mb-0 opacity-75">تعديل بيانات البدل: {{ allowance.name_ar }}</p>
+        </div>
+        <div class="col-md-4 text-center">
+            <div class="employee-avatar-large mx-auto">
+                <i class="fas fa-edit fa-2x"></i>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="form-card">
+    <div class="form-card-header">
+        <h4><i class="fas fa-sliders-h"></i> بيانات البدل</h4>
+    </div>
+    <div class="card-body p-4">
+        <form method="POST">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="form-group-custom">
+                        <label class="form-label-custom">
+                            <i class="fas fa-language"></i> الاسم (عربي) <span class="text-danger">*</span>
+                        </label>
+                        <input type="text" class="form-control" name="name_ar" value="{{ allowance.name_ar }}" required>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="form-group-custom">
+                        <label class="form-label-custom">
+                            <i class="fas fa-code"></i> الاسم (إنجليزي) <span class="text-danger">*</span>
+                        </label>
+                        <input type="text" class="form-control" name="name" value="{{ allowance.name }}" required>
+                    </div>
+                </div>
+            </div>
+
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="form-group-custom">
+                        <label class="form-label-custom"><i class="fas fa-tag"></i> نوع البدل</label>
+                        <select class="form-select" name="allowance_type" id="allowanceType">
+                            <option value="fixed" {% if allowance.allowance_type == 'fixed' %}selected{% endif %}>ثابت (مبلغ محدد)</option>
+                            <option value="percentage" {% if allowance.allowance_type == 'percentage' %}selected{% endif %}>نسبة مئوية</option>
+                            <option value="daily" {% if allowance.allowance_type == 'daily' %}selected{% endif %}>يومي</option>
+                            <option value="monthly" {% if allowance.allowance_type == 'monthly' %}selected{% endif %}>شهري</option>
+                            <option value="yearly" {% if allowance.allowance_type == 'yearly' %}selected{% endif %}>سنوي</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="form-group-custom">
+                        <label class="form-label-custom"><i class="fas fa-coins"></i> القيمة</label>
+                        <input type="number" class="form-control" name="value" value="{{ allowance.value }}" step="0.01" required>
+                    </div>
+                </div>
+            </div>
+
+            <div class="row">
+                <div class="col-md-6" id="basedOnDiv" style="display: {% if allowance.allowance_type == 'percentage' %}block{% else %}none{% endif %};">
+                    <div class="form-group-custom">
+                        <label class="form-label-custom"><i class="fas fa-calculator"></i> محسوب على أساس</label>
+                        <select class="form-select" name="based_on">
+                            <option value="basic_salary" {% if allowance.based_on == 'basic_salary' %}selected{% endif %}>الراتب الأساسي</option>
+                            <option value="attendance_days" {% if allowance.based_on == 'attendance_days' %}selected{% endif %}>أيام الحضور</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="form-group-custom">
+                        <label class="form-label-custom"><i class="fas fa-chart-line"></i> طريقة الحساب</label>
+                        <select class="form-select" name="calculation_method" id="calculationMethod">
+                            <option value="add" {% if allowance.calculation_method == 'add' %}selected{% endif %}>➕ إضافة على الراتب</option>
+                            <option value="subtract_basic" {% if allowance.calculation_method == 'subtract_basic' %}selected{% endif %}>➖ خصم من الراتب الأساسي</option>
+                            <option value="subtract_total" {% if allowance.calculation_method == 'subtract_total' %}selected{% endif %}>➖ خصم من الراتب الشامل</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="form-group-custom">
+                        <label class="form-label-custom"><i class="fas fa-users"></i> يطبق على</label>
+                        <select class="form-select" name="applies_to">
+                            <option value="all" {% if allowance.applies_to == 'all' %}selected{% endif %}>الجميع</option>
+                            <option value="resident_only" {% if allowance.applies_to == 'resident_only' %}selected{% endif %}>الساكنين فقط</option>
+                            <option value="non_resident_only" {% if allowance.applies_to == 'non_resident_only' %}selected{% endif %}>غير الساكنين فقط</option>
+                            <option value="worker_only" {% if allowance.applies_to == 'worker_only' %}selected{% endif %}>العمال فقط</option>
+                            <option value="admin_only" {% if allowance.applies_to == 'admin_only' %}selected{% endif %}>الإدارة فقط</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="form-group-custom">
+                        <label class="form-label-custom"><i class="fas fa-hand-holding-usd"></i> جهة الصرف</label>
+                        <select class="form-select" name="paid_to" id="paidTo">
+                            <option value="employee" {% if allowance.paid_to == 'employee' %}selected{% endif %}>
+                                👤 الموظف (يضاف للراتب النقدي)
+                            </option>
+                            <option value="company" {% if allowance.paid_to == 'company' %}selected{% endif %}>
+                                🏢 الشركة/المتعهد (يقيد في حسابات الشركة)
+                            </option>
+                        </select>
+                        <small class="text-muted" id="paidToHelp">
+                            {% if allowance.paid_to == 'employee' %}
+                            سيتم إضافة هذا البدل إلى الراتب النقدي للموظف
+                            {% else %}
+                            سيتم تسجيل هذا البدل كالتزام على الشركة ولا يصرف للموظف نقداً
+                            {% endif %}
+                        </small>
+                    </div>
+                </div>
+            </div>
+
+            <div class="row">
+                <div class="col-md-12">
+                    <div class="form-group-custom">
+                        <label class="form-label-custom"><i class="fas fa-book"></i> الحساب المحاسبي</label>
+                        <select class="form-select" name="account_code">
+                            <option value="">-- اختر الحساب --</option>
+                            <optgroup label="📊 حسابات المصروفات (للإضافات)">
+                                <option value="511001" {% if allowance.account_code == '511001' %}selected{% endif %}>511001 - مصروف رواتب العمال الأساسية</option>
+                                <option value="511002" {% if allowance.account_code == '511002' %}selected{% endif %}>511002 - مصروف بدل سكن العمال</option>
+                                <option value="511003" {% if allowance.account_code == '511003' %}selected{% endif %}>511003 - مصروف تأمين العمال</option>
+                                <option value="511004" {% if allowance.account_code == '511004' %}selected{% endif %}>511004 - مصروف بدل ملابس العمال</option>
+                                <option value="511005" {% if allowance.account_code == '511005' %}selected{% endif %}>511005 - مصروف بطائق صحية للعمال</option>
+                            </optgroup>
+                            <optgroup label="🏦 حسابات الخصوم (للخصومات)">
+                                <option value="210001" {% if allowance.account_code == '210001' %}selected{% endif %}>210001 - الرواتب المستحقة</option>
+                                <option value="211001" {% if allowance.account_code == '211001' %}selected{% endif %}>211001 - رواتب العمال المستحقة</option>
+                            </optgroup>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <div class="row">
+                <div class="col-md-12">
+                    <div class="form-group-custom">
+                        <label class="form-label-custom"><i class="fas fa-align-left"></i> الوصف</label>
+                        <textarea class="form-control" name="description" rows="2">{{ allowance.description or '' }}</textarea>
+                    </div>
+                </div>
+            </div>
+
+            <div class="row">
+                <div class="col-md-12">
+                    <div class="form-check form-switch">
+                        <input class="form-check-input" type="checkbox" name="is_active" id="isActive" style="width: 3rem; height: 1.5rem;" {% if allowance.is_active %}checked{% endif %}>
+                        <label class="form-check-label" for="isActive">
+                            <i class="fas fa-check-circle text-success"></i> فعال
+                        </label>
+                    </div>
+                </div>
+            </div>
+
+            <div class="info-box mt-3">
+                <div class="d-flex align-items-start gap-3">
+                    <i class="fas fa-info-circle fa-lg text-info"></i>
+                    <div>
+                        <strong>معلومات توضيحية</strong><br>
+                        <small class="text-muted">
+                            <i class="fas fa-check-circle text-success me-1"></i> <strong>جهة الصرف - الموظف:</strong> يضاف المبلغ إلى الراتب النقدي للموظف (مثل بدل السكن، بدل مواصلات)<br>
+                            <i class="fas fa-check-circle text-warning me-1"></i> <strong>جهة الصرف - الشركة:</strong> يتم تسجيل المبلغ كالتزام على الشركة ولا يصرف للموظف (مثل بدل الملابس، بطاقة صحية، تأمين)
+                        </small>
+                    </div>
+                </div>
+            </div>
+
+            <div class="action-buttons">
+                <button type="submit" class="btn btn-primary btn-custom">
+                    <i class="fas fa-save"></i> حفظ التغييرات
+                </button>
+                <a href="{{ url_for('system_settings') }}" class="btn btn-secondary btn-custom">
+                    <i class="fas fa-times"></i> إلغاء
+                </a>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+    const allowanceType = document.getElementById('allowanceType');
+    const basedOnDiv = document.getElementById('basedOnDiv');
+    const paidTo = document.getElementById('paidTo');
+    const paidToHelp = document.getElementById('paidToHelp');
+
+    if (allowanceType) {
+        allowanceType.addEventListener('change', function() {
+            if (this.value === 'percentage') {
+                basedOnDiv.style.display = 'block';
+            } else {
+                basedOnDiv.style.display = 'none';
+            }
+        });
+    }
+
+    if (paidTo) {
+        paidTo.addEventListener('change', function() {
+            if (this.value === 'employee') {
+                paidToHelp.innerHTML = 'سيتم إضافة هذا البدل إلى الراتب النقدي للموظف';
+                paidToHelp.className = 'text-success';
+            } else {
+                paidToHelp.innerHTML = 'سيتم تسجيل هذا البدل كالتزام على الشركة ولا يصرف للموظف نقداً';
+                paidToHelp.className = 'text-warning';
+            }
+        });
+    }
+</script>
+{% endblock %}

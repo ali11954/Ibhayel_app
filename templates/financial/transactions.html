@@ -106,6 +106,10 @@
     .type-overtime { background: #28a745; color: white; }
     .type-deduction { background: #dc3545; color: white; }
     .type-penalty { background: #6c757d; color: white; }
+    /* ✅ إضافة أنواع جديدة */
+    .type-cafeteria { background: #f39c12; color: white; }
+    .type-restaurant { background: #e74a3b; color: white; }
+    .type-meal { background: #27ae60; color: white; }
 
     .amount-positive { color: #28a745; font-weight: 700; }
     .amount-negative { color: #dc3545; font-weight: 700; }
@@ -211,10 +215,6 @@
         height: 20px;
         cursor: pointer;
     }
-
-    .text-muted i {
-        font-size: 1rem;
-    }
 </style>
 {% endblock %}
 
@@ -226,7 +226,7 @@
                 <i class="fas fa-money-bill-wave"></i>
                 الإضافي والخصميات
             </h2>
-            <p class="text-muted mb-0 mt-2">إدارة السلف، الإضافي، الخصميات والجزاءات للموظفين</p>
+            <p class="text-muted mb-0 mt-2">إدارة السلف، الإضافي، الخصميات، الجزاءات، البوفية والمطعم</p>
         </div>
         <div class="d-flex gap-2">
             <button id="bulkTransferBtn" class="btn btn-success" style="display: none;">
@@ -242,28 +242,40 @@
 <!-- إحصائيات المعاملات -->
 <div class="transactions-stats">
     <div class="row">
-        <div class="col-md-3 col-6">
+        <div class="col-md-2 col-6">
             <div class="stat-item">
                 <p class="stat-number mb-0">{{ transactions|length }}</p>
                 <p class="stat-label">إجمالي المعاملات</p>
             </div>
         </div>
-        <div class="col-md-3 col-6">
+        <div class="col-md-2 col-6">
             <div class="stat-item">
                 <p class="stat-number mb-0 text-warning">{{ transactions|selectattr('transaction_type', 'equalto', 'advance')|list|length }}</p>
                 <p class="stat-label">سلف</p>
             </div>
         </div>
-        <div class="col-md-3 col-6">
+        <div class="col-md-2 col-6">
             <div class="stat-item">
                 <p class="stat-number mb-0 text-success">{{ transactions|selectattr('transaction_type', 'equalto', 'overtime')|list|length }}</p>
                 <p class="stat-label">إضافي</p>
             </div>
         </div>
-        <div class="col-md-3 col-6">
+        <div class="col-md-2 col-6">
             <div class="stat-item">
                 <p class="stat-number mb-0 text-danger">{{ transactions|selectattr('transaction_type', 'in', ['deduction', 'penalty'])|list|length }}</p>
                 <p class="stat-label">خصم/جزاء</p>
+            </div>
+        </div>
+        <div class="col-md-2 col-6">
+            <div class="stat-item">
+                <p class="stat-number mb-0" style="color: #f39c12;">{{ transactions|selectattr('transaction_type', 'equalto', 'cafeteria')|list|length }}</p>
+                <p class="stat-label">بوفية</p>
+            </div>
+        </div>
+        <div class="col-md-2 col-6">
+            <div class="stat-item">
+                <p class="stat-number mb-0" style="color: #e74a3b;">{{ transactions|selectattr('transaction_type', 'equalto', 'restaurant')|list|length }}</p>
+                <p class="stat-label">مطعم</p>
             </div>
         </div>
     </div>
@@ -272,7 +284,7 @@
 <!-- شريط البحث والفلترة -->
 <div class="search-section">
     <div class="row align-items-center">
-        <div class="col-md-4 mb-3 mb-md-0">
+        <div class="col-md-3 mb-3 mb-md-0">
             <div class="input-group">
                 <span class="input-group-text bg-white border-end-0">
                     <i class="fas fa-search text-muted"></i>
@@ -288,6 +300,9 @@
                 <option value="overtime">إضافي</option>
                 <option value="deduction">خصم</option>
                 <option value="penalty">جزاء</option>
+                <option value="cafeteria">بوفية</option>
+                <option value="restaurant">مطعم</option>
+                <option value="meal">وجبات</option>
             </select>
         </div>
         <div class="col-md-3 mb-3 mb-md-0">
@@ -298,7 +313,7 @@
                 {% endfor %}
             </select>
         </div>
-        <div class="col-md-2">
+        <div class="col-md-3">
             <div class="d-flex gap-2">
                 <button id="filterPending" class="filter-btn flex-grow-1 text-center" data-status="pending">
                     <i class="fas fa-clock"></i> معلقة
@@ -313,7 +328,7 @@
 
 <!-- إجمالي المبالغ -->
 <div class="row mb-3">
-    <div class="col-md-4">
+    <div class="col-md-3">
         <div class="total-card">
             <small class="text-muted">إجمالي السلف</small>
             <div class="total-amount text-warning">
@@ -321,7 +336,7 @@
             </div>
         </div>
     </div>
-    <div class="col-md-4">
+    <div class="col-md-3">
         <div class="total-card">
             <small class="text-muted">إجمالي الإضافي</small>
             <div class="total-amount text-success">
@@ -329,11 +344,19 @@
             </div>
         </div>
     </div>
-    <div class="col-md-4">
+    <div class="col-md-3">
         <div class="total-card">
             <small class="text-muted">إجمالي الخصم والجزاء</small>
             <div class="total-amount text-danger">
                 - {{ transactions|selectattr('transaction_type', 'in', ['deduction', 'penalty'])|sum(attribute='amount')|round|int }} ر.ي
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="total-card">
+            <small class="text-muted">إجمالي بوفية/مطعم</small>
+            <div class="total-amount" style="color: #f39c12;">
+                - {{ transactions|selectattr('transaction_type', 'in', ['cafeteria', 'restaurant', 'meal'])|sum(attribute='amount')|round|int }} ر.ي
             </div>
         </div>
     </div>
@@ -374,16 +397,16 @@
                                 <i class="fas fa-user-circle text-primary"></i>
                                 <strong>{{ trans.employee.name }}</strong>
                             </div>
-                            <small class="text-muted">{{ trans.employee.code }}</small>
+                            <small class="text-muted">{{ trans.employee.code or '' }}</small>
                         </td>
                         <td>
                             <span class="transaction-type-badge type-{{ trans.transaction_type }}">
-                                <i class="fas {% if trans.transaction_type == 'advance' %}fa-hand-holding-usd{% elif trans.transaction_type == 'overtime' %}fa-clock{% elif trans.transaction_type == 'deduction' %}fa-minus-circle{% else %}fa-gavel{% endif %}"></i>
+                                <i class="fas {% if trans.transaction_type == 'advance' %}fa-hand-holding-usd{% elif trans.transaction_type == 'overtime' %}fa-clock{% elif trans.transaction_type == 'deduction' %}fa-minus-circle{% elif trans.transaction_type == 'penalty' %}fa-gavel{% elif trans.transaction_type == 'cafeteria' %}fa-coffee{% elif trans.transaction_type == 'restaurant' %}fa-utensils{% else %}fa-hamburger{% endif %}"></i>
                                 {{ trans.get_type_name() }}
                             </span>
                         </td>
-                        <td class="{% if trans.transaction_type in ['advance', 'deduction', 'penalty'] %}amount-negative{% else %}amount-positive{% endif %}">
-                            {% if trans.transaction_type in ['advance', 'deduction', 'penalty'] %}-{% else %}+{% endif %}
+                        <td class="{% if trans.transaction_type in ['advance', 'deduction', 'penalty', 'cafeteria', 'restaurant', 'meal'] %}amount-negative{% else %}amount-positive{% endif %}">
+                            {% if trans.transaction_type in ['advance', 'deduction', 'penalty', 'cafeteria', 'restaurant', 'meal'] %}-{% else %}+{% endif %}
                             {{ "{:,.0f}".format(trans.amount) }} ر.ي
                         </td>
                         <td>
@@ -414,12 +437,10 @@
                         <td>
                             <div class="action-buttons">
                                 {% if not trans.is_settled %}
-                                    <!-- زر الترحيل -->
                                     <button class="btn btn-icon btn-transfer" onclick="transferToSalary({{ trans.id }})" title="ترحيل إلى الراتب">
                                         <i class="fas fa-exchange-alt"></i>
                                     </button>
 
-                                    <!-- زر الحذف (يظهر فقط إذا لم يكن للمعاملة قيد محاسبي) -->
                                     {% if not trans.journal_entry_id %}
                                     <a href="{{ url_for('delete_transaction', trans_id=trans.id) }}"
                                        class="btn btn-icon btn-delete"

@@ -1,0 +1,1725 @@
+{% extends "base.html" %}
+
+{% block title %}لوحة الخصومات والإضافات{% endblock %}
+
+{% block extra_css %}
+<style>
+    :root {
+        --loan-color: #4e73df;
+        --penalty-color: #e74a3b;
+        --overtime-color: #f6c23e;
+        --meal-color: #28a745;
+    }
+
+    /* بطاقات الإحصائيات */
+    .dashboard-stat-card {
+        border-radius: 15px;
+        border: none;
+        box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
+        transition: all 0.3s ease;
+        overflow: hidden;
+        position: relative;
+    }
+
+    .dashboard-stat-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 1rem 2rem rgba(0, 0, 0, 0.2);
+    }
+
+    .stat-card-loan {
+        background: linear-gradient(135deg, #4e73df, #224abe);
+    }
+
+    .stat-card-penalty {
+        background: linear-gradient(135deg, #e74a3b, #be2617);
+    }
+
+    .stat-card-overtime {
+        background: linear-gradient(135deg, #f6c23e, #dda20a);
+    }
+
+    .stat-card-total {
+        background: linear-gradient(135deg, #1cc88a, #169b6b);
+    }
+
+    .stat-card-meal {
+        background: linear-gradient(135deg, #28a745, #1e7e34);
+    }
+
+    .stat-card::after {
+        font-family: 'Font Awesome 5 Free';
+        font-weight: 900;
+        position: absolute;
+        bottom: -10px;
+        right: -10px;
+        font-size: 5rem;
+        opacity: 0.2;
+        color: white;
+    }
+
+    .stat-card-loan::after { content: '\f51e'; }
+    .stat-card-penalty::after { content: '\f071'; }
+    .stat-card-overtime::after { content: '\f252'; }
+    .stat-card-total::after { content: '\f201'; }
+    .stat-card-meal::after { content: '\f2e7'; }
+
+    /* أزرار الإجراءات السريعة */
+    .quick-action-card {
+        background: white;
+        border-radius: 15px;
+        padding: 1.5rem;
+        text-align: center;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        border: 2px solid transparent;
+        box-shadow: 0 0.15rem 1.75rem rgba(58, 59, 69, 0.1);
+    }
+
+    .quick-action-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 0.5rem 2rem rgba(0, 0, 0, 0.15);
+    }
+
+    .quick-action-card.loan {
+        border-color: var(--loan-color);
+    }
+    .quick-action-card.loan .icon {
+        background: var(--loan-color);
+    }
+
+    .quick-action-card.penalty {
+        border-color: var(--penalty-color);
+    }
+    .quick-action-card.penalty .icon {
+        background: var(--penalty-color);
+    }
+
+    .quick-action-card.overtime {
+        border-color: var(--overtime-color);
+    }
+    .quick-action-card.overtime .icon {
+        background: var(--overtime-color);
+    }
+
+    .quick-action-card.meal {
+        border-color: var(--meal-color);
+    }
+    .quick-action-card.meal .icon {
+        background: var(--meal-color);
+    }
+
+    .quick-action-card .icon {
+        width: 60px;
+        height: 60px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin: 0 auto 1rem;
+        color: white;
+        font-size: 1.5rem;
+        transition: all 0.3s ease;
+    }
+
+    .quick-action-card:hover .icon {
+        transform: scale(1.1);
+    }
+
+    /* تنسيقات الجداول */
+    .data-table {
+        border-radius: 15px;
+        overflow: hidden;
+        box-shadow: 0 0.15rem 1.75rem rgba(58, 59, 69, 0.1);
+    }
+
+    .data-table thead th {
+        background-color: #f8f9fc;
+        border-bottom: 2px solid #e3e6f0;
+        font-weight: 600;
+        color: #4e73df;
+        font-size: 0.9rem;
+    }
+
+    .data-table tbody tr {
+        transition: all 0.2s ease;
+    }
+
+    .data-table tbody tr:hover {
+        background-color: #f8f9fc;
+    }
+
+    .badge-loan {
+        background-color: rgba(78, 115, 223, 0.2);
+        color: #4e73df;
+        border: 1px solid #4e73df;
+        padding: 0.35rem 0.75rem;
+        border-radius: 20px;
+        font-size: 0.75rem;
+        font-weight: 600;
+    }
+
+    .badge-penalty {
+        background-color: rgba(231, 74, 59, 0.2);
+        color: #e74a3b;
+        border: 1px solid #e74a3b;
+        padding: 0.35rem 0.75rem;
+        border-radius: 20px;
+        font-size: 0.75rem;
+        font-weight: 600;
+    }
+
+    .badge-overtime {
+        background-color: rgba(246, 194, 62, 0.2);
+        color: #f6c23e;
+        border: 1px solid #f6c23e;
+        padding: 0.35rem 0.75rem;
+        border-radius: 20px;
+        font-size: 0.75rem;
+        font-weight: 600;
+    }
+
+    .badge-meal {
+        background-color: rgba(40, 167, 69, 0.2);
+        color: #28a745;
+        border: 1px solid #28a745;
+    }
+
+    .badge-transferred {
+        background-color: rgba(28, 200, 138, 0.2);
+        color: #1cc88a;
+        border: 1px solid #1cc88a;
+    }
+
+    .badge-pending {
+        background-color: rgba(246, 194, 62, 0.2);
+        color: #f6c23e;
+        border: 1px solid #f6c23e;
+    }
+
+    .progress-sm {
+        height: 6px;
+        border-radius: 3px;
+        background-color: #e9ecef;
+    }
+
+    .progress-bar-sm {
+        border-radius: 3px;
+        transition: width 0.5s ease;
+    }
+
+    .section-title {
+        position: relative;
+        padding-bottom: 0.5rem;
+        margin-bottom: 1.5rem;
+    }
+
+    .section-title::after {
+        content: '';
+        position: absolute;
+        bottom: 0;
+        right: 0;
+        width: 50px;
+        height: 3px;
+        background: #4e73df;
+        border-radius: 3px;
+    }
+
+    .filter-card {
+        background: white;
+        border-radius: 15px;
+        border: 1px solid rgba(0, 0, 0, 0.05);
+        box-shadow: 0 0.15rem 1.75rem rgba(58, 59, 69, 0.1);
+        padding: 1.5rem;
+        margin-bottom: 2rem;
+    }
+
+    .nav-pills-custom .nav-link {
+        border-radius: 25px;
+        padding: 0.5rem 1.5rem;
+        margin: 0 0.25rem;
+        color: #6c757d;
+        font-weight: 500;
+        transition: all 0.3s ease;
+    }
+
+    .nav-pills-custom .nav-link:hover {
+        background-color: #f8f9fc;
+        transform: translateY(-2px);
+    }
+
+    .nav-pills-custom .nav-link.active {
+        background: linear-gradient(135deg, #4e73df, #224abe);
+        color: white;
+        box-shadow: 0 0.5rem 1rem rgba(78, 115, 223, 0.3);
+    }
+
+    .nav-pills-custom .nav-link.loan.active {
+        background: linear-gradient(135deg, #4e73df, #224abe);
+    }
+
+    .nav-pills-custom .nav-link.penalty.active {
+        background: linear-gradient(135deg, #e74a3b, #be2617);
+    }
+
+    .nav-pills-custom .nav-link.overtime.active {
+        background: linear-gradient(135deg, #f6c23e, #dda20a);
+    }
+
+    .nav-pills-custom .nav-link.meal.active {
+        background: linear-gradient(135deg, #28a745, #1e7e34);
+    }
+
+    .amount-positive {
+        color: #1cc88a;
+        font-weight: 600;
+    }
+
+    .amount-negative {
+        color: #e74a3b;
+        font-weight: 600;
+    }
+
+    .employee-avatar {
+        width: 35px;
+        height: 35px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        font-weight: bold;
+        font-size: 0.9rem;
+    }
+
+    @keyframes fadeIn {
+        from { opacity: 0; transform: translateY(20px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+
+    .fade-in {
+        animation: fadeIn 0.5s ease forwards;
+    }
+
+    .summary-card {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border-radius: 15px;
+        padding: 1.5rem;
+        margin-bottom: 2rem;
+    }
+
+    .summary-card .stat {
+        text-align: center;
+        padding: 1rem;
+        border-right: 1px solid rgba(255,255,255,0.2);
+    }
+
+    .summary-card .stat:first-child {
+        border-right: none;
+    }
+
+    .summary-card .stat .value {
+        font-size: 1.5rem;
+        font-weight: bold;
+        margin-bottom: 0.25rem;
+    }
+
+    .summary-card .stat .label {
+        font-size: 0.85rem;
+        opacity: 0.9;
+    }
+
+    .text-gradient-primary {
+        background: linear-gradient(135deg, #4e73df, #224abe);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+    <!-- شريط العنوان -->
+    <div class="d-flex justify-content-between align-items-center mb-4 fade-in">
+        <div>
+            <h2 class="text-gradient-primary mb-1">
+                <i class="fas fa-calculator me-2"></i>
+                لوحة الخصومات والإضافات
+            </h2>
+            <p class="text-muted mb-0">إدارة متكاملة للسلف والجزاءات والساعات الإضافية وخصميات البوفية</p>
+        </div>
+        <div class="btn-group">
+            <button class="btn btn-primary" onclick="showAddLoanModal()">
+                <i class="fas fa-hand-holding-usd me-1"></i>إضافة سلفة
+            </button>
+            <button class="btn btn-danger" onclick="showAddPenaltyModal()">
+                <i class="fas fa-exclamation-triangle me-1"></i>إضافة جزاء
+            </button>
+            <button class="btn btn-warning" onclick="showAddOvertimeModal()">
+                <i class="fas fa-hourglass-half me-1"></i>إضافة ساعة إضافية
+            </button>
+            <a href="{{ url_for('meal_deductions_list') }}" class="btn btn-success">
+                <i class="fas fa-utensils me-1"></i>خصميات البوفية
+            </a>
+        </div>
+    </div>
+
+    <!-- بطاقات الإحصائيات السريعة -->
+    <div class="row mb-4 fade-in" style="animation-delay: 0.1s">
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="dashboard-stat-card stat-card stat-card-loan text-white p-3">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h6 class="text-white-50 mb-2">إجمالي السلف</h6>
+                        <h3 class="text-white mb-0">{{ "{:,.2f}".format(loan_stats.total|default(0)) }} ر.ي</h3>
+                        <small class="text-white-50">{{ loan_stats.active|default(0) }} سلفة نشطة</small>
+                    </div>
+                    <i class="fas fa-hand-holding-usd fa-3x opacity-50"></i>
+                </div>
+                <div class="mt-2">
+                    <div class="progress progress-sm">
+                        <div class="progress-bar bg-white" style="width: {{ loan_stats.payment_rate|default(0) }}%"></div>
+                    </div>
+                    <small class="text-white-50 mt-1 d-block">نسبة السداد: {{ loan_stats.payment_rate|default(0) }}%</small>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="dashboard-stat-card stat-card stat-card-penalty text-white p-3">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h6 class="text-white-50 mb-2">إجمالي الجزاءات</h6>
+                        <h3 class="text-white mb-0">{{ "{:,.2f}".format(penalty_stats.total|default(0)) }} ر.ي</h3>
+                        <small class="text-white-50">{{ penalty_stats.pending|default(0) }} غير مرحل</small>
+                    </div>
+                    <i class="fas fa-exclamation-triangle fa-3x opacity-50"></i>
+                </div>
+                <div class="mt-2">
+                    <div class="progress progress-sm">
+                        <div class="progress-bar bg-white" style="width: {{ penalty_stats.transferred_rate|default(0) }}%"></div>
+                    </div>
+                    <small class="text-white-50 mt-1 d-block">تم الترحيل: {{ penalty_stats.transferred_rate|default(0) }}%</small>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="dashboard-stat-card stat-card stat-card-overtime text-white p-3">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h6 class="text-white-50 mb-2">الساعات الإضافية</h6>
+                        <h3 class="text-white mb-0">{{ overtime_stats.total_hours|default(0) }} ساعة</h3>
+                        <small class="text-white-50">{{ "{:,.2f}".format(overtime_stats.total_cost|default(0)) }} ر.ي</small>
+                    </div>
+                    <i class="fas fa-hourglass-half fa-3x opacity-50"></i>
+                </div>
+                <div class="mt-2">
+                    <div class="progress progress-sm">
+                        <div class="progress-bar bg-white" style="width: {{ overtime_stats.transferred_rate|default(0) }}%"></div>
+                    </div>
+                    <small class="text-white-50 mt-1 d-block">تم الترحيل: {{ overtime_stats.transferred_rate|default(0) }}%</small>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="dashboard-stat-card stat-card stat-card-meal text-white p-3">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h6 class="text-white-50 mb-2">خصميات البوفية</h6>
+                        <h3 class="text-white mb-0">{{ "{:,.2f}".format(meal_deductions_stats.total|default(0)) }} ر.ي</h3>
+                        <small class="text-white-50">{{ meal_deductions_stats.count|default(0) }} وجبة</small>
+                    </div>
+                    <i class="fas fa-utensils fa-3x opacity-50"></i>
+                </div>
+                <div class="mt-2">
+                    <div class="progress progress-sm">
+                        <div class="progress-bar bg-white" style="width: {{ meal_deductions_stats.transferred_rate|default(0) }}%"></div>
+                    </div>
+                    <small class="text-white-50 mt-1 d-block">تم الترحيل: {{ meal_deductions_stats.transferred_rate|default(0) }}%</small>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="dashboard-stat-card stat-card stat-card-total text-white p-3">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h6 class="text-white-50 mb-2">صافي التأثير</h6>
+                        <h3 class="text-white mb-0">{{ "{:,.2f}".format(net_impact|default(0)) }} ر.ي</h3>
+                        <small class="text-white-50">على كشوف المرتبات</small>
+                    </div>
+                    <i class="fas fa-chart-line fa-3x opacity-50"></i>
+                </div>
+                <div class="mt-2">
+                    <small class="text-white-50">
+                        <i class="fas fa-arrow-up me-1 text-success"></i>إضافات: {{ "{:,.2f}".format(overtime_stats.total_cost|default(0)) }}
+                        <i class="fas fa-arrow-down me-1 ms-2 text-danger"></i>خصومات: {{ "{:,.2f}".format((loan_stats.total|default(0) - loan_stats.paid|default(0)) + penalty_stats.total|default(0) + meal_deductions_stats.total|default(0)) }}
+                    </small>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- أزرار الإجراءات السريعة -->
+    <div class="row mb-4 fade-in" style="animation-delay: 0.2s">
+        <div class="col-md-3 mb-3">
+            <div class="quick-action-card loan" onclick="window.location.href='/loans'">
+                <div class="icon" style="background: var(--loan-color);">
+                    <i class="fas fa-hand-holding-usd"></i>
+                </div>
+                <h5>إدارة السلف</h5>
+                <p class="text-muted small">عرض وإدارة جميع السلف والاقتراض</p>
+                <span class="badge bg-primary">{{ loan_stats.active|default(0) }} نشط</span>
+            </div>
+        </div>
+        <div class="col-md-3 mb-3">
+            <div class="quick-action-card penalty" onclick="window.location.href='/penalties'">
+                <div class="icon" style="background: var(--penalty-color);">
+                    <i class="fas fa-exclamation-triangle"></i>
+                </div>
+                <h5>إدارة الجزاءات</h5>
+                <p class="text-muted small">عرض وإدارة جميع الجزاءات</p>
+                <span class="badge bg-danger">{{ penalty_stats.pending|default(0) }} غير مرحل</span>
+            </div>
+        </div>
+        <div class="col-md-3 mb-3">
+            <div class="quick-action-card overtime" onclick="window.location.href='/overtime'">
+                <div class="icon" style="background: var(--overtime-color);">
+                    <i class="fas fa-hourglass-half"></i>
+                </div>
+                <h5>الساعات الإضافية</h5>
+                <p class="text-muted small">عرض وإدارة الساعات الإضافية</p>
+                <span class="badge bg-warning">{{ overtime_stats.pending_hours|default(0) }} ساعة غير مرحلة</span>
+            </div>
+        </div>
+        <div class="col-md-3 mb-3">
+            <div class="quick-action-card meal" onclick="window.location.href='/meal-deductions'">
+                <div class="icon" style="background: var(--meal-color);">
+                    <i class="fas fa-utensils"></i>
+                </div>
+                <h5>خصميات المطعم والبوفية</h5>
+                <p class="text-muted small">عرض وإدارة خصميات الوجبات</p>
+                <span class="badge bg-success">إدارة</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- فلترة وتنقل بين الأقسام -->
+    <div class="filter-card fade-in" style="animation-delay: 0.3s">
+        <ul class="nav nav-pills nav-pills-custom mb-3" id="pills-tab" role="tablist">
+            <li class="nav-item" role="presentation">
+                <button class="nav-link active" id="pills-all-tab" data-bs-toggle="pill" data-bs-target="#pills-all" type="button">
+                    <i class="fas fa-list me-1"></i>الكل
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link loan" id="pills-loans-tab" data-bs-toggle="pill" data-bs-target="#pills-loans" type="button">
+                    <i class="fas fa-hand-holding-usd me-1"></i>السلف
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link penalty" id="pills-penalties-tab" data-bs-toggle="pill" data-bs-target="#pills-penalties" type="button">
+                    <i class="fas fa-exclamation-triangle me-1"></i>الجزاءات
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link overtime" id="pills-overtime-tab" data-bs-toggle="pill" data-bs-target="#pills-overtime" type="button">
+                    <i class="fas fa-hourglass-half me-1"></i>الساعات الإضافية
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link meal" id="pills-meal-tab" data-bs-toggle="pill" data-bs-target="#pills-meal" type="button">
+                    <i class="fas fa-utensils me-1"></i>خصميات البوفية
+                </button>
+            </li>
+        </ul>
+
+        <div class="row">
+            <div class="col-md-4">
+                <label class="form-label fw-bold">الموظف</label>
+                <select class="form-select" id="filterEmployee">
+                    <option value="">جميع الموظفين</option>
+                    {% for emp in employees %}
+                    <option value="{{ emp.id }}">{{ emp.full_name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-3">
+                <label class="form-label fw-bold">من تاريخ</label>
+                <input type="date" class="form-control" id="filterFromDate">
+            </div>
+            <div class="col-md-3">
+                <label class="form-label fw-bold">إلى تاريخ</label>
+                <input type="date" class="form-control" id="filterToDate">
+            </div>
+            <div class="col-md-2 d-flex align-items-end">
+                <button class="btn btn-primary w-100" onclick="applyFilters()">
+                    <i class="fas fa-search me-1"></i>تصفية
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- محتوى التبويبات -->
+    <div class="tab-content fade-in" style="animation-delay: 0.4s">
+        <!-- تبويب الكل -->
+        <div class="tab-pane fade show active" id="pills-all" role="tabpanel">
+            <div class="row">
+                <!-- السلف -->
+                <div class="col-12 mb-4">
+                    <div class="data-table">
+                        <div class="card">
+                            <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center">
+                                <h6 class="m-0 font-weight-bold text-primary">
+                                    <i class="fas fa-hand-holding-usd me-2"></i>
+                                    أحدث السلف
+                                    <span class="badge bg-primary ms-2">{{ loans|length }}</span>
+                                </h6>
+                                <a href="/loans" class="btn btn-sm btn-outline-primary">عرض الكل</a>
+                            </div>
+                            <div class="card-body p-0">
+                                <div class="table-responsive">
+                                    <table class="table table-hover mb-0">
+                                        <thead>
+                                            <tr>
+                                                <th>الموظف</th>
+                                                <th>التاريخ</th>
+                                                <th>المبلغ</th>
+                                                <th>المتبقي</th>
+                                                <th>نسبة السداد</th>
+                                                <th>الحالة</th>
+                                                <th>الإجراءات</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {% for loan in loans[:5] %}
+                                            <tr>
+                                                <td>
+                                                    <div class="d-flex align-items-center">
+                                                        <div class="employee-avatar me-2" style="background: #4e73df;">
+                                                            {{ loan.employee.full_name[:1] if loan.employee else '?' }}
+                                                        </div>
+                                                        {{ loan.employee.full_name if loan.employee else 'غير معروف' }}
+                                                    </div>
+                                                </td>
+                                                <td>{{ loan.loan_date.strftime('%Y-%m-%d') if loan.loan_date else '-' }}</td>
+                                                <td class="fw-bold">{{ "{:,.2f}".format(loan.amount) }} ر.ي</td>
+                                                <td class="text-danger">{{ "{:,.2f}".format(loan.remaining) }} ر.ي</td>
+                                                <td>
+                                                    <div class="progress progress-sm">
+                                                        <div class="progress-bar bg-success" style="width: {{ (loan.paid_amount/loan.amount*100)|round|int if loan.amount > 0 else 0 }}%"></div>
+                                                    </div>
+                                                    <small>{{ (loan.paid_amount/loan.amount*100)|round|int if loan.amount > 0 else 0 }}%</small>
+                                                </td>
+                                                <td>
+                                                    {% if loan.status == 'active' %}
+                                                    <span class="badge-loan"><i class="fas fa-clock me-1"></i>نشط</span>
+                                                    {% else %}
+                                                    <span class="badge-transferred"><i class="fas fa-check-circle me-1"></i>مسدد</span>
+                                                    {% endif %}
+                                                </td>
+                                                <td>
+                                                    <button class="btn btn-sm btn-info" onclick="viewLoanDetails({{ loan.id }})">
+                                                        <i class="fas fa-eye"></i>
+                                                    </button>
+                                                </td>
+                                            </tr>
+                                            {% else %}
+                                            <tr>
+                                                <td colspan="7" class="text-center py-4">
+                                                    <i class="fas fa-hand-holding-usd fa-2x text-muted mb-2"></i>
+                                                    <p class="text-muted">لا توجد سلف مسجلة</p>
+                                                </td>
+                                            </tr>
+                                            {% endfor %}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- الجزاءات -->
+                <div class="col-12 mb-4">
+                    <div class="data-table">
+                        <div class="card">
+                            <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center">
+                                <h6 class="m-0 font-weight-bold text-danger">
+                                    <i class="fas fa-exclamation-triangle me-2"></i>
+                                    أحدث الجزاءات
+                                    <span class="badge bg-danger ms-2">{{ penalties|length }}</span>
+                                </h6>
+                                <a href="/penalties" class="btn btn-sm btn-outline-danger">عرض الكل</a>
+                            </div>
+                            <div class="card-body p-0">
+                                <div class="table-responsive">
+                                    <table class="table table-hover mb-0">
+                                        <thead>
+                                            <tr>
+                                                <th>الموظف</th>
+                                                <th>التاريخ</th>
+                                                <th>المبلغ</th>
+                                                <th>السبب</th>
+                                                <th>الحالة</th>
+                                                <th>الإجراءات</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {% for penalty in penalties[:5] %}
+                                            <tr>
+                                                <td>
+                                                    <div class="d-flex align-items-center">
+                                                        <div class="employee-avatar me-2" style="background: #e74a3b;">
+                                                            {{ penalty.employee.full_name[:1] if penalty.employee else '?' }}
+                                                        </div>
+                                                        {{ penalty.employee.full_name if penalty.employee else 'غير معروف' }}
+                                                    </div>
+                                                </td>
+                                                <td>{{ penalty.penalty_date.strftime('%Y-%m-%d') if penalty.penalty_date else '-' }}</td>
+                                                <td class="text-danger fw-bold">{{ "{:,.2f}".format(penalty.amount) }} ر.ي</td>
+                                                <td>{{ penalty.reason }}</td>
+                                                <td>
+                                                    {% if penalty.is_deducted %}
+                                                    <span class="badge-transferred"><i class="fas fa-check-circle me-1"></i>مرحل</span>
+                                                    {% else %}
+                                                    <span class="badge-pending"><i class="fas fa-clock me-1"></i>غير مرحل</span>
+                                                    {% endif %}
+                                                </td>
+                                                <td>
+                                                    <button class="btn btn-sm btn-info" onclick="viewPenaltyDetails({{ penalty.id }})">
+                                                        <i class="fas fa-eye"></i>
+                                                    </button>
+                                                </td>
+                                            </tr>
+                                            {% else %}
+                                            <tr>
+                                                <td colspan="6" class="text-center py-4">
+                                                    <i class="fas fa-exclamation-triangle fa-2x text-muted mb-2"></i>
+                                                    <p class="text-muted">لا توجد جزاءات مسجلة</p>
+                                                </td>
+                                            </tr>
+                                            {% endfor %}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- الساعات الإضافية -->
+                <div class="col-12 mb-4">
+                    <div class="data-table">
+                        <div class="card">
+                            <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center">
+                                <h6 class="m-0 font-weight-bold text-warning">
+                                    <i class="fas fa-hourglass-half me-2"></i>
+                                    أحدث الساعات الإضافية
+                                    <span class="badge bg-warning ms-2">{{ overtimes|length }}</span>
+                                </h6>
+                                <a href="/overtime" class="btn btn-sm btn-outline-warning">عرض الكل</a>
+                            </div>
+                            <div class="card-body p-0">
+                                <div class="table-responsive">
+                                    <table class="table table-hover mb-0">
+                                        <thead>
+                                            <tr>
+                                                <th>الموظف</th>
+                                                <th>التاريخ</th>
+                                                <th>الساعات</th>
+                                                <th>التكلفة</th>
+                                                <th>الحالة</th>
+                                                <th>الإجراءات</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {% for overtime in overtimes[:5] %}
+                                            <tr>
+                                                <td>
+                                                    <div class="d-flex align-items-center">
+                                                        <div class="employee-avatar me-2" style="background: #f6c23e;">
+                                                            {{ overtime.employee.full_name[:1] if overtime.employee else '?' }}
+                                                        </div>
+                                                        {{ overtime.employee.full_name if overtime.employee else 'غير معروف' }}
+                                                    </div>
+                                                </td>
+                                                <td>{{ overtime.overtime_date.strftime('%Y-%m-%d') if overtime.overtime_date else '-' }}</td>
+                                                <td class="fw-bold">{{ overtime.hours }} ساعة</td>
+                                                <td class="text-success">{{ "{:,.2f}".format(overtime.cost) }} ر.ي</td>
+                                                <td>
+                                                    {% if overtime.is_transferred %}
+                                                    <span class="badge-transferred"><i class="fas fa-check-circle me-1"></i>مرحل</span>
+                                                    {% else %}
+                                                    <span class="badge-pending"><i class="fas fa-clock me-1"></i>غير مرحل</span>
+                                                    {% endif %}
+                                                </td>
+                                                <td>
+                                                    <button class="btn btn-sm btn-info" onclick="viewOvertimeDetails({{ overtime.id }})">
+                                                        <i class="fas fa-eye"></i>
+                                                    </button>
+                                                </td>
+                                            </tr>
+                                            {% else %}
+                                            <tr>
+                                                <td colspan="6" class="text-center py-4">
+                                                    <i class="fas fa-hourglass-half fa-2x text-muted mb-2"></i>
+                                                    <p class="text-muted">لا توجد ساعات إضافية مسجلة</p>
+                                                </td>
+                                            </tr>
+                                            {% endfor %}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- خصميات البوفية -->
+                <div class="col-12 mb-4">
+                    <div class="data-table">
+                        <div class="card">
+                            <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center">
+                                <h6 class="m-0 font-weight-bold text-success">
+                                    <i class="fas fa-utensils me-2"></i>
+                                    أحدث خصميات البوفية
+                                    <span class="badge bg-success ms-2">{{ meal_deductions|length }}</span>
+                                </h6>
+                                <a href="{{ url_for('meal_deductions_list') }}" class="btn btn-sm btn-outline-success">عرض الكل</a>
+                            </div>
+                            <div class="card-body p-0">
+                                <div class="table-responsive">
+                                    <table class="table table-hover mb-0">
+                                        <thead>
+                                            <tr>
+                                                <th>الموظف</th>
+                                                <th>التاريخ</th>
+                                                <th>نوع الوجبة</th>
+                                                <th>المبلغ</th>
+                                                <th>الحالة</th>
+                                                <th>الإجراءات</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {% for deduction in meal_deductions[:5] %}
+                                            <tr>
+                                                <td>
+                                                    <div class="d-flex align-items-center">
+                                                        <div class="employee-avatar me-2" style="background: #28a745;">
+                                                            {{ deduction.employee.full_name[:1] if deduction.employee else '?' }}
+                                                        </div>
+                                                        {{ deduction.employee.full_name if deduction.employee else 'غير معروف' }}
+                                                    </div>
+                                                </td>
+                                                <td>{{ deduction.deduction_date.strftime('%Y-%m-%d') if deduction.deduction_date else '-' }}</td>
+                                                <td>{{ deduction.meal_type or 'وجبة' }}</td>
+                                                <td class="text-danger fw-bold">{{ "{:,.2f}".format(deduction.amount) }} ر.ي</td>
+                                                <td>
+                                                    {% if deduction.is_transferred %}
+                                                    <span class="badge-transferred"><i class="fas fa-check-circle me-1"></i>مرحل</span>
+                                                    {% else %}
+                                                    <span class="badge-pending"><i class="fas fa-clock me-1"></i>غير مرحل</span>
+                                                    {% endif %}
+                                                </td>
+                                                <td>
+                                                    <a href="{{ url_for('meal_deductions_list') }}?id={{ deduction.id }}" class="btn btn-sm btn-info">
+                                                        <i class="fas fa-eye"></i>
+                                                    </a>
+                                                </td>
+                                            </tr>
+                                            {% else %}
+                                            <tr>
+                                                <td colspan="6" class="text-center py-4">
+                                                    <i class="fas fa-utensils fa-2x text-muted mb-2"></i>
+                                                    <p class="text-muted">لا توجد خصميات بوفية مسجلة</p>
+                                                </td>
+                                            </tr>
+                                            {% endfor %}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- تبويب السلف -->
+        <div class="tab-pane fade" id="pills-loans" role="tabpanel">
+            <div class="data-table">
+                <div class="card">
+                    <div class="card-header bg-white py-3">
+                        <h6 class="m-0 font-weight-bold text-primary">
+                            <i class="fas fa-hand-holding-usd me-2"></i>
+                            جميع السلف
+                        </h6>
+                    </div>
+                    <div class="card-body p-0">
+                        <div class="table-responsive">
+                            <table class="table table-hover mb-0">
+                                <thead>
+                                    <tr>
+                                        <th>#</th>
+                                        <th>الموظف</th>
+                                        <th>التاريخ</th>
+                                        <th>المبلغ</th>
+                                        <th>الأقساط</th>
+                                        <th>القسط الشهري</th>
+                                        <th>المسدد</th>
+                                        <th>المتبقي</th>
+                                        <th>نسبة السداد</th>
+                                        <th>الحالة</th>
+                                        <th>الإجراءات</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for loan in loans %}
+                                    <tr>
+                                        <td>{{ loop.index }}</td>
+                                        <td>
+                                            <div class="d-flex align-items-center">
+                                                <div class="employee-avatar me-2" style="background: #4e73df;">
+                                                    {{ loan.employee.full_name[:1] if loan.employee else '?' }}
+                                                </div>
+                                                {{ loan.employee.full_name if loan.employee else 'غير معروف' }}
+                                            </div>
+                                        </td>
+                                        <td>{{ loan.loan_date.strftime('%Y-%m-%d') if loan.loan_date else '-' }}</td>
+                                        <td class="fw-bold">{{ "{:,.2f}".format(loan.amount) }} ر.ي</td>
+                                        <td>{{ loan.installments }}</td>
+                                        <td>{{ "{:,.2f}".format(loan.monthly_installment) }} ر.ي</td>
+                                        <td class="text-success">{{ "{:,.2f}".format(loan.paid_amount) }} ر.ي</td>
+                                        <td class="text-danger">{{ "{:,.2f}".format(loan.remaining) }} ر.ي</td>
+                                        <td>
+                                            <div class="progress progress-sm">
+                                                <div class="progress-bar bg-success" style="width: {{ (loan.paid_amount/loan.amount*100)|round|int if loan.amount > 0 else 0 }}%"></div>
+                                            </div>
+                                            <small>{{ (loan.paid_amount/loan.amount*100)|round|int if loan.amount > 0 else 0 }}%</small>
+                                        </td>
+                                        <td>
+                                            {% if loan.status == 'active' %}
+                                            <span class="badge-loan"><i class="fas fa-clock me-1"></i>نشط</span>
+                                            {% else %}
+                                            <span class="badge-transferred"><i class="fas fa-check-circle me-1"></i>مسدد</span>
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            <div class="btn-group btn-group-sm">
+                                                <button class="btn btn-info" onclick="viewLoanDetails({{ loan.id }})" title="عرض">
+                                                    <i class="fas fa-eye"></i>
+                                                </button>
+                                                {% if loan.status == 'active' %}
+                                                <button class="btn btn-success" onclick="payLoanInstallment({{ loan.id }})" title="تسديد">
+                                                    <i class="fas fa-money-bill-wave"></i>
+                                                </button>
+                                                {% endif %}
+                                            </div>
+                                        </td>
+                                    </tr>
+                                    {% else %}
+                                    <tr>
+                                        <td colspan="11" class="text-center py-5">
+                                            <i class="fas fa-hand-holding-usd fa-3x text-muted mb-3"></i>
+                                            <h5 class="text-muted">لا توجد سلف مسجلة</h5>
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- تبويب الجزاءات -->
+        <div class="tab-pane fade" id="pills-penalties" role="tabpanel">
+            <div class="data-table">
+                <div class="card">
+                    <div class="card-header bg-white py-3">
+                        <h6 class="m-0 font-weight-bold text-danger">
+                            <i class="fas fa-exclamation-triangle me-2"></i>
+                            جميع الجزاءات
+                        </h6>
+                    </div>
+                    <div class="card-body p-0">
+                        <div class="table-responsive">
+                            <table class="table table-hover mb-0">
+                                <thead>
+                                    <tr>
+                                        <th>#</th>
+                                        <th>الموظف</th>
+                                        <th>التاريخ</th>
+                                        <th>المبلغ</th>
+                                        <th>السبب</th>
+                                        <th>الوصف</th>
+                                        <th>الحالة</th>
+                                        <th>الإجراءات</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for penalty in penalties %}
+                                    <tr>
+                                        <td>{{ loop.index }}</td>
+                                        <td>
+                                            <div class="d-flex align-items-center">
+                                                <div class="employee-avatar me-2" style="background: #e74a3b;">
+                                                    {{ penalty.employee.full_name[:1] if penalty.employee else '?' }}
+                                                </div>
+                                                {{ penalty.employee.full_name if penalty.employee else 'غير معروف' }}
+                                            </div>
+                                        </td>
+                                        <td>{{ penalty.penalty_date.strftime('%Y-%m-%d') if penalty.penalty_date else '-' }}</td>
+                                        <td class="text-danger fw-bold">{{ "{:,.2f}".format(penalty.amount) }} ر.ي</td>
+                                        <td>{{ penalty.reason }}</td>
+                                        <td>{{ penalty.description or '-' }}</td>
+                                        <td>
+                                            {% if penalty.is_deducted %}
+                                            <span class="badge-transferred"><i class="fas fa-check-circle me-1"></i>مرحل</span>
+                                            {% else %}
+                                            <span class="badge-pending"><i class="fas fa-clock me-1"></i>غير مرحل</span>
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            <div class="btn-group btn-group-sm">
+                                                <button class="btn btn-info" onclick="viewPenaltyDetails({{ penalty.id }})" title="عرض">
+                                                    <i class="fas fa-eye"></i>
+                                                </button>
+                                                {% if not penalty.is_deducted %}
+                                                <button class="btn btn-primary" onclick="transferPenalty({{ penalty.id }})" title="ترحيل">
+                                                    <i class="fas fa-arrow-right"></i>
+                                                </button>
+                                                {% endif %}
+                                            </div>
+                                        </td>
+                                    </tr>
+                                    {% else %}
+                                    <tr>
+                                        <td colspan="8" class="text-center py-5">
+                                            <i class="fas fa-exclamation-triangle fa-3x text-muted mb-3"></i>
+                                            <h5 class="text-muted">لا توجد جزاءات مسجلة</h5>
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- تبويب الساعات الإضافية -->
+        <div class="tab-pane fade" id="pills-overtime" role="tabpanel">
+            <div class="data-table">
+                <div class="card">
+                    <div class="card-header bg-white py-3">
+                        <h6 class="m-0 font-weight-bold text-warning">
+                            <i class="fas fa-hourglass-half me-2"></i>
+                            جميع الساعات الإضافية
+                        </h6>
+                    </div>
+                    <div class="card-body p-0">
+                        <div class="table-responsive">
+                            <table class="table table-hover mb-0">
+                                <thead>
+                                    <tr>
+                                        <th>#</th>
+                                        <th>الموظف</th>
+                                        <th>التاريخ</th>
+                                        <th>الساعات</th>
+                                        <th>السعر/ساعة</th>
+                                        <th>التكلفة</th>
+                                        <th>السبب</th>
+                                        <th>الحالة</th>
+                                        <th>الإجراءات</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for overtime in overtimes %}
+                                    <tr>
+                                        <td>{{ loop.index }}</td>
+                                        <td>
+                                            <div class="d-flex align-items-center">
+                                                <div class="employee-avatar me-2" style="background: #f6c23e;">
+                                                    {{ overtime.employee.full_name[:1] if overtime.employee else '?' }}
+                                                </div>
+                                                {{ overtime.employee.full_name if overtime.employee else 'غير معروف' }}
+                                            </div>
+                                        </td>
+                                        <td>{{ overtime.overtime_date.strftime('%Y-%m-%d') if overtime.overtime_date else '-' }}</td>
+                                        <td class="fw-bold">{{ overtime.hours }} ساعة</td>
+                                        <td>{{ "{:,.2f}".format(overtime.rate) }} ر.ي</td>
+                                        <td class="text-success">{{ "{:,.2f}".format(overtime.cost) }} ر.ي</td>
+                                        <td>{{ overtime.reason or '-' }}</td>
+                                        <td>
+                                            {% if overtime.is_transferred %}
+                                            <span class="badge-transferred"><i class="fas fa-check-circle me-1"></i>مرحل</span>
+                                            {% else %}
+                                            <span class="badge-pending"><i class="fas fa-clock me-1"></i>غير مرحل</span>
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            <div class="btn-group btn-group-sm">
+                                                <button class="btn btn-info" onclick="viewOvertimeDetails({{ overtime.id }})" title="عرض">
+                                                    <i class="fas fa-eye"></i>
+                                                </button>
+                                                {% if not overtime.is_transferred %}
+                                                <button class="btn btn-primary" onclick="transferOvertime({{ overtime.id }})" title="ترحيل">
+                                                    <i class="fas fa-arrow-right"></i>
+                                                </button>
+                                                {% endif %}
+                                            </div>
+                                        </td>
+                                    </tr>
+                                    {% else %}
+                                    <tr>
+                                        <td colspan="9" class="text-center py-5">
+                                            <i class="fas fa-hourglass-half fa-3x text-muted mb-3"></i>
+                                            <h5 class="text-muted">لا توجد ساعات إضافية مسجلة</h5>
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- تبويب خصميات البوفية -->
+        <div class="tab-pane fade" id="pills-meal" role="tabpanel">
+            <div class="data-table">
+                <div class="card">
+                    <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center">
+                        <h6 class="m-0 font-weight-bold text-success">
+                            <i class="fas fa-utensils me-2"></i>
+                            جميع خصميات البوفية
+                        </h6>
+                        <a href="{{ url_for('meal_deductions_list') }}" class="btn btn-sm btn-outline-success">
+                            <i class="fas fa-plus me-1"></i>إدارة
+                        </a>
+                    </div>
+                    <div class="card-body p-0">
+                        <div class="table-responsive">
+                            <table class="table table-hover mb-0">
+                                <thead>
+                                    <tr>
+                                        <th>#</th>
+                                        <th>الموظف</th>
+                                        <th>التاريخ</th>
+                                        <th>نوع الوجبة</th>
+                                        <th>المبلغ</th>
+                                        <th>الوصف</th>
+                                        <th>الحالة</th>
+                                        <th>الإجراءات</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for deduction in meal_deductions %}
+                                    <tr>
+                                        <td>{{ loop.index }}</td>
+                                        <td>
+                                            <div class="d-flex align-items-center">
+                                                <div class="employee-avatar me-2" style="background: #28a745;">
+                                                    {{ deduction.employee.full_name[:1] if deduction.employee else '?' }}
+                                                </div>
+                                                {{ deduction.employee.full_name if deduction.employee else 'غير معروف' }}
+                                            </div>
+                                        </td>
+                                        <td>{{ deduction.deduction_date.strftime('%Y-%m-%d') if deduction.deduction_date else '-' }}</td>
+                                        <td>{{ deduction.meal_type or 'وجبة' }}</td>
+                                        <td class="text-danger fw-bold">{{ "{:,.2f}".format(deduction.amount) }} ر.ي</td>
+                                        <td>{{ deduction.description or '-' }}</td>
+                                        <td>
+                                            {% if deduction.is_transferred %}
+                                            <span class="badge-transferred"><i class="fas fa-check-circle me-1"></i>مرحل</span>
+                                            {% else %}
+                                            <span class="badge-pending"><i class="fas fa-clock me-1"></i>غير مرحل</span>
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            <div class="btn-group btn-group-sm">
+                                                <a href="{{ url_for('meal_deductions_list') }}?id={{ deduction.id }}" class="btn btn-info" title="عرض">
+                                                    <i class="fas fa-eye"></i>
+                                                </a>
+                                                {% if not deduction.is_transferred %}
+                                                <button class="btn btn-primary" onclick="transferMealDeduction({{ deduction.id }})" title="ترحيل">
+                                                    <i class="fas fa-arrow-right"></i>
+                                                </button>
+                                                {% endif %}
+                                            </div>
+                                        </td>
+                                    </tr>
+                                    {% else %}
+                                    <tr>
+                                        <td colspan="8" class="text-center py-5">
+                                            <i class="fas fa-utensils fa-3x text-muted mb-3"></i>
+                                            <h5 class="text-muted">لا توجد خصميات بوفية مسجلة</h5>
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- نوافذ الإضافة (مودال) -->
+<!-- نافذة إضافة سلفة -->
+<div class="modal fade" id="addLoanModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title">
+                    <i class="fas fa-hand-holding-usd me-2"></i>
+                    إضافة سلفة جديدة
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <form id="addLoanForm" onsubmit="saveLoan(event)">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">الموظف <span class="text-danger">*</span></label>
+                        <select name="employee_id" class="form-select" required>
+                            <option value="">اختر الموظف</option>
+                            {% for emp in employees %}
+                            <option value="{{ emp.id }}">{{ emp.full_name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">التاريخ <span class="text-danger">*</span></label>
+                        <input type="date" name="loan_date" class="form-control" value="{{ today.strftime('%Y-%m-%d') }}" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">المبلغ <span class="text-danger">*</span></label>
+                        <input type="number" name="amount" class="form-control" min="1" step="0.01" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">عدد الأقساط</label>
+                        <input type="number" name="installments" class="form-control" min="1" value="1">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">السبب</label>
+                        <input type="text" name="reason" class="form-control">
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">إلغاء</button>
+                    <button type="submit" class="btn btn-primary">حفظ</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- نافذة إضافة جزاء -->
+<div class="modal fade" id="addPenaltyModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-danger text-white">
+                <h5 class="modal-title">
+                    <i class="fas fa-exclamation-triangle me-2"></i>
+                    إضافة جزاء جديد
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <form id="addPenaltyForm" onsubmit="savePenalty(event)">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">الموظف <span class="text-danger">*</span></label>
+                        <select name="employee_id" class="form-select" required>
+                            <option value="">اختر الموظف</option>
+                            {% for emp in employees %}
+                            <option value="{{ emp.id }}">{{ emp.full_name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">التاريخ <span class="text-danger">*</span></label>
+                        <input type="date" name="penalty_date" class="form-control" value="{{ today.strftime('%Y-%m-%d') }}" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">المبلغ <span class="text-danger">*</span></label>
+                        <input type="number" name="amount" class="form-control" min="1" step="0.01" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">السبب <span class="text-danger">*</span></label>
+                        <input type="text" name="reason" class="form-control" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">وصف إضافي</label>
+                        <textarea name="description" class="form-control" rows="2"></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">إلغاء</button>
+                    <button type="submit" class="btn btn-danger">حفظ</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- نافذة إضافة ساعة إضافية -->
+<div class="modal fade" id="addOvertimeModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-warning text-white">
+                <h5 class="modal-title">
+                    <i class="fas fa-hourglass-half me-2"></i>
+                    إضافة ساعة إضافية
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <form id="addOvertimeForm" onsubmit="saveOvertime(event)">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">الموظف <span class="text-danger">*</span></label>
+                        <select name="employee_id" class="form-select" required>
+                            <option value="">اختر الموظف</option>
+                            {% for emp in employees %}
+                            <option value="{{ emp.id }}">{{ emp.full_name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">التاريخ <span class="text-danger">*</span></label>
+                        <input type="date" name="overtime_date" class="form-control" value="{{ today.strftime('%Y-%m-%d') }}" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">عدد الساعات <span class="text-danger">*</span></label>
+                        <input type="number" name="hours" class="form-control" min="0.5" step="0.5" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">السعر للساعة</label>
+                        <input type="number" name="rate" class="form-control" value="25" min="1" step="0.5">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">السبب</label>
+                        <input type="text" name="reason" class="form-control">
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">إلغاء</button>
+                    <button type="submit" class="btn btn-warning">حفظ</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+// متغيرات عامة
+let currentEmployeeFilter = '';
+let currentFromDate = '';
+let currentToDate = '';
+
+// تهيئة الصفحة
+document.addEventListener('DOMContentLoaded', function() {
+    // استعادة الفلاتر من الـ URL
+    const urlParams = new URLSearchParams(window.location.search);
+    currentEmployeeFilter = urlParams.get('employee_id') || '';
+    currentFromDate = urlParams.get('from_date') || '';
+    currentToDate = urlParams.get('to_date') || '';
+
+    const empFilter = document.getElementById('filterEmployee');
+    const fromDateFilter = document.getElementById('filterFromDate');
+    const toDateFilter = document.getElementById('filterToDate');
+
+    if (empFilter) empFilter.value = currentEmployeeFilter;
+    if (fromDateFilter) fromDateFilter.value = currentFromDate;
+    if (toDateFilter) toDateFilter.value = currentToDate;
+});
+
+// تطبيق الفلاتر
+function applyFilters() {
+    const employee = document.getElementById('filterEmployee').value;
+    const fromDate = document.getElementById('filterFromDate').value;
+    const toDate = document.getElementById('filterToDate').value;
+
+    let url = new URL(window.location.href);
+    if (employee) url.searchParams.set('employee_id', employee);
+    else url.searchParams.delete('employee_id');
+
+    if (fromDate) url.searchParams.set('from_date', fromDate);
+    else url.searchParams.delete('from_date');
+
+    if (toDate) url.searchParams.set('to_date', toDate);
+    else url.searchParams.delete('to_date');
+
+    window.location.href = url.toString();
+}
+
+// دوال السلف
+function showAddLoanModal() {
+    new bootstrap.Modal(document.getElementById('addLoanModal')).show();
+}
+
+function saveLoan(event) {
+    event.preventDefault();
+    const form = document.getElementById('addLoanForm');
+    const formData = new FormData(form);
+
+    fetch('/loans/add', {
+        method: 'POST',
+        body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            Swal.fire({
+                icon: 'success',
+                title: 'تم بنجاح',
+                text: data.message,
+                timer: 1500,
+                showConfirmButton: false
+            });
+            setTimeout(() => location.reload(), 1500);
+        } else {
+            Swal.fire({
+                icon: 'error',
+                title: 'خطأ',
+                text: data.message
+            });
+        }
+    })
+    .catch(error => {
+        Swal.fire({
+            icon: 'error',
+            title: 'خطأ',
+            text: 'حدث خطأ في الاتصال'
+        });
+    });
+}
+
+function viewLoanDetails(loanId) {
+    window.location.href = `/loans?loan_id=${loanId}`;
+}
+
+function payLoanInstallment(loanId) {
+    Swal.fire({
+        title: 'تسديد قسط',
+        text: 'سيتم إضافة ميزة تسديد الأقساط قريباً',
+        icon: 'info',
+        confirmButtonText: 'حسناً'
+    });
+}
+
+// دوال الجزاءات
+function showAddPenaltyModal() {
+    new bootstrap.Modal(document.getElementById('addPenaltyModal')).show();
+}
+
+function savePenalty(event) {
+    event.preventDefault();
+    const form = document.getElementById('addPenaltyForm');
+    const formData = new FormData(form);
+
+    fetch('/attendance/add-penalty', {
+        method: 'POST',
+        body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            Swal.fire({
+                icon: 'success',
+                title: 'تم بنجاح',
+                text: data.message,
+                timer: 1500,
+                showConfirmButton: false
+            });
+            setTimeout(() => location.reload(), 1500);
+        } else {
+            Swal.fire({
+                icon: 'error',
+                title: 'خطأ',
+                text: data.message
+            });
+        }
+    })
+    .catch(error => {
+        Swal.fire({
+            icon: 'error',
+            title: 'خطأ',
+            text: 'حدث خطأ في الاتصال'
+        });
+    });
+}
+
+function viewPenaltyDetails(penaltyId) {
+    window.location.href = `/penalties?penalty_id=${penaltyId}`;
+}
+
+function transferPenalty(penaltyId) {
+    Swal.fire({
+        title: 'تأكيد الترحيل',
+        text: 'هل أنت متأكد من ترحيل هذا الجزاء إلى كشف الراتب؟',
+        icon: 'question',
+        showCancelButton: true,
+        confirmButtonColor: '#e74a3b',
+        cancelButtonColor: '#6c757d',
+        confirmButtonText: 'نعم، رحل',
+        cancelButtonText: 'إلغاء'
+    }).then((result) => {
+        if (result.isConfirmed) {
+            fetch(`/penalties/transfer/${penaltyId}`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    Swal.fire({
+                        icon: 'success',
+                        title: 'تم الترحيل',
+                        text: data.message,
+                        timer: 1500,
+                        showConfirmButton: false
+                    });
+                    setTimeout(() => location.reload(), 1500);
+                } else {
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'خطأ',
+                        text: data.message
+                    });
+                }
+            });
+        }
+    });
+}
+
+// دوال الساعات الإضافية
+function showAddOvertimeModal() {
+    new bootstrap.Modal(document.getElementById('addOvertimeModal')).show();
+}
+
+function saveOvertime(event) {
+    event.preventDefault();
+    const form = document.getElementById('addOvertimeForm');
+    const formData = new FormData(form);
+
+    fetch('/overtime/add', {
+        method: 'POST',
+        body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            Swal.fire({
+                icon: 'success',
+                title: 'تم بنجاح',
+                text: data.message,
+                timer: 1500,
+                showConfirmButton: false
+            });
+            setTimeout(() => location.reload(), 1500);
+        } else {
+            Swal.fire({
+                icon: 'error',
+                title: 'خطأ',
+                text: data.message
+            });
+        }
+    })
+    .catch(error => {
+        Swal.fire({
+            icon: 'error',
+            title: 'خطأ',
+            text: 'حدث خطأ في الاتصال'
+        });
+    });
+}
+
+function viewOvertimeDetails(overtimeId) {
+    window.location.href = `/overtime?overtime_id=${overtimeId}`;
+}
+
+function transferOvertime(overtimeId) {
+    Swal.fire({
+        title: 'تأكيد الترحيل',
+        text: 'هل أنت متأكد من ترحيل هذه الساعة الإضافية إلى كشف الراتب؟',
+        icon: 'question',
+        showCancelButton: true,
+        confirmButtonColor: '#f6c23e',
+        cancelButtonColor: '#6c757d',
+        confirmButtonText: 'نعم، رحل',
+        cancelButtonText: 'إلغاء'
+    }).then((result) => {
+        if (result.isConfirmed) {
+            fetch('/overtime/transfer-to-payroll', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    overtime_ids: [overtimeId]
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    Swal.fire({
+                        icon: 'success',
+                        title: 'تم الترحيل',
+                        text: data.message,
+                        timer: 1500,
+                        showConfirmButton: false
+                    });
+                    setTimeout(() => location.reload(), 1500);
+                } else {
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'خطأ',
+                        text: data.message
+                    });
+                }
+            });
+        }
+    });
+}
+
+// دوال خصميات البوفية
+function transferMealDeduction(deductionId) {
+    Swal.fire({
+        title: 'تأكيد الترحيل',
+        text: 'هل أنت متأكد من ترحيل خصم البوفية هذا إلى كشف الراتب؟',
+        icon: 'question',
+        showCancelButton: true,
+        confirmButtonColor: '#28a745',
+        cancelButtonColor: '#6c757d',
+        confirmButtonText: 'نعم، رحل',
+        cancelButtonText: 'إلغاء'
+    }).then((result) => {
+        if (result.isConfirmed) {
+            fetch(`/meal-deductions/transfer/${deductionId}`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    Swal.fire({
+                        icon: 'success',
+                        title: 'تم الترحيل',
+                        text: data.message,
+                        timer: 1500,
+                        showConfirmButton: false
+                    });
+                    setTimeout(() => location.reload(), 1500);
+                } else {
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'خطأ',
+                        text: data.message
+                    });
+                }
+            });
+        }
+    });
+}
+
+// تصدير التقرير
+function exportReport() {
+    const rows = [];
+
+    // تجميع بيانات السلف
+    {% for loan in loans %}
+    rows.push({
+        'النوع': 'سلفة',
+        'الموظف': '{{ loan.employee.full_name if loan.employee else "" }}',
+        'التاريخ': '{{ loan.loan_date.strftime("%Y-%m-%d") if loan.loan_date else "" }}',
+        'المبلغ': {{ loan.amount }},
+        'التفاصيل': '{{ loan.reason }}',
+        'الحالة': '{{ "نشط" if loan.status == "active" else "مسدد" }}'
+    });
+    {% endfor %}
+
+    // تجميع بيانات الجزاءات
+    {% for penalty in penalties %}
+    rows.push({
+        'النوع': 'جزاء',
+        'الموظف': '{{ penalty.employee.full_name if penalty.employee else "" }}',
+        'التاريخ': '{{ penalty.penalty_date.strftime("%Y-%m-%d") if penalty.penalty_date else "" }}',
+        'المبلغ': {{ penalty.amount }},
+        'التفاصيل': '{{ penalty.reason }}',
+        'الحالة': '{{ "مرحل" if penalty.is_deducted else "غير مرحل" }}'
+    });
+    {% endfor %}
+
+    // تجميع بيانات الساعات الإضافية
+    {% for overtime in overtimes %}
+    rows.push({
+        'النوع': 'ساعة إضافية',
+        'الموظف': '{{ overtime.employee.full_name if overtime.employee else "" }}',
+        'التاريخ': '{{ overtime.overtime_date.strftime("%Y-%m-%d") if overtime.overtime_date else "" }}',
+        'المبلغ': {{ overtime.cost }},
+        'التفاصيل': '{{ overtime.hours }} ساعة',
+        'الحالة': '{{ "مرحل" if overtime.is_transferred else "غير مرحل" }}'
+    });
+    {% endfor %}
+
+    // تجميع بيانات خصميات البوفية
+    {% for deduction in meal_deductions %}
+    rows.push({
+        'النوع': 'خصم بوفية',
+        'الموظف': '{{ deduction.employee.full_name if deduction.employee else "" }}',
+        'التاريخ': '{{ deduction.deduction_date.strftime("%Y-%m-%d") if deduction.deduction_date else "" }}',
+        'المبلغ': {{ deduction.amount }},
+        'التفاصيل': '{{ deduction.meal_type }} - {{ deduction.description }}',
+        'الحالة': '{{ "مرحل" if deduction.is_transferred else "غير مرحل" }}'
+    });
+    {% endfor %}
+
+    fetch('/export-to-excel', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            rows: rows,
+            report_name: 'تقرير_الخصومات_والإضافات',
+            columns: [
+                { field: 'النوع', label: 'النوع' },
+                { field: 'الموظف', label: 'الموظف' },
+                { field: 'التاريخ', label: 'التاريخ' },
+                { field: 'المبلغ', label: 'المبلغ' },
+                { field: 'التفاصيل', label: 'التفاصيل' },
+                { field: 'الحالة', label: 'الحالة' }
+            ]
+        })
+    })
+    .then(response => response.blob())
+    .then(blob => {
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'تقرير_الخصومات.xlsx';
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+    });
+}
+</script>
+
+<!-- SweetAlert2 -->
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+{% endblock %}

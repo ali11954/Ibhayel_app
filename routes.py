@@ -1,5 +1,9 @@
 # routes.py
 from models import ExpenseCategory
+from datetime import datetime
+from flask import session  # ✅ أضف هذا
+from flask import render_template, request, flash, redirect, url_for
+from flask_login import login_required, current_user
 from flask import render_template, request, redirect, url_for, flash, jsonify, make_response
 from flask_login import login_user, logout_user, login_required, current_user
 from werkzeug.security import generate_password_hash, check_password_hash
@@ -48,7 +52,7 @@ from config import Config
 from models import (
 db, User, Employee, Attendance, FinancialTransaction, Salary,
 Evaluation, Company, Contract, Invoice, Location, Region,
-EvaluationCriteria, AttendancePreparation,
+EvaluationCriteria, AttendancePreparation,MealDeductionSetting,MealDeduction,
 AttendancePreparationDetail,
 AttendancePeriodTransfer,           # ✅ تأكد من وجودها
 AttendancePeriodTransferDetail,     # ✅ تأكد من وجودها
@@ -58,6 +62,21 @@ AccountBalance, JournalEntryDetail, JournalEntry,
 CompanyPayment, Supplier, ExpenseCategory, SupplierInvoice,
 SupplierInvoicePayment
 )
+
+def _format_period_display(salary):
+    """تنسيق عرض الفترة في الرواتب"""
+    if salary.notes and 'فترة من' in salary.notes:
+        return salary.notes
+    elif '_' in salary.month_year:
+        parts = salary.month_year.split('_')
+        if len(parts) == 2:
+            try:
+                start = datetime.strptime(parts[0], '%Y%m%d').date()
+                end = datetime.strptime(parts[1], '%Y%m%d').date()
+                return f"{start.strftime('%d/%m/%Y')} - {end.strftime('%d/%m/%Y')}"
+            except:
+                pass
+    return salary.month_year
 
 def register_routes(app):
     @app.route('/')
@@ -266,7 +285,6 @@ def register_routes(app):
                 joinedload(Employee.supervisor)
             ).filter_by(is_active=True).all()
         elif current_user.role == 'supervisor':
-            # المشرف يرى فقط العمال التابعين له
             employees = get_supervisor_workers()
         else:
             employees = []
@@ -274,17 +292,46 @@ def register_routes(app):
         regions = get_regions()
         companies = Company.query.all()
 
+        # ✅ حساب الإحصائيات في Backend (لأداء أفضل)
+        total_employees = len(employees)
+        resident_count = sum(1 for e in employees if e.is_resident)
+        non_resident_count = total_employees - resident_count
+        companies_count = len(companies)
+
+        total_basic_salaries = sum(e.salary for e in employees)
+        total_total_salaries = sum(e.total_salary if e.total_salary is not None else e.salary for e in employees)
+
+        avg_basic_salary = total_basic_salaries / total_employees if total_employees > 0 else 0
+
+        # بدل السكن اليومي التقديري (للعرض فقط)
+        daily_allowance_total = resident_count * 500
+
+        stats = {
+            'total_employees': total_employees,
+            'resident_count': resident_count,
+            'non_resident_count': non_resident_count,
+            'companies_count': companies_count,
+            'total_basic_salaries': total_basic_salaries,
+            'total_basic_salaries_formatted': f"{total_basic_salaries:,.0f} ر.ي",
+            'total_total_salaries': total_total_salaries,
+            'total_total_salaries_formatted': f"{total_total_salaries:,.0f} ر.ي",
+            'avg_basic_salary': avg_basic_salary,
+            'avg_basic_salary_formatted': f"{avg_basic_salary:,.0f} ر.ي",
+            'daily_allowance_total': f"{daily_allowance_total:,.0f}"
+        }
+
         # تمرير صلاحية التعديل والحذف إلى القالب
         return render_template('employees/employees.html',
                                employees=employees,
                                regions=regions,
                                companies=companies,
+                               stats=stats,
                                can_edit=(current_user.role == 'admin'),
                                can_delete=(current_user.role == 'admin'))
 
     @app.route('/employees/import', methods=['GET', 'POST'])
     @login_required
-    @role_required('admin')  # ✅ فقط المدير يمكنه استيراد الموظفين
+    @role_required('admin')
     def import_employees():
         if request.method == 'POST':
             file = request.files.get('file')
@@ -298,6 +345,12 @@ def register_routes(app):
                         if company_name:
                             company = Company.query.filter_by(name=company_name).first()
 
+                        # ✅ قراءة الراتب الأساسي والراتب الشامل
+                        basic_salary = float(row.get('الراتب الأساسي', 60000)) if pd.notna(
+                            row.get('الراتب الأساسي')) else 60000
+                        total_salary = float(row.get('الراتب الشامل', basic_salary)) if pd.notna(
+                            row.get('الراتب الشامل')) else basic_salary
+
                         employee = Employee(
                             name=row['الاســــــم'],
                             card_number=str(row['رقم البطاقة']),
@@ -306,7 +359,8 @@ def register_routes(app):
                             region=row.get('المنطقة', ''),
                             is_resident=row.get('ميزة ساكن') == 'ساكن' if pd.notna(row.get('ميزة ساكن')) else False,
                             phone=str(row.get('رقم الجوال', '')),
-                            salary=float(row.get('الراتب', 60000)),
+                            salary=basic_salary,  # الراتب الأساسي
+                            total_salary=total_salary,  # ✅ الراتب الشامل
                             company_id=company.id if company else None
                         )
                         db.session.add(employee)
@@ -321,13 +375,17 @@ def register_routes(app):
 
     @app.route('/employees/add', methods=['GET', 'POST'])
     @login_required
-    @role_required('admin')  # ✅ فقط المدير يمكنه إضافة موظفين
+    @role_required('admin')
     def add_employee():
         if request.method == 'POST':
             card_number = request.form.get('card_number')
             code = request.form.get('code')
             employee_type = request.form.get('employee_type')
             supervisor_id = request.form.get('supervisor_id')
+
+            # ✅ قراءة الراتب الأساسي والراتب الشامل
+            basic_salary = float(request.form.get('salary', 60000))
+            total_salary = float(request.form.get('total_salary', basic_salary))
 
             if Employee.query.filter_by(card_number=card_number).first():
                 flash('رقم البطاقة موجود مسبقاً', 'danger')
@@ -342,7 +400,8 @@ def register_routes(app):
                     region=request.form.get('region'),
                     is_resident=request.form.get('is_resident') == 'on',
                     phone=request.form.get('phone'),
-                    salary=float(request.form.get('salary', 60000)),
+                    salary=basic_salary,  # الراتب الأساسي
+                    total_salary=total_salary,  # ✅ الراتب الشامل
                     company_id=request.form.get('company_id') or None,
                     employee_type=employee_type
                 )
@@ -399,7 +458,7 @@ def register_routes(app):
 
     @app.route('/employees/edit/<int:emp_id>', methods=['GET', 'POST'])
     @login_required
-    @role_required('admin')  # ✅ فقط المدير يمكنه تعديل الموظفين
+    @role_required('admin')
     def edit_employee(emp_id):
         employee = Employee.query.get_or_404(emp_id)
         old_employee_type = employee.employee_type
@@ -410,6 +469,10 @@ def register_routes(app):
             code = request.form.get('code')
             employee_type = request.form.get('employee_type')
             supervisor_id = request.form.get('supervisor_id')
+
+            # ✅ قراءة الراتب الأساسي والراتب الشامل
+            basic_salary = float(request.form.get('salary', 60000))
+            total_salary = float(request.form.get('total_salary', basic_salary))
 
             existing_card = Employee.query.filter(
                 Employee.card_number == card_number,
@@ -456,7 +519,8 @@ def register_routes(app):
             employee.region = request.form.get('region')
             employee.is_resident = request.form.get('is_resident') == 'on'
             employee.phone = request.form.get('phone')
-            employee.salary = float(request.form.get('salary', 60000))
+            employee.salary = basic_salary  # ✅ الراتب الأساسي
+            employee.total_salary = total_salary  # ✅ الراتب الشامل
             employee.company_id = request.form.get('company_id') or None
             employee.employee_type = employee_type
 
@@ -1021,39 +1085,43 @@ def register_routes(app):
                     daily_rate_allowance = getattr(employee, 'daily_allowance', 500)
                     daily_allowance = detail.attendance_days * daily_rate_allowance
 
-                # حساب الإضافي
+                # حساب الإضافي من ساعات العمل الإضافي
                 hourly_rate = employee.salary / 30 / 8
                 overtime_amount = detail.overtime_hours * (hourly_rate * 1.5)
 
-                # ==================== تعديل مهم: ترحيل المعاملات حسب الفترة فقط ====================
-                # جلب المعاملات المالية التي تاريخها ضمن الفترة فقط
-                advances = employee.get_transactions_sum('advance', start_date, end_date)
-                deductions = employee.get_transactions_sum('deduction', start_date, end_date)
-                penalties = employee.get_transactions_sum('penalty', start_date, end_date)
-                # في routes.py، عند ترحيل فترة الدوام
-                advances = employee.get_transactions_sum('advance', start_date, end_date)
-                deductions = employee.get_transactions_sum('deduction', start_date, end_date)
-                penalties = employee.get_transactions_sum('penalty', start_date, end_date)
-                overtime = employee.get_transactions_sum('overtime', start_date, end_date)
+                # ==================== ✅ التعديل الجذري: استخدام المعاملات المرحلة ====================
+                # جلب المعاملات المالية المرحلة ضمن الفترة (وليس غير المرحلة)
+                from models import FinancialTransaction
 
-                # أو استخدام الدالة المجمعة
-                summary = employee.get_transactions_summary(start_date, end_date)
-                advances = summary['advance']
-                deductions = summary['deduction']
-                penalties = summary['penalty']
-                overtime = summary['overtime']
-                # ترحيل المعاملات التي تاريخها ضمن الفترة فقط (وليس كل المعاملات)
-                for trans in employee.transactions:
-                    if not trans.is_settled and start_date <= trans.date <= end_date:
-                        trans.is_settled = True
-                        trans.settled_date = end_date
-                # =====================================================================
+                # المعاملات المرحلة ضمن الفترة
+                settled_transactions = FinancialTransaction.query.filter(
+                    FinancialTransaction.employee_id == employee.id,
+                    FinancialTransaction.is_settled == True,  # ✅ مرحلة فقط
+                    FinancialTransaction.date >= start_date,
+                    FinancialTransaction.date <= end_date
+                ).all()
+
+                # تجميع المعاملات المرحلة حسب النوع
+                advances = sum(t.amount for t in settled_transactions if t.transaction_type == 'advance')
+                penalties = sum(t.amount for t in settled_transactions if t.transaction_type == 'penalty')
+                overtime_from_trans = sum(t.amount for t in settled_transactions if t.transaction_type == 'overtime')
+
+                # ✅ خصم البوفية والمطعم من المعاملات المرحلة (وليس من MealDeduction)
+                cafeteria_deductions = sum(t.amount for t in settled_transactions if t.transaction_type == 'cafeteria')
+                restaurant_deductions = sum(
+                    t.amount for t in settled_transactions if t.transaction_type == 'restaurant')
+
+                # إضافة الإضافي من المعاملات إلى إجمالي الإضافي
+                total_overtime = overtime_amount + overtime_from_trans
 
                 # حساب مبلغ الحضور
                 attendance_amount = daily_rate * detail.attendance_days
 
+                # حساب إجمالي الخصومات
+                total_deductions = advances + penalties + cafeteria_deductions + restaurant_deductions
+
                 # الراتب النهائي
-                total_salary = attendance_amount + daily_allowance + overtime_amount - advances - deductions - penalties
+                total_salary = attendance_amount + daily_allowance + total_overtime - total_deductions
 
                 # استخدام الفترة الكاملة كمفتاح
                 period_key = f"{start_date.strftime('%Y%m%d')}_{end_date.strftime('%Y%m%d')}"
@@ -1067,11 +1135,12 @@ def register_routes(app):
                 if existing:
                     existing.attendance_days = detail.attendance_days
                     existing.attendance_amount = attendance_amount
-                    existing.overtime_amount = overtime_amount
+                    existing.overtime_amount = total_overtime
                     existing.daily_allowance_amount = daily_allowance
                     existing.advance_amount = advances
-                    existing.deduction_amount = deductions
                     existing.penalty_amount = penalties
+                    existing.cafeteria_deduction = cafeteria_deductions
+                    existing.restaurant_deduction = restaurant_deductions
                     existing.total_salary = total_salary
                     existing.notes = period_display
                 else:
@@ -1082,10 +1151,11 @@ def register_routes(app):
                         attendance_days=detail.attendance_days,
                         attendance_amount=attendance_amount,
                         daily_allowance_amount=daily_allowance,
-                        overtime_amount=overtime_amount,
+                        overtime_amount=total_overtime,
                         advance_amount=advances,
-                        deduction_amount=deductions,
                         penalty_amount=penalties,
+                        cafeteria_deduction=cafeteria_deductions,
+                        restaurant_deduction=restaurant_deductions,
                         total_salary=total_salary,
                         notes=period_display
                     )
@@ -1338,13 +1408,15 @@ def register_routes(app):
                                suggested_start_date=start_date,
                                suggested_end_date=end_date)
 
-
     # ==================== Company Management Routes ====================
     @app.route('/companies')
     @login_required
     @role_required('admin')  # ✅ فقط المدير يمكنه الوصول إلى قائمة الشركات
     def companies_dashboard():
         """عرض قائمة الشركات"""
+        from models import Contract, Invoice
+        from sqlalchemy import func
+
         companies = Company.query.all()
 
         # حساب الإحصائيات باستخدام الأسماء الصحيحة من models.py
@@ -1365,14 +1437,46 @@ def register_routes(app):
             'total_employees': total_employees
         }
 
-        return render_template('companies/companies.html', companies=companies, stats=stats)
+        # ✅ إحصائيات إضافية للقالب
+        companies_count = len(companies)
+        active_contracts = Contract.query.filter_by(status='active').count()
+        total_invoices_amount = db.session.query(func.sum(Invoice.amount)).scalar() or 0
+
+        return render_template('companies/dashboard.html',
+                               companies=companies,
+                               stats=stats,
+                               companies_count=companies_count,
+                               active_contracts=active_contracts,
+                               total_invoices_amount=f"{total_invoices_amount:,.0f}")
 
     @app.route('/companies/<int:company_id>')
     @login_required
     def company_details(company_id):
         """عرض تفاصيل الشركة مع المناطق والمواقع"""
+        from models import Employee
+
         company = Company.query.get_or_404(company_id)
-        return render_template('companies/company_details.html', company=company)
+
+        # ✅ جلب المسميات الوظيفية للشركة (لإضافة معايير التقييم)
+        job_titles = db.session.query(Employee.job_title).filter(
+            Employee.company_id == company_id,
+            Employee.job_title != None,
+            Employee.job_title != ''
+        ).distinct().all()
+        job_titles = [j[0] for j in job_titles if j[0]]
+
+        # ✅ جلب معايير التقييم للشركة
+        from models import EvaluationCriteria
+        evaluation_criteria = EvaluationCriteria.query.filter_by(
+            company_id=company_id,
+            is_active=True
+        ).all()
+
+        return render_template('companies/company_details.html',
+                               company=company,
+                               job_titles=job_titles,
+                               evaluation_criteria=evaluation_criteria,
+                               now=datetime.now())
 
     # إضافة شركة جديدة
     @app.route('/companies/add', methods=['GET', 'POST'])
@@ -3201,40 +3305,37 @@ def register_routes(app):
 
     # ==================== نظام الحسابات ====================
 
-    # ==================== الرواتب (مع صلاحيات) ====================
     @app.route('/financial/salaries')
     @login_required
     @role_required('admin', 'finance', 'supervisor')
     def salaries_list():
-        """عرض الرواتب - حسب صلاحية المستخدم مع فلترة متقدمة"""
+        """عرض الرواتب - نسخة مستقرة مع ضمان قراءة أحدث البيانات"""
+        from collections import defaultdict
+        from sqlalchemy import func
+        from sqlalchemy.orm import joinedload
+        from flask import make_response
+
+        # ✅ إجبار تحديث session cache (مهم جداً)
+        db.session.expire_all()
 
         # الحصول على معاملات الفلترة
         period_key = request.args.get('period_key', '')
-        start_date = request.args.get('start_date', '')
-        end_date = request.args.get('end_date', '')
-        status_filter = request.args.get('status', 'all')  # all, paid, unpaid
+        status_filter = request.args.get('status', 'all')
         employee_id = request.args.get('employee_id', type=int)
+        company_id = request.args.get('company_id', type=int)
+        page = request.args.get('page', 1, type=int)
+        per_page = request.args.get('per_page', 50, type=int)
 
-        query = Salary.query
+        # ✅ استخدام db.session.query بدلاً من Salary.query
+        query = db.session.query(Salary).options(
+            joinedload(Salary.employee)
+        )
 
-        # فلترة حسب الفترة (مفتاح الفترة)
+        # فلترة حسب الفترة
         if period_key:
             query = query.filter(Salary.month_year == period_key)
 
-        # فلترة حسب التاريخ (للتوافق مع الإصدارات القديمة)
-        if start_date and end_date and not period_key:
-            try:
-                start = datetime.strptime(start_date, '%Y-%m-%d').date()
-                end = datetime.strptime(end_date, '%Y-%m-%d').date()
-                # البحث عن الفترات التي تتضمن هذه التواريخ
-                query = query.filter(
-                    Salary.month_year.contains(str(start.year)) |
-                    Salary.month_year.contains(str(end.year))
-                )
-            except:
-                pass
-
-        # فلترة حسب الحالة (مدفوع/غير مدفوع)
+        # فلترة حسب الحالة
         if status_filter == 'paid':
             query = query.filter(Salary.is_paid == True)
         elif status_filter == 'unpaid':
@@ -3243,6 +3344,10 @@ def register_routes(app):
         # فلترة حسب الموظف
         if employee_id:
             query = query.filter(Salary.employee_id == employee_id)
+
+        # فلترة حسب الشركة
+        if company_id:
+            query = query.join(Salary.employee).filter(Employee.company_id == company_id)
 
         # تطبيق صلاحية المشرف
         if current_user.role == 'supervisor':
@@ -3254,76 +3359,138 @@ def register_routes(app):
             else:
                 query = query.filter(False)
 
-        all_salaries = query.order_by(Salary.month_year.desc()).all()
+        # Pagination
+        paginated_salaries = query.order_by(Salary.month_year.desc()).paginate(
+            page=page, per_page=per_page, error_out=False
+        )
+        all_salaries = paginated_salaries.items
 
-        # الحصول على قائمة الفترات المتاحة للفلترة
+        # تجميع الشركات
+        companies_dict = defaultdict(lambda: {
+            'name': '',
+            'salaries': [],
+            'total_amount': 0.0,
+            'paid_count': 0,
+            'unpaid_count': 0
+        })
+
+        for salary in all_salaries:
+            # الوصول إلى الشركة
+            if salary.employee and salary.employee.company_id:
+                company = db.session.get(Company, salary.employee.company_id)
+                company_id_val = company.id if company else 0
+                company_name = company.name if company else 'الشركة الأم'
+            else:
+                company_id_val = 0
+                company_name = 'الشركة الأم'
+
+            companies_dict[company_id_val]['name'] = company_name
+            companies_dict[company_id_val]['salaries'].append(salary)
+            companies_dict[company_id_val]['total_amount'] += float(salary.total_salary or 0)
+
+            if salary.is_paid:
+                companies_dict[company_id_val]['paid_count'] += 1
+            else:
+                companies_dict[company_id_val]['unpaid_count'] += 1
+
+        companies_dict = dict(companies_dict)
+
+        # الفترات المتاحة
         available_periods = []
-        all_salaries_for_periods = Salary.query.order_by(Salary.month_year.desc()).all()
-        seen = set()
-        for salary in all_salaries_for_periods:
-            if salary.month_year not in seen:
-                seen.add(salary.month_year)
-                if salary.notes and 'فترة من' in salary.notes:
-                    display = salary.notes
-                else:
-                    # محاولة استخراج التواريخ من المفتاح
-                    if '_' in salary.month_year:
-                        parts = salary.month_year.split('_')
-                        if len(parts) == 2:
-                            try:
-                                start = datetime.strptime(parts[0], '%Y%m%d').date()
-                                end = datetime.strptime(parts[1], '%Y%m%d').date()
-                                display = f"فترة من {start.strftime('%d/%m/%Y')} إلى {end.strftime('%d/%m/%Y')}"
-                            except:
-                                display = salary.month_year
-                        else:
-                            display = salary.month_year
-                    else:
-                        display = salary.month_year
-                available_periods.append({
-                    'key': salary.month_year,
-                    'display': display
-                })
+        all_periods = db.session.query(Salary.month_year, Salary.notes).distinct().order_by(
+            Salary.month_year.desc()).all()
+        for period in all_periods:
+            display = period[1] if period[1] and 'فترة من' in period[1] else period[0]
+            available_periods.append({'key': period[0], 'display': display})
 
         # إحصائيات سريعة
+        stats_query = db.session.query(Salary)
+        if period_key:
+            stats_query = stats_query.filter(Salary.month_year == period_key)
+        if company_id:
+            stats_query = stats_query.join(Salary.employee).filter(Employee.company_id == company_id)
+
         stats = {
-            'total': len(all_salaries),
-            'paid': sum(1 for s in all_salaries if s.is_paid),
-            'unpaid': sum(1 for s in all_salaries if not s.is_paid),
-            'total_amount': sum(s.total_salary for s in all_salaries),
-            'paid_amount': sum(s.total_salary for s in all_salaries if s.is_paid),
-            'unpaid_amount': sum(s.total_salary for s in all_salaries if not s.is_paid),
-            'zero_or_negative': sum(1 for s in all_salaries if s.total_salary <= 0)
+            'total': paginated_salaries.total,
+            'paid': stats_query.filter(Salary.is_paid == True).count(),
+            'unpaid': stats_query.filter(Salary.is_paid == False).count(),
+            'total_amount': float(
+                stats_query.with_entities(func.coalesce(func.sum(Salary.total_salary), 0)).scalar() or 0),
+            'paid_amount': float(stats_query.filter(Salary.is_paid == True).with_entities(
+                func.coalesce(func.sum(Salary.total_salary), 0)).scalar() or 0),
+            'unpaid_amount': float(stats_query.filter(Salary.is_paid == False).with_entities(
+                func.coalesce(func.sum(Salary.total_salary), 0)).scalar() or 0),
+            'zero_or_negative': stats_query.filter(Salary.total_salary <= 0).count()
         }
 
         # الموظفين للفلترة
-        employees = Employee.query.filter_by(is_active=True).all()
+        employees = db.session.query(Employee.id, Employee.name, Employee.job_title, Employee.company_id).filter(
+            Employee.is_active == True
+        ).all()
+        employees_list = [{'id': e[0], 'name': e[1], 'job_title': e[2], 'company_id': e[3]} for e in employees]
 
-        return render_template('financial/salaries.html',
-                               salaries=all_salaries,
-                               available_periods=available_periods,
-                               stats=stats,
-                               employees=employees,
-                               selected_period=period_key,
-                               selected_status=status_filter,
-                               selected_employee=employee_id,
-                               start_date=start_date,
-                               end_date=end_date,
-                               now=datetime.now())
+        # الشركات
+        companies = db.session.query(Company).all()
+
+        # بناء معلمات URL للـ Pagination
+        current_params = ''
+        if period_key:
+            current_params += f'&period_key={period_key}'
+        if status_filter != 'all':
+            current_params += f'&status={status_filter}'
+        if employee_id:
+            current_params += f'&employee_id={employee_id}'
+        if company_id:
+            current_params += f'&company_id={company_id}'
+
+        # ✅ إنشاء response مع منع cache
+        response = make_response(render_template('financial/salaries.html',
+                                                 salaries=all_salaries,
+                                                 companies_dict=companies_dict,
+                                                 companies=companies,
+                                                 available_periods=available_periods,
+                                                 stats=stats,
+                                                 employees=employees_list,
+                                                 selected_period=period_key,
+                                                 selected_status=status_filter,
+                                                 selected_employee=employee_id,
+                                                 selected_company=company_id,
+                                                 start_date=request.args.get('start_date', ''),
+                                                 end_date=request.args.get('end_date', ''),
+                                                 pagination=paginated_salaries,
+                                                 current_params=current_params,
+                                                 now=datetime.now()))
+
+        response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
+        response.headers['Pragma'] = 'no-cache'
+        response.headers['Expires'] = '0'
+        return response
 
     @app.route('/financial/salary_calculation', methods=['GET', 'POST'])
     @login_required
     @role_required('admin', 'finance')
     def salary_calculation():
-        """حساب الرواتب - يجب أن يتم عبر ترحيل الفترات أولاً"""
+        """حساب الرواتب - نسخة مبسطة ومستقرة"""
+        from decimal import Decimal, getcontext
+        import time
+
+        getcontext().prec = 28
 
         if request.method == 'POST':
+            token_key = f'salary_calc_token_{current_user.id}'
+            last_run = session.get(token_key, 0)
+            if time.time() - last_run < 5:
+                flash('⚠️ يتم معالجة الطلب بالفعل، يرجى الانتظار', 'warning')
+                return redirect(url_for('salary_calculation'))
+            session[token_key] = time.time()
+
             transfer_id = request.form.get('transfer_id')
             if not transfer_id:
                 flash('⚠️ الرجاء اختيار فترة ترحيل أولاً', 'danger')
                 return redirect(url_for('salary_calculation'))
 
-            transfer = AttendancePeriodTransfer.query.get(transfer_id)
+            transfer = db.session.get(AttendancePeriodTransfer, int(transfer_id))
+
             if not transfer:
                 flash('⚠️ فترة الترحيل غير موجودة', 'danger')
                 return redirect(url_for('salary_calculation'))
@@ -3340,79 +3507,100 @@ def register_routes(app):
                 period_name = transfer.period_name
                 count = 0
                 total_salaries = 0
+                failed_employees = []
 
                 for detail in transfer.transfers_details:
-                    employee = detail.employee
-                    if not employee:
-                        continue
+                    try:
+                        employee = db.session.get(Employee, detail.employee_id)
 
-                    period_key = f"{start_date.strftime('%Y%m%d')}_{end_date.strftime('%Y%m%d')}"
+                        if not employee:
+                            print(f"⚠️ موظف غير موجود للمعرف {detail.employee_id}")
+                            failed_employees.append({
+                                'employee': f'ID: {detail.employee_id}',
+                                'error': 'الموظف غير موجود'
+                            })
+                            continue
 
-                    # البحث عن راتب موجود أو إنشاء جديد
-                    salary = Salary.query.filter_by(
-                        employee_id=employee.id,
-                        month_year=period_key
-                    ).first()
+                        attendance_days = max(0, min(detail.attendance_days, 31))
+                        period_key = f"{start_date.strftime('%Y%m%d')}_{end_date.strftime('%Y%m%d')}"
 
-                    if not salary:
-                        salary = Salary(
-                            employee_id=employee.id,
-                            month_year=period_key,
-                            base_salary=employee.salary,
-                            notes=f"فترة من {start_date} إلى {end_date}"
+                        # ✅ حساب الراتب باستخدام الدالة المبسطة
+                        breakdown = employee.calculate_salary_breakdown(
+                            attendance_days=attendance_days,
+                            paid_leave_days=0,
+                            start_date=start_date,
+                            end_date=end_date
                         )
-                        db.session.add(salary)
 
-                    # استخدام الدالة الموجودة في نموذج Salary لحساب الراتب
-                    # هذه الدالة ستستدعي employee.calculate_salary_breakdown تلقائياً
-                    salary.calculate_from_preparation_detail(detail)
+                        # ✅ التحقق من صحة الحساب
+                        if breakdown.get('cash_payout', 0) <= 0 and attendance_days > 0:
+                            print(
+                                f"⚠️ {employee.name}: cash_payout={breakdown.get('cash_payout')} رغم حضور {attendance_days} أيام")
 
-                    # جلب المعاملات المالية
-                    advances = employee.get_transactions_sum('advance', start_date, end_date)
-                    deductions = employee.get_transactions_sum('deduction', start_date, end_date)
-                    penalties = employee.get_transactions_sum('penalty', start_date, end_date)
+                        # ✅ البحث عن الراتب أو إنشائه
+                        salary = Salary.query.filter_by(
+                            employee_id=employee.id,
+                            month_year=period_key
+                        ).first()
 
-                    # تطبيق الخصومات على الراتب النهائي
-                    final_salary = salary.total_salary - advances - deductions - penalties
-                    salary.total_salary = final_salary
-                    salary.advance_amount = advances
-                    salary.deduction_amount = deductions
-                    salary.penalty_amount = penalties
+                        if not salary:
+                            salary = Salary(
+                                employee_id=employee.id,
+                                month_year=period_key,
+                                base_salary=employee.salary,
+                                notes=f"فترة من {start_date} إلى {end_date}",
+                                attendance_days=attendance_days
+                            )
+                            db.session.add(salary)
+                            db.session.flush()
 
-                    total_salaries += final_salary
+                        # ✅ تعيين القيم مباشرة (بدون تحويلات معقدة)
+                        salary.basic_salary_amount = breakdown.get('basic_payout', 0)
+                        salary.resident_allowance_amount = breakdown.get('resident_allowance', 0)
+                        salary.clothing_allowance_amount = breakdown.get('clothing_allowance', 0)
+                        salary.health_card_amount = breakdown.get('health_card', 0)
+                        salary.insurance_amount = breakdown.get('insurance', 0)
+                        salary.contractor_profit = breakdown.get('contractor_profit', 0)
+                        salary.total_salary = breakdown.get('cash_payout', 0)
 
-                    # طباعة تفاصيل الراتب للتصحيح
-                    if employee.employee_type == 'worker':
-                        print(f"\n{'=' * 50}")
-                        print(f"📊 راتب {employee.name}:")
-                        print(f"{'=' * 50}")
-                        print(f"   أيام الحضور: {detail.attendance_days}")
-                        print(f"   يصرف للعامل: {salary.total_salary:,.0f} ريال")
-                        print(f"   الراتب الأساسي: {salary.basic_salary_amount:,.0f} ريال")
-                        print(f"   بدل السكن: {salary.resident_allowance_amount:,.0f} ريال")
-                        print(f"   بدل الملابس: {salary.clothing_allowance_amount:,.0f} ريال")
-                        print(f"   بطاقة صحية: {salary.health_card_amount:,.0f} ريال")
-                        print(f"   تأمين: {salary.insurance_amount:,.0f} ريال")
-                        print(f"   ربح المتعهد: {salary.contractor_profit:,.0f} ريال")
-                        print(f"{'=' * 50}\n")
-                    else:
-                        print(f"\n📊 راتب {employee.name} (مشرف): {salary.total_salary:,.0f} ريال")
+                        total_salaries += salary.total_salary
 
-                    # ترحيل المعاملات المالية
-                    for trans in employee.transactions:
-                        if not trans.is_settled and start_date <= trans.date <= end_date:
-                            trans.is_settled = True
-                            trans.settled_date = end_date
+                        # ✅ ترحيل المعاملات
+                        if salary.total_salary > 0:
+                            db.session.query(FinancialTransaction).filter(
+                                FinancialTransaction.employee_id == employee.id,
+                                FinancialTransaction.is_settled == False,
+                                FinancialTransaction.date >= start_date,
+                                FinancialTransaction.date <= end_date
+                            ).update({
+                                FinancialTransaction.is_settled: True,
+                                FinancialTransaction.settled_date: end_date
+                            }, synchronize_session=False)
 
-                    detail.is_processed = True
-                    count += 1
+                        detail.is_processed = True
+                        count += 1
+
+                        print(
+                            f"✅ {employee.name}: basic={salary.basic_salary_amount:.0f}, total={salary.total_salary:.0f}")
+
+                    except Exception as emp_error:
+                        print(f"❌ خطأ في معالجة {detail.employee.name if detail.employee else 'موظف'}: {emp_error}")
+                        failed_employees.append({
+                            'employee': detail.employee.name if detail.employee else f'ID: {detail.employee_id}',
+                            'error': str(emp_error)
+                        })
+                        continue
 
                 transfer.is_transferred = True
                 transfer.transfer_date = datetime.now().date()
                 db.session.commit()
 
                 flash(f'✅ تم حساب وترحيل رواتب {count} موظف من فترة "{period_name}"', 'success')
-                flash(f'💰 إجمالي الرواتب: {total_salaries:,.0f} ريال', 'info')
+                flash(f'💰 إجمالي الرواتب: {total_salaries:,.2f} ريال', 'info')
+
+                if failed_employees:
+                    flash(f'⚠️ فشل حساب {len(failed_employees)} موظف', 'warning')
+
                 return redirect(url_for('salaries_list'))
 
             except Exception as e:
@@ -3658,10 +3846,19 @@ def register_routes(app):
         transaction_type = request.args.get('type', 'all')
         employee_id = request.args.get('employee_id', type=int)
 
+        # ✅ إضافة فلترة حسب الحالة (مرحل/غير مرحل)
+        transferred_filter = request.args.get('transferred', 'all')  # all, transferred, not_transferred
+
         query = FinancialTransaction.query
 
         if transaction_type != 'all':
             query = query.filter_by(transaction_type=transaction_type)
+
+        # ✅ فلترة حسب حالة الترحيل
+        if transferred_filter == 'transferred':
+            query = query.filter_by(is_settled=True)
+        elif transferred_filter == 'not_transferred':
+            query = query.filter_by(is_settled=False)
 
         # تطبيق صلاحية المشرف (يرى فقط معاملات عمال شركته)
         if current_user.role == 'supervisor':
@@ -3676,28 +3873,57 @@ def register_routes(app):
         if employee_id:
             query = query.filter_by(employee_id=employee_id)
 
-        transactions = query.filter_by(is_settled=False).order_by(FinancialTransaction.date.desc()).all()
+        # ✅ عرض الكل (مرحل وغير مرحل) مع ترتيب تنازلي
+        transactions = query.order_by(FinancialTransaction.date.desc()).all()
         employees = Employee.query.filter_by(is_active=True).all()
+
+        # ✅ إحصائيات سريعة
+        stats = {
+            'total_count': FinancialTransaction.query.count(),
+            'total_amount': db.session.query(func.sum(FinancialTransaction.amount)).scalar() or 0,
+            'pending_count': FinancialTransaction.query.filter_by(is_settled=False).count(),
+            'pending_amount': db.session.query(func.sum(FinancialTransaction.amount)).filter_by(
+                is_settled=False).scalar() or 0,
+            'transferred_count': FinancialTransaction.query.filter_by(is_settled=True).count(),
+            'transferred_amount': db.session.query(func.sum(FinancialTransaction.amount)).filter_by(
+                is_settled=True).scalar() or 0
+        }
 
         return render_template('financial/transactions.html',
                                transactions=transactions,
                                employees=employees,
                                selected_type=transaction_type,
-                               selected_employee=employee_id)
+                               selected_employee=employee_id,
+                               selected_transferred=transferred_filter,
+                               stats=stats,
+                               now=datetime.now())
+
 
     @app.route('/financial/add_transaction', methods=['GET', 'POST'])
     @login_required
     @role_required('admin', 'finance')
     def add_transaction():
-        """إضافة معاملة مالية - بدون إنشاء قيد محاسبي فوري"""
+        """إضافة معاملة مالية - يدعم جميع الأنواع (سلفة، إضافي، خصم، جزاء، بوفية، مطعم، وجبات)"""
         if request.method == 'POST':
             try:
+                employee_id = request.form.get('employee_id')
+                transaction_type = request.form.get('transaction_type')
+                amount = float(request.form.get('amount'))
+                description = request.form.get('description')
+                transaction_date = datetime.strptime(request.form.get('date'), '%Y-%m-%d').date()
+
+                # ✅ التحقق من صحة البيانات
+                if amount <= 0:
+                    flash('⚠️ المبلغ يجب أن يكون أكبر من صفر', 'danger')
+                    return redirect(url_for('add_transaction'))
+
+                # ✅ إنشاء المعاملة
                 transaction = FinancialTransaction(
-                    employee_id=request.form.get('employee_id'),
-                    transaction_type=request.form.get('transaction_type'),
-                    amount=float(request.form.get('amount')),
-                    description=request.form.get('description'),
-                    date=datetime.strptime(request.form.get('date'), '%Y-%m-%d').date(),
+                    employee_id=employee_id,
+                    transaction_type=transaction_type,
+                    amount=amount,
+                    description=description,
+                    date=transaction_date,
                     created_by=current_user.id,
                     is_settled=False,  # لم يتم ترحيلها بعد
                     journal_entry_id=None  # لا يوجد قيد محاسبي مرتبط بعد
@@ -3705,7 +3931,21 @@ def register_routes(app):
                 db.session.add(transaction)
                 db.session.commit()
 
-                flash('✅ تم إضافة المعاملة المالية بنجاح (لم يتم ترحيلها إلى القيود المحاسبية بعد)', 'success')
+                # ✅ رسالة نجاح حسب النوع
+                type_names = {
+                    'advance': 'السلفة',
+                    'overtime': 'الإضافي',
+                    'deduction': 'الخصم',
+                    'penalty': 'الجزاء',
+                    'cafeteria': 'خصم البوفية',
+                    'restaurant': 'خصم المطعم',
+                    'meal': 'خصم الوجبات'
+                }
+                type_name = type_names.get(transaction_type, transaction_type)
+
+                flash(
+                    f'✅ تم إضافة {type_name} بقيمة {amount:,.0f} ريال بنجاح (لم يتم ترحيلها إلى القيود المحاسبية بعد)',
+                    'success')
 
             except Exception as e:
                 db.session.rollback()
@@ -3714,10 +3954,351 @@ def register_routes(app):
 
             return redirect(url_for('transactions_list'))
 
+        # GET request
         employees = Employee.query.filter_by(is_active=True).all()
+
+        # ✅ تحديث أنواع المعاملات لتشمل البوفية والمطعم
+        transaction_types = {
+            'advance': 'سلفة',
+            'overtime': 'إضافي',
+            'deduction': 'خصم',
+            'penalty': 'جزاء',
+            'cafeteria': 'خصم بوفية',
+            'restaurant': 'خصم مطعم',
+            'meal': 'خصم وجبات'
+        }
+
         return render_template('financial/add_transaction.html',
                                employees=employees,
-                               transaction_types=FinancialTransaction.TRANSACTION_TYPES)
+                               transaction_types=transaction_types,
+                               now=datetime.now())
+
+    @app.route('/financial/delete_transaction/<int:trans_id>', methods=['POST'])
+    @login_required
+    @role_required('admin', 'finance')
+    def delete_transaction(trans_id):
+        """حذف معاملة مالية - فقط إذا لم يتم ترحيلها"""
+        transaction = FinancialTransaction.query.get_or_404(trans_id)
+
+        # التحقق من إمكانية الحذف
+        if transaction.is_settled:
+            flash('⚠️ لا يمكن حذف المعاملة لأنها تم ترحيلها بالفعل', 'danger')
+            return redirect(url_for('transactions_list'))
+
+        if transaction.journal_entry_id:
+            flash('⚠️ لا يمكن حذف المعاملة لأن لها قيد محاسبي مرتبط', 'danger')
+            return redirect(url_for('transactions_list'))
+
+        try:
+            type_names = {
+                'advance': 'السلفة',
+                'overtime': 'الإضافي',
+                'deduction': 'الخصم',
+                'penalty': 'الجزاء',
+                'cafeteria': 'خصم البوفية',
+                'restaurant': 'خصم المطعم',
+                'meal': 'خصم الوجبات'
+            }
+            type_name = type_names.get(transaction.transaction_type, transaction.transaction_type)
+
+            db.session.delete(transaction)
+            db.session.commit()
+            flash(f'✅ تم حذف {type_name} بنجاح', 'success')
+        except Exception as e:
+            db.session.rollback()
+            flash(f'❌ حدث خطأ أثناء الحذف: {str(e)}', 'danger')
+
+        return redirect(url_for('transactions_list'))
+
+    @app.route('/financial/bulk_transfer', methods=['POST'])
+    @login_required
+    @role_required('admin', 'finance')
+    def bulk_transfer_transactions():
+        """ترحيل معاملات متعددة إلى الراتب دفعة واحدة (يدعم السلف، الإضافي، الخصم، الجزاء، البوفية، المطعم)"""
+        try:
+            data = request.get_json()
+            transaction_ids = data.get('transaction_ids', [])
+
+            if not transaction_ids:
+                return jsonify({'success': False, 'error': 'لم يتم تحديد أي معاملات'})
+
+            count = 0
+            total_amount = 0
+            transactions = FinancialTransaction.query.filter(
+                FinancialTransaction.id.in_(transaction_ids),
+                FinancialTransaction.is_settled == False
+            ).all()
+
+            for transaction in transactions:
+                # تحديث حالة المعاملة (نفس منطق السلف)
+                transaction.is_settled = True
+                transaction.settled_date = datetime.now().date()
+                count += 1
+                total_amount += transaction.amount
+
+            db.session.commit()
+
+            return jsonify({
+                'success': True,
+                'message': f'✅ تم ترحيل {count} معاملة بقيمة إجمالية {total_amount:,.0f} ريال',
+                'count': count,
+                'total': total_amount
+            })
+
+        except Exception as e:
+            db.session.rollback()
+            return jsonify({'success': False, 'error': str(e)}), 500
+
+    @app.route('/financial/transaction/<int:trans_id>/edit', methods=['GET', 'POST'])
+    @login_required
+    @role_required('admin', 'finance')
+    def edit_transaction(trans_id):
+        """تعديل معاملة مالية (فقط إذا لم يتم ترحيلها)"""
+        transaction = FinancialTransaction.query.get_or_404(trans_id)
+
+        if transaction.is_settled:
+            flash('⚠️ لا يمكن تعديل معاملة تم ترحيلها بالفعل', 'danger')
+            return redirect(url_for('transactions_list'))
+
+        if request.method == 'POST':
+            try:
+                transaction.transaction_type = request.form.get('transaction_type')
+                transaction.amount = float(request.form.get('amount'))
+                transaction.description = request.form.get('description')
+                transaction.date = datetime.strptime(request.form.get('date'), '%Y-%m-%d').date()
+
+                db.session.commit()
+                flash('✅ تم تحديث المعاملة بنجاح', 'success')
+                return redirect(url_for('transactions_list'))
+
+            except Exception as e:
+                db.session.rollback()
+                flash(f'❌ حدث خطأ: {str(e)}', 'danger')
+
+        employees = Employee.query.filter_by(is_active=True).all()
+        transaction_types = {
+            'advance': 'سلفة',
+            'overtime': 'إضافي',
+            'deduction': 'خصم',
+            'penalty': 'جزاء',
+            'cafeteria': 'خصم بوفية',
+            'restaurant': 'خصم مطعم',
+            'meal': 'خصم وجبات'
+        }
+
+        return render_template('financial/edit_transaction.html',
+                               transaction=transaction,
+                               employees=employees,
+                               transaction_types=transaction_types,
+                               now=datetime.now())
+
+    @app.route('/financial/transactions/report')
+    @login_required
+    @role_required('admin', 'finance')
+    def transactions_report():
+        """تقرير المعاملات المالية"""
+        start_date = request.args.get('start_date')
+        end_date = request.args.get('end_date')
+        transaction_type = request.args.get('type', 'all')
+
+        query = FinancialTransaction.query
+
+        if start_date:
+            query = query.filter(FinancialTransaction.date >= datetime.strptime(start_date, '%Y-%m-%d').date())
+        if end_date:
+            query = query.filter(FinancialTransaction.date <= datetime.strptime(end_date, '%Y-%m-%d').date())
+        if transaction_type != 'all':
+            query = query.filter_by(transaction_type=transaction_type)
+
+        transactions = query.order_by(FinancialTransaction.date.desc()).all()
+
+        # إحصائيات
+        stats = {}
+        for t in ['advance', 'overtime', 'deduction', 'penalty', 'cafeteria', 'restaurant', 'meal']:
+            stats[t] = {
+                'count': len([x for x in transactions if x.transaction_type == t]),
+                'amount': sum(x.amount for x in transactions if x.transaction_type == t)
+            }
+
+        return render_template('financial/transactions_report.html',
+                               transactions=transactions,
+                               stats=stats,
+                               start_date=start_date,
+                               end_date=end_date,
+                               selected_type=transaction_type,
+                               now=datetime.now())
+
+    @app.route('/meal-deductions')
+    @login_required
+    @role_required('owner', 'finance')
+    def meal_deductions_list():
+        """عرض خصميات الوجبات (بوفية + مطعم + وجبات)"""
+
+        from datetime import datetime, date
+
+        # ================== جلب البيانات ==================
+        meal_deductions = MealDeduction.query.order_by(
+            MealDeduction.deduction_date.desc()
+        ).all()
+
+        settings = []
+        if hasattr(MealDeductionSetting, 'query'):
+            settings = MealDeductionSetting.query.filter_by(
+                is_active=True
+            ).all()
+
+        employees = Employee.query.filter_by(is_active=True).all()
+
+        # ================== تصنيف آمن ==================
+        cafeteria_total = 0
+        restaurant_total = 0
+        meal_total = 0
+        total_all = 0
+        transferred_total = 0
+        transferred_count = 0
+
+        for m in meal_deductions:
+
+            amount = m.amount or 0
+            total_all += amount
+
+            if m.is_transferred:
+                transferred_total += amount
+                transferred_count += 1
+
+            if m.deduction_type == 'cafeteria':
+                if not m.is_transferred:
+                    cafeteria_total += amount
+
+            elif m.deduction_type == 'restaurant':
+                if not m.is_transferred:
+                    restaurant_total += amount
+
+            elif m.deduction_type == 'meal':
+                if not m.is_transferred:
+                    meal_total += amount
+
+        # ================== الإحصائيات ==================
+        meal_deductions_stats = {
+            'total': total_all,
+            'count': len(meal_deductions),
+            'transferred_rate': (
+                (transferred_count / len(meal_deductions)) * 100
+                if meal_deductions else 0
+            )
+        }
+
+        stats = {
+            'total_cafeteria': cafeteria_total,
+            'total_restaurant': restaurant_total,
+            'total_meal': meal_total,
+            'total_all': total_all,
+            'transferred': transferred_total
+        }
+
+        # ================== عرض الصفحة ==================
+        return render_template(
+            'financial/meal_deductions.html',
+            meal_deductions=meal_deductions,
+            meal_deductions_stats=meal_deductions_stats,
+            settings=settings,
+            employees=employees,
+            stats=stats,
+            today=date.today(),
+            now=datetime.now()
+        )
+
+    @app.route('/meal-deductions/add', methods=['POST'])
+    @login_required
+    @role_required('owner', 'finance')
+    def add_meal_deduction():
+        """إضافة خصم وجبة (بوفية + مطعم + وجبة) بشكل محاسبي كامل"""
+
+        try:
+            data = request.get_json()
+            if not data:
+                data = request.form
+
+            employee_ids = data.get('employee_ids', [])
+            if isinstance(employee_ids, str):
+                employee_ids = [employee_ids]
+
+            deduction_type = data.get('deduction_type')
+            amount = float(data.get('amount', 0))
+            deduction_date = datetime.strptime(
+                data.get('deduction_date'),
+                '%Y-%m-%d'
+            ).date()
+
+            description = data.get('description', '')
+
+            # ================== التحقق الأساسي ==================
+            if not employee_ids or not deduction_type or amount <= 0:
+                return jsonify({
+                    'success': False,
+                    'message': 'بيانات غير مكتملة'
+                }), 400
+
+            # ================== تحديد الحسابات ==================
+            ACCOUNT_MAP = {
+                'meal': {
+                    'expense': '511008',
+                    'receivable': '130002'
+                },
+                'cafeteria': {
+                    'expense': '511009',
+                    'receivable': '130003'
+                },
+                'restaurant': {
+                    'expense': '511010',
+                    'receivable': '130004'
+                }
+            }
+
+            if deduction_type not in ACCOUNT_MAP:
+                return jsonify({
+                    'success': False,
+                    'message': 'نوع الخصم غير مدعوم'
+                }), 400
+
+            accounts = ACCOUNT_MAP[deduction_type]
+
+            created_count = 0
+
+            # ================== إنشاء الخصومات ==================
+            for emp_id in employee_ids:
+                deduction = MealDeduction(
+                    employee_id=int(emp_id),
+                    deduction_type=deduction_type,
+                    amount=amount,
+                    deduction_date=deduction_date,
+                    description=description,
+
+                    # ================== المحاسبة الجديدة ==================
+                    expense_account_code=accounts['expense'],
+                    receivable_account_code=accounts['receivable'],
+
+                    is_transferred=False
+                )
+
+                db.session.add(deduction)
+                created_count += 1
+
+            db.session.commit()
+
+            return jsonify({
+                'success': True,
+                'message': f'✅ تم إضافة {created_count} خصم ({deduction_type}) بنجاح',
+                'type': deduction_type,
+                'amount': amount
+            })
+
+        except Exception as e:
+            db.session.rollback()
+            return jsonify({
+                'success': False,
+                'message': str(e)
+            }), 500
 
     # ==================== إنشاء الفواتير الشهرية التلقائية للعقود السنوية ====================
 
@@ -3725,265 +4306,93 @@ def register_routes(app):
     @login_required
     @role_required('admin', 'finance')
     def generate_monthly_invoices():
-        """إنشاء فواتير شهرية تلقائية للعقود السنوية النشطة"""
-        from utils import create_contract_journal_entry
-
-        today = datetime.now().date()
-        current_month = today.strftime('%Y-%m')
-
-        # البحث عن العقود النشطة
-        active_contracts = Contract.query.filter(
-            Contract.status == 'active',
-            Contract.start_date <= today,
-            (Contract.end_date >= today) | (Contract.end_date.is_(None))
-        ).all()
-
-        created_count = 0
-        skipped_count = 0
-
-        for contract in active_contracts:
-            # تحديد قيمة القسط حسب نوع العقد
-            if contract.contract_type == 'annual':
-                monthly_amount = contract.contract_value / 12
-            elif contract.contract_type == 'monthly':
-                monthly_amount = contract.contract_value
-            elif contract.contract_type == 'quarterly':
-                monthly_amount = contract.contract_value / 3
-            else:
-                monthly_amount = contract.contract_value
-
-            # تاريخ الفاتورة (أول يوم في الشهر الحالي)
-            invoice_date = datetime(today.year, today.month, 1).date()
-
-            # التحقق من عدم وجود قيد مسبق لنفس الشهر
-            existing = JournalEntry.query.filter(
-                JournalEntry.reference_type == 'contract',
-                JournalEntry.reference_id == contract.id,
-                JournalEntry.date >= invoice_date
-            ).first()
-
-            if existing:
-                skipped_count += 1
-                continue
-
-            # ✅ إنشاء القيد المحاسبي باستخدام الدالة المصححة
-            try:
-                journal_entry = create_contract_journal_entry(contract)
-                created_count += 1
-                print(f"✅ تم إنشاء قيد للعقد {contract.id}: {journal_entry.entry_number}")
-            except Exception as e:
-                print(f"❌ خطأ في العقد {contract.id}: {e}")
-
-        db.session.commit()
-
-        flash(f'✅ تم إنشاء {created_count} قيد محاسبي للعقود', 'success')
-        if skipped_count > 0:
-            flash(f'⚠️ تم تخطي {skipped_count} عقد لوجود قيود سابقة', 'warning')
-
+        """إنشاء جميع الفواتير المستقبلية لعقد سنوي - معطل حالياً"""
+        flash('⚠️ هذه الميزة معطلة حالياً. يتم إنشاء الفواتير يدوياً فقط.', 'warning')
         return redirect(url_for('contracts_list'))
-
-    @app.route('/contracts/auto-generate/<int:contract_id>')
-    @login_required
-    @role_required('admin', 'finance')
-    def auto_generate_contract_invoices(contract_id):
-        """إنشاء فواتير شهرية تلقائية لعقد سنوي محدد"""
-
-        contract = Contract.query.get_or_404(contract_id)
-
-        if contract.contract_type != 'annual':
-            flash('⚠️ هذا العقد ليس سنوياً', 'warning')
-            return redirect(url_for('contracts_list'))
-
-        today = datetime.now().date()
-        current_month = today.strftime('%Y-%m')
-
-        # حساب قيمة الفاتورة الشهرية
-        monthly_amount = contract.contract_value / 12
-
-        # تاريخ الفاتورة (أول يوم في الشهر الحالي)
-        invoice_date = datetime(today.year, today.month, 1).date()
-
-        # تاريخ الاستحقاق (آخر يوم في الشهر)
-        if today.month == 12:
-            due_date = datetime(today.year + 1, 1, 1).date() - timedelta(days=1)
-        else:
-            due_date = datetime(today.year, today.month + 1, 1).date() - timedelta(days=1)
-
-        # التحقق من عدم وجود فاتورة لنفس الشهر
-        existing = Invoice.query.filter(
-            Invoice.contract_id == contract.id,
-            Invoice.invoice_date >= invoice_date,
-            Invoice.invoice_date <= due_date
-        ).first()
-
-        if existing:
-            flash(f'⚠️ توجد فاتورة بالفعل للشهر {current_month}', 'warning')
-            return redirect(url_for('contracts_list'))
-
-        # إنشاء رقم فاتورة
-        company_name = contract.company.name[:3] if contract.company else 'CON'
-        invoice_number = f"INV-{company_name}-{current_month}"
-
-        # إنشاء الفاتورة
-        invoice = Invoice(
-            contract_id=contract.id,
-            invoice_number=invoice_number,
-            amount=round(monthly_amount, 2),
-            invoice_date=invoice_date,
-            due_date=due_date,
-            is_paid=False,
-            paid_amount=0,
-            notes=f"قسط شهري تلقائي - {current_month}"
-        )
-        db.session.add(invoice)
-        db.session.flush()
-
-        # إنشاء قيد محاسبي
-        try:
-            journal_entry = create_invoice_journal_entry(invoice)
-            invoice.journal_entry_id = journal_entry.id
-        except Exception as e:
-            print(f"خطأ في القيد المحاسبي: {e}")
-
-        db.session.commit()
-
-        flash(f'✅ تم إنشاء فاتورة شهرية بقيمة {monthly_amount:,.0f} ريال', 'success')
-        return redirect(url_for('invoices_list'))
 
     @app.route('/contracts/generate-all-future-invoices/<int:contract_id>')
     @login_required
     @role_required('admin', 'finance')
     def generate_all_future_invoices(contract_id):
-        """إنشاء جميع الفواتير المستقبلية لعقد سنوي (حتى تاريخ الانتهاء)"""
-
-        contract = Contract.query.get_or_404(contract_id)
-
-        if contract.contract_type != 'annual':
-            flash('⚠️ هذا العقد ليس سنوياً', 'warning')
-            return redirect(url_for('contracts_list'))
-
-        monthly_amount = contract.contract_value / 12
-
-        # تحديد تاريخ البدء (الشهر الحالي)
-        start_date = datetime.now().date()
-        start_month = start_date.replace(day=1)
-
-        # تحديد تاريخ الانتهاء
-        end_date = contract.end_date or datetime(start_date.year + 1, start_date.month, 1).date()
-        end_month = end_date.replace(day=1)
-
-        created_count = 0
-        current_date = start_month
-
-        while current_date <= end_month:
-            # تاريخ الفاتورة (أول يوم في الشهر)
-            invoice_date = current_date
-
-            # تاريخ الاستحقاق (آخر يوم في الشهر)
-            if current_date.month == 12:
-                due_date = datetime(current_date.year + 1, 1, 1).date() - timedelta(days=1)
-            else:
-                due_date = datetime(current_date.year, current_date.month + 1, 1).date() - timedelta(days=1)
-
-            # التحقق من عدم وجود فاتورة
-            existing = Invoice.query.filter(
-                Invoice.contract_id == contract.id,
-                Invoice.invoice_date >= invoice_date,
-                Invoice.invoice_date <= due_date
-            ).first()
-
-            if not existing:
-                invoice_number = f"INV-{contract.company.name[:3] if contract.company else 'CON'}-{current_date.strftime('%Y-%m')}"
-
-                invoice = Invoice(
-                    contract_id=contract.id,
-                    invoice_number=invoice_number,
-                    amount=round(monthly_amount, 2),
-                    invoice_date=invoice_date,
-                    due_date=due_date,
-                    is_paid=False,
-                    paid_amount=0,
-                    notes=f"قسط شهري - {current_date.strftime('%B %Y')}"
-                )
-                db.session.add(invoice)
-                created_count += 1
-
-            # الانتقال إلى الشهر التالي
-            if current_date.month == 12:
-                current_date = datetime(current_date.year + 1, 1, 1).date()
-            else:
-                current_date = datetime(current_date.year, current_date.month + 1, 1).date()
-
-        db.session.commit()
-
-        flash(f'✅ تم إنشاء {created_count} فاتورة مستقبلية', 'success')
+        """إنشاء جميع الفواتير المستقبلية لعقد سنوي - معطل حالياً"""
+        flash('⚠️ هذه الميزة معطلة حالياً. يتم إنشاء الفواتير يدوياً فقط.', 'warning')
         return redirect(url_for('contracts_list'))
 
 
-    @app.route('/financial/delete_transaction/<int:trans_id>')
+
+    @app.route('/contracts/auto-generate/<int:contract_id>')
     @login_required
     @role_required('admin', 'finance')
-    def delete_transaction(trans_id):
-        """حذف معاملة مالية - فقط إذا لم يكن لها تأثير مالي"""
-        transaction = FinancialTransaction.query.get_or_404(trans_id)
+    def auto_generate_contract_invoices(contract_id):
+        """إنشاء جميع الفواتير المستقبلية لعقد سنوي - معطل حالياً"""
+        flash('⚠️ هذه الميزة معطلة حالياً. يتم إنشاء الفواتير يدوياً فقط.', 'warning')
+        return redirect(url_for('contracts_list'))
 
-        # التحقق من إمكانية الحذف
-        if not transaction.can_delete():
-            if transaction.has_financial_impact():
-                if transaction.is_settled:
-                    flash('⚠️ لا يمكن حذف المعاملة لأنها تم ترحيلها إلى الراتب بالفعل', 'danger')
-                elif transaction.journal_entry_id:
-                    flash('⚠️ لا يمكن حذف المعاملة لأن لها قيد محاسبي مرتبط', 'danger')
-                else:
-                    flash('⚠️ لا يمكن حذف هذه المعاملة لأن لها تأثير مالي', 'danger')
-            else:
-                flash('⚠️ لا يمكن حذف هذه المعاملة', 'danger')
-            return redirect(url_for('transactions_list'))
-
-        try:
-            db.session.delete(transaction)
-            db.session.commit()
-            flash('✅ تم حذف المعاملة بنجاح', 'success')
-        except Exception as e:
-            db.session.rollback()
-            flash(f'❌ حدث خطأ أثناء الحذف: {str(e)}', 'danger')
-
-        return redirect(url_for('transactions_list'))
 
     @app.route('/financial/transfer_to_salary', methods=['POST'])
     @login_required
     @role_required('admin', 'finance')
     def transfer_transaction_to_salary():
-        """ترحيل معاملة واحدة إلى الراتب - إنشاء قيد محاسبي"""
+        """ترحيل معاملة واحدة إلى الراتب + إنشاء قيد محاسبي بشكل آمن"""
+        from datetime import datetime
+        from flask import request, jsonify
+        from models import FinancialTransaction, db
+
         try:
             data = request.get_json()
+
+            if not data or 'transaction_id' not in data:
+                return jsonify({'success': False, 'error': 'transaction_id مطلوب'}), 400
+
             transaction_id = data.get('transaction_id')
 
-            transaction = FinancialTransaction.query.get(transaction_id)
-            if not transaction:
-                return jsonify({'success': False, 'error': 'المعاملة غير موجودة'})
+            # 🔒 قفل السجل لتجنب التكرار (Race Condition)
+            transaction = (
+                FinancialTransaction.query
+                .filter_by(id=transaction_id)
+                .with_for_update()
+                .first()
+            )
 
+            if not transaction:
+                return jsonify({'success': False, 'error': 'المعاملة غير موجودة'}), 404
+
+            # 🔒 تحقق مزدوج
             if transaction.is_settled:
-                return jsonify({'success': False, 'error': 'المعاملة تم ترحيلها مسبقاً'})
+                return jsonify({'success': False, 'error': 'المعاملة تم ترحيلها مسبقاً'}), 400
 
             if transaction.journal_entry_id:
-                return jsonify({'success': False, 'error': 'المعاملة لها قيد محاسبي مرتبط بالفعل'})
+                return jsonify({'success': False, 'error': 'المعاملة لها قيد محاسبي بالفعل'}), 400
 
-            # إنشاء قيد محاسبي للمعاملة
+            if not transaction.amount or transaction.amount <= 0:
+                return jsonify({'success': False, 'error': 'مبلغ المعاملة غير صالح'}), 400
+
+            # ========= إنشاء القيد داخل نفس المعاملة =========
             journal_entry = create_transaction_journal_entry(transaction)
 
-            if journal_entry:
-                transaction.is_settled = True
-                transaction.settled_date = datetime.now().date()
-                transaction.journal_entry_id = journal_entry.id
-                db.session.commit()
-                return jsonify({'success': True, 'message': 'تم ترحيل المعاملة وإنشاء القيد المحاسبي بنجاح'})
-            else:
-                return jsonify({'success': False, 'error': 'فشل في إنشاء القيد المحاسبي'})
+            if not journal_entry:
+                db.session.rollback()
+                return jsonify({'success': False, 'error': 'فشل في إنشاء القيد المحاسبي'}), 500
+
+            # ========= تحديث المعاملة =========
+            transaction.is_settled = True
+            transaction.settled_date = datetime.utcnow().date()
+            transaction.journal_entry_id = journal_entry.id
+
+            db.session.commit()
+
+            return jsonify({
+                'success': True,
+                'message': 'تم ترحيل المعاملة وإنشاء القيد المحاسبي بنجاح',
+                'journal_entry_id': journal_entry.id
+            }), 200
 
         except Exception as e:
             db.session.rollback()
-            return jsonify({'success': False, 'error': str(e)})
+            return jsonify({
+                'success': False,
+                'error': str(e)
+            }), 500
 
     @app.route('/financial/transfer_to_preparation', methods=['POST'])
     @login_required
@@ -4010,34 +4419,6 @@ def register_routes(app):
             # أو وضع علامة بأنها مرتبطة بالتحضير
 
             return jsonify({'success': True, 'message': 'تم إضافة المعاملة إلى تحضير الدوام'})
-
-        except Exception as e:
-            db.session.rollback()
-            return jsonify({'success': False, 'error': str(e)})
-
-    @app.route('/financial/bulk_transfer', methods=['POST'])
-    @login_required
-    @role_required('admin', 'finance')
-    def bulk_transfer_transactions():
-        """ترحيل معاملات متعددة إلى الراتب"""
-        try:
-            data = request.get_json()
-            transaction_ids = data.get('transaction_ids', [])
-
-            if not transaction_ids:
-                return jsonify({'success': False, 'error': 'لم يتم تحديد أي معاملات'})
-
-            count = 0
-            for trans_id in transaction_ids:
-                transaction = FinancialTransaction.query.get(trans_id)
-                if transaction and not transaction.is_settled:
-                    transaction.is_settled = True
-                    transaction.settled_date = datetime.now().date()
-                    count += 1
-
-            db.session.commit()
-
-            return jsonify({'success': True, 'message': f'تم ترحيل {count} معاملة بنجاح'})
 
         except Exception as e:
             db.session.rollback()
@@ -4087,10 +4468,19 @@ def register_routes(app):
     @login_required
     @role_required('admin', 'finance')
     def add_contract():
-        """إضافة عقد - للمدير والموظف المالي فقط"""
+        """إضافة عقد - بدون قيود محاسبية ولا فواتير تلقائية"""
         if request.method == 'POST':
+            company_id = request.form.get('company_id')
+
+            # البحث عن الشركة
+            company = Company.query.get(company_id)
+            if not company:
+                flash('الشركة غير موجودة', 'danger')
+                return redirect(url_for('add_contract'))
+
+            # ✅ فقط إنشاء العقد (بدون حسابات ولا فواتير ولا قيود)
             contract = Contract(
-                company_id=request.form.get('company_id'),
+                company_id=company_id,
                 contract_type=request.form.get('contract_type'),
                 contract_value=float(request.form.get('contract_value')),
                 start_date=datetime.strptime(request.form.get('start_date'), '%Y-%m-%d').date(),
@@ -4101,7 +4491,9 @@ def register_routes(app):
             contract.remaining_amount = contract.contract_value
             db.session.add(contract)
             db.session.commit()
-            flash('تم إضافة العقد بنجاح', 'success')
+
+            flash(f'✅ تم إضافة العقد بنجاح (بدون قيود محاسبية ولا فواتير)', 'success')
+            flash('ℹ️ ملاحظة: سيتم إنشاء الفواتير يدوياً لاحقاً عند الحاجة', 'info')
             return redirect(url_for('contracts_list'))
 
         companies = Company.query.all()
@@ -4405,13 +4797,25 @@ def register_routes(app):
                                now=datetime.now())
 
     # ==================== إدارة الحسابات (دليل الحسابات) ====================
-
     @app.route('/accounts/chart')
     @login_required
     @role_required('admin', 'finance')
     def chart_of_accounts():
         """عرض دليل الحسابات"""
+        from sqlalchemy import func
+
+        # جلب جميع الحسابات النشطة
         accounts = Account.query.filter_by(is_active=True).order_by(Account.code).all()
+
+        # ✅ دالة لفلترة الحسابات (تسطيح الهيكل الشجري)
+        def flatten_accounts(account_list):
+            """تسطيح قائمة الحسابات (بما فيها الحسابات الفرعية)"""
+            result = []
+            for acc in account_list:
+                result.append(acc)
+                if hasattr(acc, 'children') and acc.children:
+                    result.extend(flatten_accounts(acc.children))
+            return result
 
         # بناء هيكل شجري
         def build_tree(parent_id=None, level=0):
@@ -4425,9 +4829,139 @@ def register_routes(app):
 
         account_tree = build_tree()
 
+        # ✅ تسطيح جميع الحسابات للحصول على الإحصائيات الصحيحة
+        all_accounts = flatten_accounts(account_tree)
+
+        # ✅ حساب الإحصائيات الأساسية
+        customer_accounts_count = 0
+        supplier_accounts_count = 0
+        total_assets = 0
+        total_liabilities = 0
+        total_equity = 0
+        total_revenue = 0
+
+        for acc in all_accounts:
+            balance = acc.get_balance()
+
+            # حساب حسابات العملاء (تلك التي تبدأ بـ 1201)
+            if acc.code and acc.code.startswith('1201'):
+                customer_accounts_count += 1
+            # حساب حسابات الموردين (تلك التي تبدأ بـ 2201 أو 2202)
+            elif acc.code and (acc.code.startswith('2201') or acc.code.startswith('2202')):
+                supplier_accounts_count += 1
+
+            # حساب إجمالي الأصول
+            if acc.account_type == 'asset':
+                total_assets += balance
+            # حساب إجمالي الخصوم
+            elif acc.account_type == 'liability':
+                total_liabilities += balance
+            # حساب إجمالي حقوق الملكية
+            elif acc.account_type == 'equity':
+                total_equity += balance
+            # حساب إجمالي الإيرادات
+            elif acc.account_type == 'revenue':
+                total_revenue += balance
+
+        # ========== ✅ حسابات العملاء الفرعية (الشركات) ==========
+        companies_with_accounts = []
+        total_companies_balance = 0
+
+        # جلب جميع الشركات التي لديها حسابات
+        companies = Company.query.all()
+        for company in companies:
+            # محاولة الحصول على حساب العميل
+            account = company.get_or_create_receivable_account()
+            if account and account.is_active:
+                balance = account.get_balance()
+                companies_with_accounts.append({
+                    'company': company,
+                    'account': account,
+                    'balance': balance
+                })
+                total_companies_balance += balance
+
+        # إذا لم توجد شركات، جلب الحسابات الفرعية مباشرة
+        if not companies_with_accounts:
+            customer_sub_accounts = Account.query.filter(
+                Account.code.startswith('1201'),
+                Account.is_active == True
+            ).all()
+            for acc in customer_sub_accounts:
+                balance = acc.get_balance()
+                # محاولة العثور على الشركة المرتبطة
+                company = Company.query.filter_by(receivable_account_id=acc.id).first()
+                if not company:
+                    # إنشاء كائن شركة وهمي للعرض
+                    company = type('obj', (object,), {
+                        'id': 0,
+                        'name': acc.name_ar.replace('ذمم مدينة - ', ''),
+                        'phone': None,
+                        'contact_person': None
+                    })()
+                companies_with_accounts.append({
+                    'company': company,
+                    'account': acc,
+                    'balance': balance
+                })
+                total_companies_balance += balance
+
+        # ========== ✅ حسابات الموردين الفرعية ==========
+        suppliers_with_accounts = []
+        total_suppliers_balance = 0
+
+        # جلب جميع الموردين النشطين
+        suppliers = Supplier.query.filter_by(is_active=True).all()
+        for supplier in suppliers:
+            # محاولة الحصول على حساب المورد
+            account = supplier.get_or_create_payable_account()
+            if account and account.is_active:
+                balance = account.get_balance()
+                suppliers_with_accounts.append({
+                    'supplier': supplier,
+                    'account': account,
+                    'balance': balance
+                })
+                total_suppliers_balance += balance
+
+        # إذا لم توجد موردين، جلب الحسابات الفرعية مباشرة
+        if not suppliers_with_accounts:
+            supplier_sub_accounts = Account.query.filter(
+                Account.code.startswith('2202'),
+                Account.is_active == True
+            ).all()
+            for acc in supplier_sub_accounts:
+                balance = acc.get_balance()
+                # محاولة العثور على المورد المرتبط
+                supplier = Supplier.query.filter_by(payable_account_id=acc.id).first()
+                if not supplier:
+                    # إنشاء كائن مورد وهمي للعرض
+                    supplier = type('obj', (object,), {
+                        'id': 0,
+                        'name_ar': acc.name_ar.replace('ذمم دائنة - ', ''),
+                        'phone': None,
+                        'name': acc.name
+                    })()
+                suppliers_with_accounts.append({
+                    'supplier': supplier,
+                    'account': acc,
+                    'balance': balance
+                })
+                total_suppliers_balance += balance
+
         return render_template('accounts/chart_of_accounts.html',
                                accounts=account_tree,
                                account_types=Account.ACCOUNT_TYPES,
+                               customer_accounts_count=customer_accounts_count,
+                               supplier_accounts_count=supplier_accounts_count,
+                               total_assets=total_assets,
+                               total_liabilities=total_liabilities,
+                               total_equity=total_equity,
+                               total_revenue=total_revenue,
+                               companies_with_accounts=companies_with_accounts,
+                               suppliers_with_accounts=suppliers_with_accounts,
+                               total_companies_balance=total_companies_balance,
+                               total_suppliers_balance=total_suppliers_balance,
                                now=datetime.now())
 
     @app.route('/accounts/add', methods=['GET', 'POST'])
@@ -5399,36 +5933,6 @@ def register_routes(app):
         suppliers = Supplier.query.filter_by(is_active=True).order_by(Supplier.name).all()
         return render_template('suppliers/suppliers.html', suppliers=suppliers, now=datetime.now())
 
-    @app.route('/suppliers/add', methods=['GET', 'POST'])
-    @login_required
-    @role_required('admin', 'finance')
-    def add_supplier():
-        """إضافة مورد جديد"""
-        if request.method == 'POST':
-            try:
-                supplier = Supplier(
-                    name=request.form.get('name'),
-                    name_ar=request.form.get('name_ar'),
-                    contact_person=request.form.get('contact_person'),
-                    phone=request.form.get('phone'),
-                    email=request.form.get('email'),
-                    address=request.form.get('address'),
-                    tax_number=request.form.get('tax_number'),
-                    bank_name=request.form.get('bank_name'),
-                    bank_account=request.form.get('bank_account'),
-                    supplier_type=request.form.get('supplier_type', 'general'),
-                    notes=request.form.get('notes')
-                )
-                db.session.add(supplier)
-                db.session.commit()
-                flash('✅ تم إضافة المورد بنجاح', 'success')
-                return redirect(url_for('suppliers_list'))
-            except Exception as e:
-                db.session.rollback()
-                flash(f'❌ حدث خطأ: {str(e)}', 'danger')
-
-        return render_template('suppliers/add_supplier.html', now=datetime.now())
-
     @app.route('/suppliers/edit/<int:supplier_id>', methods=['GET', 'POST'])
     @login_required
     @role_required('admin', 'finance')
@@ -5494,65 +5998,165 @@ def register_routes(app):
                                categories=categories,
                                now=datetime.now())
 
-    @app.route('/supplier-invoices/add', methods=['GET', 'POST'])
+    @app.route('/suppliers/add', methods=['GET', 'POST'])
     @login_required
     @role_required('admin', 'finance')
+    def add_supplier():
+        """إضافة مورد جديد مع إنشاء حساب فرعي تلقائي"""
+        if request.method == 'POST':
+            try:
+                supplier = Supplier(
+                    name=request.form.get('name'),
+                    name_ar=request.form.get('name_ar'),
+                    contact_person=request.form.get('contact_person'),
+                    phone=request.form.get('phone'),
+                    email=request.form.get('email'),
+                    address=request.form.get('address'),
+                    tax_number=request.form.get('tax_number'),
+                    bank_name=request.form.get('bank_name'),
+                    bank_account=request.form.get('bank_account'),
+                    supplier_type=request.form.get('supplier_type', 'general'),
+                    notes=request.form.get('notes')
+                )
+                db.session.add(supplier)
+                db.session.flush()  # ✅ للحصول على ID قبل إنشاء الحساب
+
+                # ✅ إنشاء حساب المورد الفرعي تلقائياً
+                supplier.get_or_create_payable_account()
+
+                db.session.commit()
+                flash('✅ تم إضافة المورد وإنشاء حسابه الفرعي بنجاح', 'success')
+                return redirect(url_for('suppliers_list'))
+            except Exception as e:
+                db.session.rollback()
+                flash(f'❌ حدث خطأ: {str(e)}', 'danger')
+
+        return render_template('suppliers/add_supplier.html', now=datetime.now())
+
+    @app.route('/supplier-invoices/add', methods=['GET', 'POST'])
+    @login_required
+    @role_required(['admin', 'accountant'])
     def add_supplier_invoice():
-        """إضافة فاتورة مورد جديدة مع توليد رقم تلقائي"""
+        """إضافة فاتورة مورد جديدة"""
+        from models import Supplier, ExpenseCategory, Account, JournalEntry, JournalEntryDetail, SupplierInvoice
+        from datetime import datetime
+        from utils import get_next_entry_number
 
         if request.method == 'POST':
             try:
-                # توليد رقم فاتورة إذا كان الحقل فارغاً
+                supplier_id = request.form.get('supplier_id')
+                category_id = request.form.get('category_id')
+                amount = float(request.form.get('amount'))
                 invoice_number = request.form.get('invoice_number')
-                if not invoice_number or invoice_number.strip() == '':
-                    invoice_number = generate_supplier_invoice_number()
+                invoice_date = datetime.strptime(request.form.get('invoice_date'), '%Y-%m-%d')
+                due_date = datetime.strptime(request.form.get('due_date'), '%Y-%m-%d') if request.form.get(
+                    'due_date') else None
+                notes = request.form.get('notes')
 
+                # جلب المورد
+                supplier = Supplier.query.get(supplier_id)
+                if not supplier:
+                    flash('❌ المورد غير موجود', 'danger')
+                    return redirect(url_for('add_supplier_invoice'))
+
+                # ✅ إنشاء الفاتورة مع تعيين paid_amount و remaining_amount
                 invoice = SupplierInvoice(
+                    supplier_id=supplier_id,
+                    category_id=category_id if category_id else None,
+                    amount=amount,
                     invoice_number=invoice_number,
-                    supplier_id=request.form.get('supplier_id'),
-                    category_id=request.form.get('category_id'),
-                    amount=float(request.form.get('amount')),
-                    invoice_date=datetime.strptime(request.form.get('invoice_date'), '%Y-%m-%d').date(),
-                    due_date=datetime.strptime(request.form.get('due_date'), '%Y-%m-%d').date() if request.form.get(
-                        'due_date') else None,
-                    remaining_amount=float(request.form.get('amount')),
-                    description=request.form.get('description'),
-                    notes=request.form.get('notes'),
+                    invoice_date=invoice_date,
+                    due_date=due_date,
+                    paid_amount=0,  # ✅ مهم: تمهيداً للدفع
+                    remaining_amount=amount,  # ✅ مهم: المتبقي = المبلغ الكامل
+                    status='pending',
+                    notes=notes,
                     created_by=current_user.id
                 )
                 db.session.add(invoice)
                 db.session.flush()
 
-                # إنشاء قيد محاسبي
-                try:
-                    create_supplier_invoice_journal_entry(invoice)
-                    invoice.is_posted_to_accounts = True
-                except Exception as je:
-                    db.session.rollback()
-                    flash(f'تمت إضافة الفاتورة ولكن حدث خطأ في القيد المحاسبي: {str(je)}', 'warning')
-                    return redirect(url_for('supplier_invoices_list'))
+                # حساب المصاريف حسب الفئة
+                expense_account = Account.query.filter_by(code='530005').first()
 
+                if category_id:
+                    category = ExpenseCategory.query.get(category_id)
+                    if category and category.account_code:
+                        expense_account = Account.query.filter_by(code=category.account_code).first()
+
+                if not expense_account:
+                    expense_account = Account.query.filter_by(code='530005').first()
+                    if not expense_account:
+                        expense_account = Account(
+                            code='530005',
+                            name='General Expense',
+                            name_ar='مصروفات عامة',
+                            account_type='expense',
+                            nature='debit',
+                            opening_balance=0,
+                            is_active=True
+                        )
+                        db.session.add(expense_account)
+                        db.session.flush()
+
+                # استخدام حساب المورد الفرعي
+                supplier_account = supplier.get_or_create_payable_account()
+
+                # إنشاء رقم قيد فريد
+                entry_number = get_next_entry_number()
+
+                # إنشاء القيد اليومية
+                je = JournalEntry(
+                    entry_number=entry_number,
+                    date=invoice_date,
+                    description=f"فاتورة مورد {invoice_number} - {supplier.name_ar}",
+                    reference_type='supplier_invoice',
+                    reference_id=invoice.id,
+                    created_by=current_user.id
+                )
+                db.session.add(je)
+                db.session.flush()
+
+                # قيد مدين (مصاريف)
+                debit_detail = JournalEntryDetail(
+                    entry_id=je.id,
+                    account_id=expense_account.id,
+                    debit=amount,
+                    credit=0,
+                    description=f'فاتورة {invoice_number} - {supplier.name_ar}'
+                )
+                db.session.add(debit_detail)
+
+                # قيد دائن (مورد)
+                credit_detail = JournalEntryDetail(
+                    entry_id=je.id,
+                    account_id=supplier_account.id,
+                    debit=0,
+                    credit=amount,
+                    description=f'استحقاق فاتورة {invoice_number}'
+                )
+                db.session.add(credit_detail)
+
+                invoice.journal_entry_id = je.id
                 db.session.commit()
-                flash(f'✅ تم إضافة فاتورة المورد بنجاح (رقم: {invoice_number})', 'success')
+
+                flash(f'✅ تم إضافة فاتورة المورد {invoice_number} بنجاح', 'success')
+                return redirect(url_for('supplier_invoices_list'))
 
             except Exception as e:
                 db.session.rollback()
+                print(f"❌ خطأ: {e}")
+                import traceback
+                traceback.print_exc()
                 flash(f'❌ حدث خطأ: {str(e)}', 'danger')
                 return redirect(url_for('add_supplier_invoice'))
 
-            return redirect(url_for('supplier_invoices_list'))
-
-        # GET request
+        # GET request - عرض النموذج
         suppliers = Supplier.query.filter_by(is_active=True).all()
         categories = ExpenseCategory.query.filter_by(is_active=True).all()
-
-        # توليد رقم فاتورة مقترح للعرض
-        suggested_number = generate_supplier_invoice_number()
-
         return render_template('suppliers/add_invoice.html',
                                suppliers=suppliers,
                                categories=categories,
-                               suggested_number=suggested_number,
                                now=datetime.now())
 
     @app.route('/supplier-invoices/edit/<int:invoice_id>', methods=['GET', 'POST'])
@@ -6807,6 +7411,536 @@ def register_routes(app):
                 'error': str(e)
             }), 500
 
+    # في routes.py، أضف هذا الشرط
+    def allow_direct_journal_entry():
+        """
+        السماح بإنشاء قيود مباشرة فقط للمستخدمين المصرح لهم
+        """
+        if not current_user.is_authenticated:
+            return False
+
+        # فقط المدير والمالك يمكنهم إنشاء قيود مباشرة
+        if current_user.role in ['admin', 'owner']:
+            return True
+
+        # التحقق من وجود رواتب غير محسوبة
+        from models import Salary
+        pending_salaries = Salary.query.filter_by(is_paid=False).count()
+        if pending_salaries > 0:
+            flash('⚠️ لا يمكن إنشاء قيود مباشرة قبل احتساب الرواتب', 'warning')
+            return False
+
+        return True
+
+    # ==================== إعدادات النظام ====================
+    @app.route('/system/settings')
+    @login_required
+    @role_required('admin')
+    def system_settings_all():
+        """صفحة إعدادات النظام"""
+        from models import SystemSettings, AllowanceSetting
+
+        main_settings = SystemSettings.query.order_by(SystemSettings.display_order).all()
+        allowances = AllowanceSetting.query.order_by(AllowanceSetting.display_order).all()
+
+        return render_template('settings.html',
+                               main_settings=main_settings,
+                               allowances=allowances,
+                               now=datetime.now())
+
+    from flask_wtf.csrf import CSRFProtect
+
+    csrf = CSRFProtect()
+
+    @app.route('/system/settings/update', methods=['POST'])
+    @login_required
+    @role_required('admin')
+    def update_system_settings():
+        """تحديث إعدادات النظام مع ربط الحسابات المحاسبية"""
+        from models import SystemSettings, AllowanceSetting, db
+
+        # ✅ طباعة جميع البيانات المستلمة للتصحيح
+        print("\n" + "=" * 60)
+        print("📋 البيانات المستلمة من النموذج:")
+        for key, value in request.form.items():
+            print(f"   {key}: {value}")
+        print("=" * 60)
+
+        try:
+            # تحديث الإعدادات الرئيسية
+            for key, value in request.form.items():
+                if key.startswith('setting_'):
+                    setting_key = key.replace('setting_', '')
+                    setting = SystemSettings.query.filter_by(setting_key=setting_key).first()
+                    if setting:
+                        setting.value = float(value)
+                        print(f"   ✅ تحديث الإعداد: {setting_key} = {value}")
+
+            # ✅ تحديث البدلات الإضافية - استخدام getlist بشكل صحيح
+            allowance_ids = request.form.getlist('allowance_ids[]')
+
+            if not allowance_ids:
+                # محاولة الصيغة البديلة
+                allowance_ids = request.form.getlist('allowance_ids')
+
+            print(f"\n📋 allowance_ids المستلمة: {allowance_ids}")
+
+            for aid in allowance_ids:
+                allowance = AllowanceSetting.query.get(int(aid))
+                if allowance:
+                    # تحديث القيمة
+                    value_key = f'allowance_value_{aid}'
+                    if value_key in request.form:
+                        new_value = float(request.form.get(value_key, 0))
+                        allowance.value = new_value
+                        print(f"   ✅ {allowance.name_ar}: value = {new_value}")
+
+                    # تحديث الحالة
+                    active_key = f'allowance_active_{aid}'
+                    allowance.is_active = active_key in request.form
+                    print(f"   ✅ {allowance.name_ar}: is_active = {allowance.is_active}")
+
+                    # ✅ تحديث الحساب المحاسبي
+                    account_key = f'allowance_account_{aid}'
+                    if account_key in request.form:
+                        account_code = request.form.get(account_key, '')
+                        allowance.account_code = account_code if account_code else None
+                        print(f"   ✅ {allowance.name_ar}: account_code = {account_code}")
+                    else:
+                        print(f"   ⚠️ المفتاح {account_key} غير موجود في البيانات!")
+
+            db.session.commit()
+            flash('✅ تم تحديث إعدادات النظام بنجاح', 'success')
+
+        except Exception as e:
+            db.session.rollback()
+            print(f"❌ خطأ: {e}")
+            import traceback
+            traceback.print_exc()
+            flash(f'❌ حدث خطأ: {str(e)}', 'danger')
+
+        return redirect(url_for('system_settings_all'))
+
+    @app.route('/system/settings/add-allowance', methods=['POST'])
+    @login_required
+    @role_required('admin')
+    def add_allowance():
+        """إضافة بدل جديد"""
+        from models import AllowanceSetting, db
+
+        try:
+            allowance = AllowanceSetting(
+                name=request.form.get('name'),
+                name_ar=request.form.get('name_ar'),
+                allowance_type=request.form.get('allowance_type'),
+                value=float(request.form.get('value', 0)),
+                based_on=request.form.get('based_on', 'basic_salary'),
+                calculation_method=request.form.get('calculation_method', 'add'),
+                applies_to=request.form.get('applies_to', 'all'),
+                account_code=request.form.get('account_code'),  # ✅ إضافة الحساب المحاسبي
+                description=request.form.get('description'),
+                is_active=True
+            )
+            db.session.add(allowance)
+            db.session.commit()
+            flash(f'✅ تم إضافة البدل {allowance.name_ar} بنجاح', 'success')
+
+        except Exception as e:
+            db.session.rollback()
+            flash(f'❌ حدث خطأ: {str(e)}', 'danger')
+
+        return redirect(url_for('system_settings_all'))
+
+    @app.route('/system/settings/edit-allowance/<int:allowance_id>', methods=['GET', 'POST'])
+    @login_required
+    @role_required('admin')
+    def edit_allowance(allowance_id):
+        """تعديل بدل إضافي"""
+        from models import AllowanceSetting, db
+
+        allowance = AllowanceSetting.query.get_or_404(allowance_id)
+
+        if request.method == 'POST':
+            try:
+                allowance.name = request.form.get('name')
+                allowance.name_ar = request.form.get('name_ar')
+                allowance.allowance_type = request.form.get('allowance_type')
+                allowance.value = float(request.form.get('value', 0))
+                allowance.based_on = request.form.get('based_on', 'basic_salary')
+                allowance.calculation_method = request.form.get('calculation_method', 'add')
+                allowance.paid_to = request.form.get('paid_to', 'employee')  # ✅ جديد
+                allowance.applies_to = request.form.get('applies_to', 'all')
+                allowance.account_code = request.form.get('account_code')
+                allowance.description = request.form.get('description')
+                allowance.is_active = request.form.get('is_active') == 'on'
+
+                db.session.commit()
+                flash(f'✅ تم تعديل البدل {allowance.name_ar} بنجاح', 'success')
+                return redirect(url_for('system_settings_all'))
+
+            except Exception as e:
+                db.session.rollback()
+                flash(f'❌ حدث خطأ: {str(e)}', 'danger')
+
+        return render_template('edit_allowance.html', allowance=allowance, now=datetime.now())
 
 
+    @app.route('/system/settings/delete-allowance/<int:allowance_id>', methods=['POST'])
+    @login_required
+    @role_required('admin')
+    def delete_allowance(allowance_id):
+        """حذف بدل إضافي"""
+        from models import AllowanceSetting, db
 
+        allowance = AllowanceSetting.query.get_or_404(allowance_id)
+        db.session.delete(allowance)
+        db.session.commit()
+
+        flash(f'✅ تم حذف البدل {allowance.name_ar} بنجاح', 'success')
+        return redirect(url_for('system_settings'))
+
+    @app.route('/accounts/cash_flow')
+    @login_required
+    @role_required('admin', 'finance')
+    def cash_flow_statement():
+        """قائمة التدفقات النقدية"""
+        start_date_str = request.args.get('start_date')
+        end_date_str = request.args.get('end_date')
+
+        today = datetime.now().date()
+
+        if start_date_str and end_date_str:
+            try:
+                start_date = datetime.strptime(start_date_str, '%Y-%m-%d').date()
+                end_date = datetime.strptime(end_date_str, '%Y-%m-%d').date()
+            except ValueError:
+                start_date = datetime(today.year, today.month, 1).date()
+                end_date = today
+        else:
+            start_date = datetime(today.year, today.month, 1).date()
+            end_date = today
+
+        # التدفقات النقدية الداخلة
+        cash_inflows = []
+
+        # الإيرادات من العقود (المدفوعات)
+        contract_payments = JournalEntryDetail.query.join(JournalEntry).filter(
+            JournalEntry.date >= start_date,
+            JournalEntry.date <= end_date,
+            JournalEntryDetail.credit > 0
+        ).join(Account).filter(Account.account_type == 'revenue').all()
+
+        total_inflows = sum(p.credit for p in contract_payments)
+
+        # التدفقات النقدية الخارجة
+        cash_outflows = []
+
+        # الرواتب المصروفة
+        salaries_paid = Salary.query.filter(
+            Salary.paid_date >= start_date,
+            Salary.paid_date <= end_date,
+            Salary.is_paid == True
+        ).all()
+        total_salaries = sum(s.total_salary for s in salaries_paid)
+
+        # فواتير الموردين المدفوعة
+        supplier_payments = SupplierInvoicePayment.query.filter(
+            SupplierInvoicePayment.payment_date >= start_date,
+            SupplierInvoicePayment.payment_date <= end_date
+        ).all()
+        total_supplier_payments = sum(p.amount for p in supplier_payments)
+
+        total_outflows = total_salaries + total_supplier_payments
+
+        # صافي التدفق
+        net_cash_flow = total_inflows - total_outflows
+
+        return render_template('accounts/cash_flow.html',
+                               start_date=start_date,
+                               end_date=end_date,
+                               total_inflows=total_inflows,
+                               total_outflows=total_outflows,
+                               net_cash_flow=net_cash_flow,
+                               salaries_paid=salaries_paid,
+                               supplier_payments=supplier_payments,
+                               contract_payments=contract_payments,
+                               now=datetime.now())
+
+    from flask import send_file
+    import pandas as pd
+    from io import BytesIO
+    @app.route('/financial/salaries/export')
+    @login_required
+    @role_required('admin', 'finance')
+    def export_salaries_excel():
+        """تصدير الرواتب إلى Excel"""
+        period_key = request.args.get('period_key', '')
+
+        query = Salary.query
+        if period_key:
+            query = query.filter(Salary.month_year == period_key)
+
+        salaries = query.all()
+
+        data = []
+        for salary in salaries:
+            data.append({
+                'الموظف': salary.employee.name if salary.employee else '',
+                'الشركة': salary.employee.company.name if salary.employee and salary.employee.company else '',
+                'الفترة': _format_period_display(salary),
+                'أيام الحضور': salary.attendance_days,
+                'صافي الراتب': salary.total_salary or 0,
+                'الحالة': 'مدفوع' if salary.is_paid else 'غير مدفوع'
+            })
+
+        df = pd.DataFrame(data)
+        output = BytesIO()
+        with pd.ExcelWriter(output, engine='openpyxl') as writer:
+            df.to_excel(writer, sheet_name='الرواتب', index=False)
+
+        output.seek(0)
+        filename = f"salaries_{datetime.now().strftime('%Y%m%d_%H%M%S')}.xlsx"
+        return send_file(output, download_name=filename, as_attachment=True,
+                         mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+
+    @app.route('/reports/attendance/export')
+    @login_required
+    def export_attendance_excel():
+        """تصدير تقرير الحضور إلى Excel"""
+        start_date = request.args.get('start_date')
+        end_date = request.args.get('end_date')
+        employee_id = request.args.get('employee_id', type=int)
+
+        query = Attendance.query
+        if start_date:
+            query = query.filter(Attendance.date >= datetime.strptime(start_date, '%Y-%m-%d').date())
+        if end_date:
+            query = query.filter(Attendance.date <= datetime.strptime(end_date, '%Y-%m-%d').date())
+        if employee_id:
+            query = query.filter(Attendance.employee_id == employee_id)
+
+        attendances = query.order_by(Attendance.date.desc()).all()
+
+        data = []
+        for att in attendances:
+            data.append({
+                'التاريخ': att.date.strftime('%Y-%m-%d'),
+                'الموظف': att.employee.name if att.employee else '',
+                'الحالة': att.get_status_display(),
+                'دقائق التأخير': att.late_minutes or 0
+            })
+
+        df = pd.DataFrame(data)
+        output = BytesIO()
+        with pd.ExcelWriter(output, engine='openpyxl') as writer:
+            df.to_excel(writer, sheet_name='الحضور', index=False)
+
+        output.seek(0)
+        filename = f"attendance_{datetime.now().strftime('%Y%m%d_%H%M%S')}.xlsx"
+        return send_file(output, download_name=filename, as_attachment=True,
+                         mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+
+    def diagnose_allowance_issues(employee_id=None, period_key=None):
+        """
+        دالة تشخيصية لفحص أسباب عدم ظهور البدلات في كشف الراتب
+        """
+        from models import AllowanceSetting, Employee, Salary, db
+        from sqlalchemy import func
+
+        print("\n" + "=" * 80)
+        print("🔍 تشخيص مشكلة البدلات في نظام الرواتب")
+        print("=" * 80)
+
+        # ========== 1. فحص إعدادات البدلات ==========
+        print("\n📋 1. فحص إعدادات البدلات في قاعدة البيانات:")
+        print("-" * 50)
+
+        all_allowances = AllowanceSetting.query.all()
+        print(f"   إجمالي البدلات المسجلة: {len(all_allowances)}")
+
+        active_allowances = AllowanceSetting.query.filter_by(is_active=True).all()
+        print(f"   البدلات النشطة (is_active=True): {len(active_allowances)}")
+
+        for allowance in active_allowances:
+            print(f"\n   📌 {allowance.name_ar} (ID: {allowance.id}):")
+            print(f"      - النوع: {allowance.allowance_type}")
+            print(f"      - القيمة: {allowance.value}")
+            print(f"      - طريقة الحساب: {allowance.calculation_method}")
+            print(f"      - يدفع لـ: {allowance.paid_to}")  # employee / company
+            print(f"      - ينطبق على: {allowance.applies_to}")  # all, resident_only, worker_only, etc.
+            print(f"      - يعتمد على: {allowance.based_on}")
+
+        # ========== 2. فحص البدلات حسب التصنيف ==========
+        print("\n\n📊 2. تصنيف البدلات حسب جهة الصرف:")
+        print("-" * 50)
+
+        employee_allowances = [a for a in active_allowances if a.paid_to == 'employee']
+        company_allowances = [a for a in active_allowances if a.paid_to == 'company']
+
+        print(f"   بدلات تصرف للموظف (paid_to='employee'): {len(employee_allowances)}")
+        for a in employee_allowances:
+            print(f"      - {a.name_ar}")
+
+        print(f"\n   بدلات تدفعها الشركة (paid_to='company'): {len(company_allowances)}")
+        for a in company_allowances:
+            print(f"      - {a.name_ar} (لا تظهر في صافي راتب الموظف)")
+
+        # ========== 3. فحص البدلات حسب فئة الموظف ==========
+        print("\n\n👥 3. فحص البدلات حسب فئة الموظف:")
+        print("-" * 50)
+
+        if employee_id:
+            employee = Employee.query.get(employee_id)
+            if not employee:
+                print(f"   ❌ الموظف ID {employee_id} غير موجود")
+                return
+        else:
+            # جلب أول موظف عامل للفحص
+            employee = Employee.query.filter_by(employee_type='worker', is_active=True).first()
+            if not employee:
+                employee = Employee.query.filter_by(is_active=True).first()
+
+        if employee:
+            print(f"   👤 الموظف المختار: {employee.name} (ID: {employee.id})")
+            print(f"      - نوع الموظف: {employee.employee_type}")
+            print(f"      - ساكن: {'نعم' if employee.is_resident else 'لا'}")
+            print(f"      - الراتب الأساسي: {employee.salary:,.0f}")
+            print(f"      - الراتب الشامل: {getattr(employee, 'total_salary', employee.salary):,.0f}")
+
+            print(f"\n   ✅ البدلات التي تنطبق على هذا الموظف:")
+            applicable_count = 0
+            for allowance in active_allowances:
+                applies = True
+
+                # التحقق من شروط التطبيق
+                if allowance.applies_to == 'resident_only' and not employee.is_resident:
+                    applies = False
+                    reason = "الموظف ليس ساكن"
+                elif allowance.applies_to == 'non_resident_only' and employee.is_resident:
+                    applies = False
+                    reason = "الموظف ساكن (يحتاج غير ساكن)"
+                elif allowance.applies_to == 'worker_only' and employee.employee_type != 'worker':
+                    applies = False
+                    reason = f"الموظف من نوع {employee.employee_type} وليس عامل"
+                elif allowance.applies_to == 'admin_only' and employee.employee_type not in ['admin', 'supervisor']:
+                    applies = False
+                    reason = f"الموظف من نوع {employee.employee_type} وليس إداري"
+                else:
+                    reason = "✓ ينطبق"
+
+                if applies:
+                    applicable_count += 1
+                    print(
+                        f"      ✓ {allowance.name_ar} - يضاف إلى: {'الموظف' if allowance.paid_to == 'employee' else 'الشركة'}")
+                else:
+                    print(f"      ✗ {allowance.name_ar} - لا ينطبق: {reason}")
+
+            print(f"\n   الإجمالي: {applicable_count} بدل ينطبق على هذا الموظف")
+
+        # ========== 4. فحص الراتب المحتسب (إذا وجد) ==========
+        print("\n\n💰 4. فحص الراتب المحتسب:")
+        print("-" * 50)
+
+        if period_key and employee_id:
+            salary = Salary.query.filter_by(
+                employee_id=employee_id,
+                month_year=period_key
+            ).first()
+        elif employee_id:
+            salary = Salary.query.filter_by(employee_id=employee_id).order_by(Salary.month_year.desc()).first()
+        else:
+            salary = Salary.query.order_by(Salary.month_year.desc()).first()
+
+        if salary:
+            print(f"   📄 الراتب الموجود:")
+            print(f"      - الموظف: {salary.employee.name if salary.employee else '-'}")
+            print(f"      - الفترة: {salary.month_year}")
+            print(f"      - أيام الحضور: {salary.attendance_days}")
+            print(f"      - إجمالي الراتب: {salary.total_salary:,.0f}")
+            print(f"      - الحالة: {'مدفوع' if salary.is_paid else 'غير مدفوع'}")
+
+            print(f"\n   📊 تفاصيل الراتب:")
+            print(f"      - الراتب الأساسي: {salary.basic_salary_amount or 0:,.0f}")
+            print(f"      - بدل السكن: {salary.resident_allowance_amount or 0:,.0f}")
+            print(f"      - بدل الملابس: {salary.clothing_allowance_amount or 0:,.0f}")
+            print(f"      - بطاقة صحية: {salary.health_card_amount or 0:,.0f}")
+            print(f"      - تأمين: {salary.insurance_amount or 0:,.0f}")
+            print(f"      - إضافي: {salary.overtime_amount or 0:,.0f}")
+            print(f"      - سلف: {salary.advance_amount or 0:,.0f}")
+            print(f"      - خصم بوفية: {salary.cafeteria_deduction or 0:,.0f}")
+            print(f"      - خصم مطعم: {salary.restaurant_deduction or 0:,.0f}")
+        else:
+            print("   ⚠️ لا يوجد راتب محتسب للموظف المحدد")
+
+        # ========== 5. فحص البدلات الإضافية في الراتب ==========
+        print("\n\n🧩 5. فحص البدلات الإضافية في الراتب:")
+        print("-" * 50)
+
+        if salary and hasattr(salary, 'allowances_detail'):
+            if salary.allowances_detail:
+                print(f"   البدلات الموجودة في الراتب:")
+                for detail in salary.allowances_detail:
+                    print(
+                        f"      - {detail.get('name')}: {detail.get('value'):,.0f} ريال (طريقة: {detail.get('method')})")
+            else:
+                print("   ⚠️ لا توجد بدلات إضافية مسجلة في هذا الراتب")
+
+        # ========== 6. فحص المعاملات المالية ==========
+        print("\n\n💳 6. فحص المعاملات المالية غير المرحلة:")
+        print("-" * 50)
+
+        from models import FinancialTransaction
+        if employee_id:
+            transactions = FinancialTransaction.query.filter_by(
+                employee_id=employee_id,
+                is_settled=False
+            ).all()
+
+            if transactions:
+                print(f"   معاملات غير مرحلة للموظف:")
+                for trans in transactions:
+                    print(f"      - {trans.transaction_type}: {trans.amount:,.0f} ريال (تاريخ: {trans.date})")
+            else:
+                print("   ✅ لا توجد معاملات غير مرحلة")
+
+        # ========== 7. التوصيات ==========
+        print("\n\n💡 7. التوصيات والحلول المقترحة:")
+        print("-" * 50)
+
+        recommendations = []
+
+        # فحص البدلات النشطة
+        if len(active_allowances) == 0:
+            recommendations.append("❌ لا توجد بدلات نشطة في النظام. قم بتفعيل البدلات من إعدادات النظام.")
+
+        # فحص البدلات التي تصرف للموظف
+        if len(employee_allowances) == 0 and len(active_allowances) > 0:
+            recommendations.append(
+                "⚠️ جميع البدلات النشطة مصممة للشركة (paid_to='company')، لذلك لا تظهر في صافي راتب الموظف.")
+
+        # فحص تطابق البدلات مع الموظف
+        if employee and applicable_count == 0 and len(active_allowances) > 0:
+            recommendations.append(f"⚠️ لا ينطبق أي بدل على الموظف {employee.name}. راجع شروط applies_to لكل بدل.")
+
+        # فحص الراتب
+        if not salary and employee_id:
+            recommendations.append(f"⚠️ لا يوجد راتب محتسب للموظف. قم بحساب الراتب أولاً.")
+
+        if not recommendations:
+            recommendations.append("✅ النظام يعمل بشكل طبيعي. البدلات محسوبة بشكل صحيح.")
+
+        for rec in recommendations:
+            print(f"   {rec}")
+
+        print("\n" + "=" * 80)
+        print("🏁 انتهى التشخيص")
+        print("=" * 80)
+
+        return {
+            'active_allowances_count': len(active_allowances),
+            'employee_allowances_count': len(employee_allowances),
+            'company_allowances_count': len(company_allowances),
+            'applicable_allowances_count': applicable_count if employee else 0,
+            'has_salary': salary is not None,
+            'recommendations': recommendations
+        }

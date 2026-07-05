@@ -1,15 +1,113 @@
 {% extends "base.html" %}
 
-{% block title %}دليل الحسابات - طلعت هائل{% endblock %}
+{% block title %}دليل الحسابات - طلعت هائل للخدمات والاستشارات الزراعية{% endblock %}
+
+{% block extra_css %}
+<style>
+    .stats-card {
+        background: linear-gradient(135deg, #2e7d32 0%, #1b5e20 100%);
+        border-radius: 15px;
+        padding: 1rem;
+        color: white;
+        transition: transform 0.3s ease;
+    }
+    .stats-card:hover {
+        transform: translateY(-5px);
+    }
+    .table-accounts th {
+        background: linear-gradient(135deg, var(--primary-color), var(--primary-dark));
+        color: white;
+        padding: 1rem;
+        border: none;
+    }
+    .account-code {
+        font-family: monospace;
+        font-size: 0.85rem;
+    }
+    .balance-positive {
+        color: #28a745;
+        font-weight: 600;
+    }
+    .balance-negative {
+        color: #dc3545;
+        font-weight: 600;
+    }
+    .sub-account {
+        background-color: #f8f9fa;
+    }
+    .badge-customer {
+        background-color: #28a745;
+        color: white;
+        padding: 0.2rem 0.5rem;
+        border-radius: 12px;
+        font-size: 0.65rem;
+    }
+    .badge-supplier {
+        background-color: #fd7e14;
+        color: white;
+        padding: 0.2rem 0.5rem;
+        border-radius: 12px;
+        font-size: 0.65rem;
+    }
+    .account-actions {
+        display: flex;
+        gap: 0.3rem;
+        justify-content: center;
+    }
+    .search-box {
+        max-width: 300px;
+        margin-bottom: 1rem;
+    }
+    .btn-sm-square {
+        width: 32px;
+        height: 32px;
+        padding: 0;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+    }
+</style>
+{% endblock %}
 
 {% block content %}
 <div class="container-fluid">
     <div class="d-flex justify-content-between align-items-center mb-4">
-        <h2><i class="fas fa-book"></i> دليل الحسابات</h2>
+        <div>
+            <h2><i class="fas fa-book"></i> دليل الحسابات</h2>
+            <p class="text-muted mb-0">الحسابات الرئيسية والحسابات الفرعية للعملاء والموردين</p>
+        </div>
         <div>
             <a href="{{ url_for('add_account') }}" class="btn btn-success">
                 <i class="fas fa-plus"></i> حساب جديد
             </a>
+        </div>
+    </div>
+
+    <!-- بطاقات الإحصائيات السريعة -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="stats-card">
+                <h6 class="mb-2">إجمالي الأصول</h6>
+                <h3 class="mb-0">{{ "{:,.2f}".format(total_assets|default(0)) }} ر.ي</h3>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="stats-card" style="background: linear-gradient(135deg, #dc3545, #b02a37);">
+                <h6 class="mb-2">إجمالي الخصوم</h6>
+                <h3 class="mb-0">{{ "{:,.2f}".format(total_liabilities|default(0)) }} ر.ي</h3>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="stats-card" style="background: linear-gradient(135deg, #28a745, #1e7e34);">
+                <h6 class="mb-2">إجمالي حقوق الملكية</h6>
+                <h3 class="mb-0">{{ "{:,.2f}".format(total_equity|default(0)) }} ر.ي</h3>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="stats-card" style="background: linear-gradient(135deg, #17a2b8, #117a8b);">
+                <h6 class="mb-2">إجمالي الإيرادات</h6>
+                <h3 class="mb-0">{{ "{:,.2f}".format(total_revenue|default(0)) }} ر.ي</h3>
+            </div>
         </div>
     </div>
 
@@ -27,45 +125,74 @@
         </div>
     </div>
 
-    <div class="card">
+    <!-- شريط البحث -->
+    <div class="search-box">
+        <input type="text" id="searchAccounts" class="form-control" placeholder="بحث برقم أو اسم الحساب...">
+    </div>
+
+    <!-- جدول الحسابات الرئيسية -->
+    <div class="card mb-4">
         <div class="card-header bg-primary text-white">
-            <h5 class="mb-0">قائمة الحسابات</h5>
+            <h5 class="mb-0"><i class="fas fa-list"></i> الحسابات الرئيسية</h5>
         </div>
         <div class="card-body p-0">
             <div class="table-responsive">
-                <table class="table table-bordered mb-0">
+                <table class="table table-bordered mb-0" id="accountsTable">
                     <thead class="table-dark">
                         <tr>
-                            <th>رقم الحساب</th>
-                            <th>اسم الحساب</th>
-                            <th>نوع الحساب</th>
-                            <th>الطبيعة</th>
-                            <th>الرصيد الافتتاحي</th>
-                            <th>الرصيد الحالي</th>
-                            <th>الحالة</th>
-                            <th>الإجراءات</th>
+                            <th style="width: 15%">رقم الحساب</th>
+                            <th style="width: 25%">اسم الحساب</th>
+                            <th style="width: 12%">نوع الحساب</th>
+                            <th style="width: 10%">الطبيعة</th>
+                            <th style="width: 13%">الرصيد الافتتاحي</th>
+                            <th style="width: 13%">الرصيد الحالي</th>
+                            <th style="width: 5%">الحالة</th>
+                            <th style="width: 7%">الإجراءات</th>
                         </tr>
                     </thead>
                     <tbody>
                         {% for account in accounts %}
-                        <tr>
-                            <td>{{ account.code }}</td>
+                        {% set current_balance = account.get_balance() %}
+                        <tr class="{% if account.parent_id %}sub-account{% endif %}">
+                            <!-- عمود رقم الحساب -->
+                            <td>
+                                <code class="account-code">{{ account.code }}</code>
+                                {% if account.parent_id %}
+                                <span class="badge bg-info ms-1">فرعي</span>
+                                {% endif %}
+                                {% if account.code and account.code[:4] == '1201' %}
+                                <span class="badge-customer ms-1">عميل</span>
+                                {% elif account.code and account.code[:4] in ['2201', '2202'] %}
+                                <span class="badge-supplier ms-1">مورد</span>
+                                {% endif %}
+                            </td>
+                            <!-- عمود اسم الحساب -->
                             <td>
                                 <strong>{{ account.name_ar }}</strong>
                                 <br><small class="text-muted">{{ account.name }}</small>
+                                {% if account.code and account.code[:4] == '1201' and account.parent_id %}
+                                <br><small class="text-success"><i class="fas fa-building"></i> حساب عميل فرعي</small>
+                                {% elif account.code and account.code[:4] in ['2202'] and account.parent_id %}
+                                <br><small class="text-warning"><i class="fas fa-truck"></i> حساب مورد فرعي</small>
+                                {% endif %}
                             </td>
+                            <!-- عمود نوع الحساب -->
                             <td>
                                 <span class="badge bg-secondary">{{ account.get_type_name() }}</span>
                             </td>
+                            <!-- عمود الطبيعة -->
                             <td>
                                 <span class="badge {% if account.nature == 'debit' %}bg-info{% else %}bg-warning{% endif %}">
                                     {{ account.get_nature_name() }}
                                 </span>
                             </td>
+                            <!-- عمود الرصيد الافتتاحي -->
                             <td class="text-end">{{ "{:,.2f}".format(account.opening_balance) }} ر.ي</td>
-                            <td class="text-end {% if account.get_balance() < 0 %}text-danger{% else %}text-success{% endif %}">
-                                {{ "{:,.2f}".format(account.get_balance()) }} ر.ي
+                            <!-- عمود الرصيد الحالي -->
+                            <td class="text-end {% if current_balance < 0 %}balance-negative{% else %}balance-positive{% endif %}">
+                                <strong>{{ "{:,.2f}".format(current_balance) }} ر.ي</strong>
                             </td>
+                            <!-- عمود الحالة -->
                             <td class="text-center">
                                 {% if account.is_active %}
                                 <span class="badge bg-success">نشط</span>
@@ -73,43 +200,47 @@
                                 <span class="badge bg-danger">غير نشط</span>
                                 {% endif %}
                             </td>
+                            <!-- عمود الإجراءات -->
                             <td class="text-center">
-                                <div class="btn-group btn-group-sm">
+                                <div class="account-actions">
                                     <a href="{{ url_for('edit_account', account_id=account.id) }}"
-                                       class="btn btn-info" title="تعديل">
+                                       class="btn btn-sm btn-info" title="تعديل">
                                         <i class="fas fa-edit"></i>
                                     </a>
 
                                     {% if account.is_active %}
-                                    <button type="button"
-                                            class="btn btn-danger"
-                                            onclick="deleteAccount({{ account.id }}, '{{ account.code }}', '{{ account.name_ar }}')"
-                                            title="حذف">
-                                        <i class="fas fa-trash"></i>
-                                    </button>
+                                    <form method="POST" action="{{ url_for('delete_account', account_id=account.id) }}"
+                                          style="display: inline;"
+                                          onsubmit="return confirmDelete('{{ account.code }}', '{{ account.name_ar }}')">
+                                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                        <button type="submit" class="btn btn-sm btn-danger" title="حذف">
+                                            <i class="fas fa-trash"></i>
+                                        </button>
+                                    </form>
                                     {% else %}
-                                    <button type="button"
-                                            class="btn btn-success"
-                                            onclick="activateAccount({{ account.id }})"
-                                            title="تفعيل">
-                                        <i class="fas fa-check"></i>
-                                    </button>
+                                    <form method="POST" action="{{ url_for('activate_account', account_id=account.id) }}"
+                                          style="display: inline;">
+                                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                        <button type="submit" class="btn btn-sm btn-success" title="تفعيل">
+                                            <i class="fas fa-check"></i>
+                                        </button>
+                                    </form>
                                     {% endif %}
 
-                                    {% if account.code == '120001' and account.get_balance() > 0 %}
+                                    {% if account.code and account.code[:4] == '1201' and current_balance > 0 %}
                                     <button type="button"
-                                            class="btn btn-success"
-                                            onclick="collectCustomer({{ account.get_balance() }})"
-                                            title="تحصيل المبلغ">
+                                            class="btn btn-sm btn-success"
+                                            onclick="collectFromCustomer('{{ account.code }}', {{ current_balance }})"
+                                            title="تحصيل من العميل">
                                         <i class="fas fa-money-bill-wave"></i>
                                     </button>
                                     {% endif %}
 
-                                    {% if account.code == '220001' and account.get_balance() > 0 %}
+                                    {% if account.code and account.code[:4] in ['2201', '2202'] and current_balance > 0 %}
                                     <button type="button"
-                                            class="btn btn-warning"
-                                            onclick="paySupplier({{ account.get_balance() }})"
-                                            title="تسديد المبلغ">
+                                            class="btn btn-sm btn-warning"
+                                            onclick="payToSupplier('{{ account.code }}', {{ current_balance }})"
+                                            title="تسديد للمورد">
                                         <i class="fas fa-hand-holding-usd"></i>
                                     </button>
                                     {% endif %}
@@ -122,41 +253,191 @@
             </div>
         </div>
     </div>
+
+    <!-- ============================================ -->
+    <!-- حسابات العملاء الفرعية (ذمم مدينة للشركات) -->
+    <!-- ============================================ -->
+    {% if companies_with_accounts %}
+    <div class="card mb-4">
+        <div class="card-header bg-info text-white">
+            <h5 class="mb-0">
+                <i class="fas fa-building"></i> حسابات العملاء - تفصيل حسب الشركة
+                <small class="text-white-50">(حسابات فرعية - مدينة)</small>
+            </h5>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-bordered mb-0">
+                    <thead style="background-color: #e9ecef;">
+                        <tr style="color: #000000; font-weight: bold;">
+                            <th style="color: #000000;">رقم الحساب</th>
+                            <th style="color: #000000;">اسم الحساب</th>
+                            <th style="color: #000000;">الشركة</th>
+                            <th style="color: #000000;">نوع الحساب</th>
+                            <th style="color: #000000;">الطبيعة</th>
+                            <th style="color: #000000;">الرصيد الحالي</th>
+                            <th style="color: #000000;">الحالة</th>
+                            <th style="color: #000000;">الإجراءات</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in companies_with_accounts %}
+                        {% set company_balance = item.account.get_balance() %}
+                        <tr style="background-color: #f8f9fa;">
+                            <td>
+                                <code>{{ item.account.code }}</code>
+                                {% if item.account.parent_id %}<br><small class="text-muted">فرعي</small>{% endif %}
+                            </td>
+                            <td>
+                                <strong>{{ item.account.name_ar }}</strong>
+                                <br><small class="text-muted">{{ item.account.name }}</small>
+                            </td>
+                            <td>
+                                <i class="fas fa-building"></i> {{ item.company.name }}
+                                {% if item.company.phone %}
+                                <br><small class="text-muted">{{ item.company.phone }}</small>
+                                {% endif %}
+                            </td>
+                            <td><span class="badge bg-secondary">{{ item.account.get_type_name() }}</span></td>
+                            <td><span class="badge bg-info">مدين</span></td>
+                            <td class="text-end {% if company_balance < 0 %}balance-negative{% else %}balance-positive{% endif %}">
+                                <strong>{{ "{:,.2f}".format(company_balance) }} ر.ي</strong>
+                                {% if company_balance > 0 %}
+                                <button class="btn btn-sm btn-success ms-2"
+                                        onclick="collectCompanyPayment({{ item.company.id }}, '{{ item.company.name }}', {{ company_balance }})"
+                                        title="تحصيل مستحقات هذه الشركة">
+                                    <i class="fas fa-money-bill-wave"></i>
+                                </button>
+                                {% endif %}
+                            </td>
+                            <td class="text-center"><span class="badge bg-success">نشط</span></td>
+                            <td class="text-center">
+                                <button class="btn btn-sm btn-info"
+                                        onclick="showCompanyTransactions({{ item.company.id }}, '{{ item.company.name }}')"
+                                        title="عرض معاملات الشركة">
+                                    <i class="fas fa-chart-line"></i>
+                                </button>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                    <tfoot class="table-light">
+                        <tr>
+                            <td colspan="5" class="text-end fw-bold">إجمالي مستحقات الشركات:</td>
+                            <td class="text-end fw-bold text-primary">
+                                {{ "{:,.2f}".format(total_companies_balance|default(0)) }} ر.ي
+                            </td>
+                            <td colspan="2"></td>
+                        </tr>
+                    </tfoot>
+                </table>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- ============================================ -->
+    <!-- حسابات الموردين الفرعية (ذمم دائنة للموردين) -->
+    <!-- ============================================ -->
+    {% if suppliers_with_accounts %}
+    <div class="card">
+        <div class="card-header bg-warning text-dark">
+            <h5 class="mb-0">
+                <i class="fas fa-truck"></i> حسابات الموردين - تفصيل حسب المورد
+                <small class="text-muted">(حسابات فرعية - دائنة)</small>
+            </h5>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-bordered mb-0">
+                    <thead style="background-color: #e9ecef;">
+                        <tr style="color: #000000; font-weight: bold;">
+                            <th style="color: #000000;">رقم الحساب</th>
+                            <th style="color: #000000;">اسم الحساب</th>
+                            <th style="color: #000000;">المورد</th>
+                            <th style="color: #000000;">نوع الحساب</th>
+                            <th style="color: #000000;">الطبيعة</th>
+                            <th style="color: #000000;">الرصيد الحالي</th>
+                            <th style="color: #000000;">الحالة</th>
+                            <th style="color: #000000;">الإجراءات</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in suppliers_with_accounts %}
+                        {% set supplier_balance = item.account.get_balance() %}
+                        <tr style="background-color: #fff8e7;">
+                            <td>
+                                <code>{{ item.account.code }}</code>
+                                {% if item.account.parent_id %}<br><small class="text-muted">فرعي</small>{% endif %}
+                            </td>
+                            <td>
+                                <strong>{{ item.account.name_ar }}</strong>
+                                <br><small class="text-muted">{{ item.account.name }}</small>
+                            </td>
+                            <td>
+                                <i class="fas fa-truck"></i> {{ item.supplier.name_ar }}
+                                {% if item.supplier.phone %}
+                                <br><small class="text-muted">{{ item.supplier.phone }}</small>
+                                {% endif %}
+                            </td>
+                            <td><span class="badge bg-secondary">{{ item.account.get_type_name() }}</span></td>
+                            <td><span class="badge bg-warning">دائن</span></td>
+                            <td class="text-end {% if supplier_balance > 0 %}balance-negative{% else %}balance-positive{% endif %}">
+                                <strong>{{ "{:,.2f}".format(supplier_balance) }} ر.ي</strong>
+                                {% if supplier_balance > 0 %}
+                                <button class="btn btn-sm btn-warning ms-2"
+                                        onclick="paySupplierAmount({{ item.supplier.id }}, '{{ item.supplier.name_ar }}', {{ supplier_balance }})"
+                                        title="تسديد مستحقات هذا المورد">
+                                    <i class="fas fa-hand-holding-usd"></i>
+                                </button>
+                                {% endif %}
+                            </td>
+                            <td class="text-center"><span class="badge bg-success">نشط</span></td>
+                            <td class="text-center">
+                                <button class="btn btn-sm btn-info"
+                                        onclick="showSupplierTransactions({{ item.supplier.id }}, '{{ item.supplier.name_ar }}')"
+                                        title="عرض معاملات المورد">
+                                    <i class="fas fa-chart-line"></i>
+                                </button>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                    <tfoot class="table-light">
+                        <tr>
+                            <td colspan="5" class="text-end fw-bold">إجمالي مستحقات الموردين:</td>
+                            <td class="text-end fw-bold text-warning">
+                                {{ "{:,.2f}".format(total_suppliers_balance|default(0)) }} ر.ي
+                            </td>
+                            <td colspan="2"></td>
+                        </tr>
+                    </tfoot>
+                </table>
+            </div>
+        </div>
+    </div>
+    {% endif %}
 </div>
 
 <script>
-function deleteAccount(id, code, name) {
-    if(confirm(`⚠️ تحذير!\n\nهل أنت متأكد من حذف الحساب ${code} - ${name}؟\n\nسيتم التحقق من عدم ارتباطه بأي معاملات قبل الحذف.`)) {
-        fetch(`/accounts/delete/${id}`, { method: 'POST' })
-            .then(response => {
-                if(response.ok) {
-                    window.location.reload();
-                } else {
-                    alert('حدث خطأ أثناء الحذف');
-                }
-            });
-    }
+// CSRF Token (لأمان الطلبات)
+const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+
+function confirmDelete(code, name) {
+    return confirm(`⚠️ تحذير!\n\nهل أنت متأكد من حذف الحساب ${code} - ${name}؟\n\nسيتم التحقق من عدم ارتباطه بأي معاملات قبل الحذف.`);
 }
 
-function activateAccount(id) {
-    fetch(`/accounts/activate/${id}`, { method: 'POST' })
-        .then(response => {
-            if(response.ok) {
-                window.location.reload();
-            } else {
-                alert('حدث خطأ أثناء التفعيل');
-            }
-        });
-}
-
-function collectCustomer(amount) {
-    if(confirm(`💰 هل أنت متأكد من تحصيل مبلغ ${amount.toLocaleString()} ريال من العملاء؟\nسيتم إضافة المبلغ إلى حساب البنك.`)) {
-        fetch('/financial/collect-customers', {
+function collectFromCustomer(accountCode, amount) {
+    if(confirm(`💰 هل أنت متأكد من تحصيل مبلغ ${amount.toLocaleString()} ريال من حساب العميل ${accountCode}؟\nسيتم إضافة المبلغ إلى حساب البنك.`)) {
+        fetch('/financial/collect-customer-account', {
             method: 'POST',
             headers: {
-                'Content-Type': 'application/json'
+                'Content-Type': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest',
+                'X-CSRFToken': csrfToken
             },
             body: JSON.stringify({
+                account_code: accountCode,
                 amount: amount,
                 payment_method: 'bank'
             })
@@ -169,18 +450,25 @@ function collectCustomer(amount) {
             } else {
                 alert('❌ خطأ: ' + data.error);
             }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('❌ حدث خطأ تقني، راجع وحدة التحكم للمزيد من التفاصيل');
         });
     }
 }
 
-function paySupplier(amount) {
-    if(confirm(`💸 هل أنت متأكد من تسديد مبلغ ${amount.toLocaleString()} ريال للموردين؟\nسيتم خصم المبلغ من حساب البنك.`)) {
-        fetch('/financial/pay-suppliers', {
+function payToSupplier(accountCode, amount) {
+    if(confirm(`💸 هل أنت متأكد من تسديد مبلغ ${amount.toLocaleString()} ريال لحساب المورد ${accountCode}؟\nسيتم خصم المبلغ من حساب البنك.`)) {
+        fetch('/financial/pay-supplier-account', {
             method: 'POST',
             headers: {
-                'Content-Type': 'application/json'
+                'Content-Type': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest',
+                'X-CSRFToken': csrfToken
             },
             body: JSON.stringify({
+                account_code: accountCode,
                 amount: amount,
                 payment_method: 'bank'
             })
@@ -193,38 +481,139 @@ function paySupplier(amount) {
             } else {
                 alert('❌ خطأ: ' + data.error);
             }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('❌ حدث خطأ تقني، راجع وحدة التحكم للمزيد من التفاصيل');
         });
     }
 }
 
 function collectAllCustomers() {
     if(confirm('💰 هل أنت متأكد من تحصيل جميع مستحقات العملاء؟')) {
-        fetch('/financial/collect-all-customers', { method: 'POST' })
-            .then(response => response.json())
-            .then(data => {
-                if(data.success) {
-                    alert('✅ ' + data.message);
-                    window.location.reload();
-                } else {
-                    alert('❌ خطأ: ' + data.error);
-                }
-            });
+        fetch('/financial/collect-all-customers', {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': csrfToken
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if(data.success) {
+                alert('✅ ' + data.message);
+                window.location.reload();
+            } else {
+                alert('❌ خطأ: ' + data.error);
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('❌ حدث خطأ تقني');
+        });
     }
 }
 
 function payAllSuppliers() {
     if(confirm('💸 هل أنت متأكد من تسديد جميع مستحقات الموردين؟')) {
-        fetch('/financial/pay-all-suppliers', { method: 'POST' })
-            .then(response => response.json())
-            .then(data => {
-                if(data.success) {
-                    alert('✅ ' + data.message);
-                    window.location.reload();
-                } else {
-                    alert('❌ خطأ: ' + data.error);
-                }
-            });
+        fetch('/financial/pay-all-suppliers', {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': csrfToken
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if(data.success) {
+                alert('✅ ' + data.message);
+                window.location.reload();
+            } else {
+                alert('❌ خطأ: ' + data.error);
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('❌ حدث خطأ تقني');
+        });
     }
 }
+
+function collectCompanyPayment(companyId, companyName, amount) {
+    if(confirm(`💰 هل أنت متأكد من تحصيل مبلغ ${amount.toLocaleString()} ريال من شركة "${companyName}"؟\nسيتم إضافة المبلغ إلى حساب البنك.`)) {
+        fetch('/financial/collect-company-payment', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': csrfToken
+            },
+            body: JSON.stringify({
+                company_id: companyId,
+                amount: amount,
+                payment_method: 'bank'
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if(data.success) {
+                alert('✅ ' + data.message);
+                window.location.reload();
+            } else {
+                alert('❌ خطأ: ' + data.error);
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('❌ حدث خطأ تقني');
+        });
+    }
+}
+
+function paySupplierAmount(supplierId, supplierName, amount) {
+    if(confirm(`💰 هل أنت متأكد من تسديد مبلغ ${amount.toLocaleString()} ريال للمورد "${supplierName}"؟\nسيتم خصم المبلغ من حساب البنك.`)) {
+        fetch('/financial/pay-supplier', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': csrfToken
+            },
+            body: JSON.stringify({
+                supplier_id: supplierId,
+                amount: amount,
+                payment_method: 'bank'
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if(data.success) {
+                alert('✅ ' + data.message);
+                window.location.reload();
+            } else {
+                alert('❌ خطأ: ' + data.error);
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('❌ حدث خطأ تقني');
+        });
+    }
+}
+
+function showCompanyTransactions(companyId, companyName) {
+    window.location.href = `/company/transactions/${companyId}`;
+}
+
+function showSupplierTransactions(supplierId, supplierName) {
+    window.location.href = `/supplier-transactions/${supplierId}`;
+}
+
+// وظيفة البحث
+document.getElementById('searchAccounts')?.addEventListener('keyup', function() {
+    const searchTerm = this.value.toLowerCase();
+    const rows = document.querySelectorAll('#accountsTable tbody tr');
+
+    rows.forEach(row => {
+        const text = row.textContent.toLowerCase();
+        row.style.display = text.includes(searchTerm) ? '' : 'none';
+    });
+});
 </script>
 {% endblock %}
