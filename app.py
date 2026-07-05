@@ -278,8 +278,10 @@ def request_wants_json():
 @app.route('/debug/dist-info')
 def debug_dist_info():
     import os as _dos
+    import subprocess
     base = _dos.path.dirname(_dos.path.abspath(__file__))
     cwd = _dos.getcwd()
+    frontend_dir = _dos.path.join(base, 'frontend')
     candidates = [
         _dos.path.join(base, 'frontend', 'dist'),
         _dos.path.join(base, 'dist'),
@@ -304,6 +306,22 @@ def debug_dist_info():
         result['base_contents'] = _dos.listdir(base)
     except:
         pass
+    try:
+        result['frontend_contents'] = _dos.listdir(frontend_dir)
+    except:
+        pass
+    try:
+        node_modules = _dos.path.join(frontend_dir, 'node_modules')
+        result['node_modules_exists'] = _dos.path.isdir(node_modules)
+        if result['node_modules_exists']:
+            result['node_modules_count'] = len(_dos.listdir(node_modules))
+    except:
+        pass
+    try:
+        r = subprocess.run(['node', '--version'], capture_output=True, text=True, timeout=5)
+        result['node_version'] = r.stdout.strip()
+    except:
+        result['node_version'] = 'not available'
     return jsonify(result)
 
 # ==================== Serve React Build (Production) ====================
