@@ -291,18 +291,22 @@ else:
 
 def auto_migrate():
     """إضافة أعمدة جديدة للجداول الموجودة تلقائياً - آمن للتشغيل المتكرر"""
-    engine = db.engine
-    inspector = sa.inspect(engine)
+    inspector = sa.inspect(db.engine)
 
     def add_column(table, column, col_type, default=None):
-        cols = [c['name'] for c in inspector.get_columns(table)]
+        try:
+            cols = [c['name'] for c in inspector.get_columns(table)]
+        except Exception:
+            return
         if column not in cols:
             default_sql = f" DEFAULT {default}" if default is not None else ""
             nullable_sql = "" if default is not None else " NOT NULL DEFAULT ''"
             try:
-                engine.execute(sa.text(f'ALTER TABLE {table} ADD COLUMN {column} {col_type}{default_sql or nullable_sql}'))
+                db.session.execute(sa.text(f'ALTER TABLE {table} ADD COLUMN {column} {col_type}{default_sql or nullable_sql}'))
+                db.session.commit()
                 print(f"  + {table}.{column}")
             except Exception as e:
+                db.session.rollback()
                 if 'already exists' not in str(e).lower():
                     print(f"  ! {table}.{column}: {e}")
 
