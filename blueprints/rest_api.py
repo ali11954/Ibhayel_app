@@ -2378,110 +2378,105 @@ def api_reports_evaluations():
 @rest_api.route('/dashboard/stats')
 @login_required
 def api_dashboard_stats():
-    total_employees = Employee.query.filter_by(is_active=True).count()
     today = datetime.now().date()
-    today_attendance = Attendance.query.filter_by(date=today, attendance_status='present').count()
-    late_count = Attendance.query.filter_by(date=today, attendance_status='late').count()
-    absent_count = Attendance.query.filter_by(date=today, attendance_status='absent').count()
-    sick_count = Attendance.query.filter_by(date=today, attendance_status='sick').count()
-    leave_count = Attendance.query.filter_by(date=today, attendance_status='annual_leave').count()
-    pending_transactions = FinancialTransaction.query.filter_by(is_settled=False).count()
-    pending_salaries = Salary.query.filter_by(is_paid=False).count()
+    result = {}
 
-    total_income = db.session.query(func.sum(FinancialTransaction.amount)).filter_by(
-        transaction_type='income').scalar() or 0
-    total_expense = db.session.query(func.sum(FinancialTransaction.amount)).filter_by(
-        transaction_type='expense').scalar() or 0
+    def safe_count(query_func, default=0):
+        try:
+            return query_func() or default
+        except Exception:
+            db.session.rollback()
+            return default
 
-    total_salaries_paid = db.session.query(func.sum(Salary.total_salary)).filter_by(is_paid=True).scalar() or 0
-    total_salaries_unpaid = db.session.query(func.sum(Salary.total_salary)).filter_by(is_paid=False).scalar() or 0
+    def safe_sum(query_func, default=0):
+        try:
+            return query_func() or default
+        except Exception:
+            db.session.rollback()
+            return default
 
-    work_plans_total = WorkPlan.query.count()
-    work_plans_completed = WorkPlan.query.filter_by(status='completed').count()
-    work_plans_in_progress = WorkPlan.query.filter_by(status='in_progress').count()
-    work_plans_pending = WorkPlan.query.filter_by(status='pending').count()
-    work_plan_tasks_total = WorkPlanTask.query.count()
-    work_plan_tasks_completed = WorkPlanTask.query.filter_by(is_completed=True).count()
+    result['total_employees'] = safe_count(lambda: Employee.query.filter_by(is_active=True).count())
+    result['today_attendance'] = safe_count(lambda: Attendance.query.filter_by(date=today, attendance_status='present').count())
+    result['late_count'] = safe_count(lambda: Attendance.query.filter_by(date=today, attendance_status='late').count())
+    result['absent_count'] = safe_count(lambda: Attendance.query.filter_by(date=today, attendance_status='absent').count())
+    result['sick_count'] = safe_count(lambda: Attendance.query.filter_by(date=today, attendance_status='sick').count())
+    result['leave_count'] = safe_count(lambda: Attendance.query.filter_by(date=today, attendance_status='annual_leave').count())
+    result['pending_transactions'] = safe_count(lambda: FinancialTransaction.query.filter_by(is_settled=False).count())
+    result['pending_salaries'] = safe_count(lambda: Salary.query.filter_by(is_paid=False).count())
 
-    total_companies = Company.query.count()
-    total_suppliers = Supplier.query.count()
-    active_contracts = Contract.query.filter_by(status='active').count() if hasattr(Contract, 'query') else 0
+    result['total_income'] = safe_sum(lambda: db.session.query(func.sum(FinancialTransaction.amount)).filter_by(transaction_type='income').scalar())
+    result['total_expense'] = safe_sum(lambda: db.session.query(func.sum(FinancialTransaction.amount)).filter_by(transaction_type='expense').scalar())
 
-    recent_attendance = Attendance.query.filter_by(date=today).order_by(Attendance.id.desc()).limit(10).all()
-    recent_transactions = FinancialTransaction.query.order_by(FinancialTransaction.date.desc()).limit(10).all()
+    result['total_salaries_paid'] = safe_sum(lambda: db.session.query(func.sum(Salary.total_salary)).filter_by(is_paid=True).scalar())
+    result['total_salaries_unpaid'] = safe_sum(lambda: db.session.query(func.sum(Salary.total_salary)).filter_by(is_paid=False).scalar())
 
-    overdue_plans = WorkPlan.query.filter(
-        WorkPlan.status.in_(['pending', 'in_progress']),
-        WorkPlan.due_date < today
-    ).all()
+    result['work_plans_total'] = safe_count(lambda: WorkPlan.query.count())
+    result['work_plans_completed'] = safe_count(lambda: WorkPlan.query.filter_by(status='completed').count())
+    result['work_plans_in_progress'] = safe_count(lambda: WorkPlan.query.filter_by(status='in_progress').count())
+    result['work_plans_pending'] = safe_count(lambda: WorkPlan.query.filter_by(status='pending').count())
+    result['work_plan_tasks_total'] = safe_count(lambda: WorkPlanTask.query.count())
+    result['work_plan_tasks_completed'] = safe_count(lambda: WorkPlanTask.query.filter_by(is_completed=True).count())
 
-    from sqlalchemy import func as sa_func
-    top_employees = db.session.query(
-        Employee.name,
-        sa_func.avg(Evaluation.score).label('avg_score'),
-        sa_func.count(Evaluation.id).label('eval_count')
-    ).join(Evaluation, Evaluation.employee_id == Employee.id).group_by(
-        Employee.id
-    ).having(sa_func.count(Evaluation.id) > 0).order_by(
-        sa_func.avg(Evaluation.score).desc()
-    ).limit(5).all()
+    result['total_companies'] = safe_count(lambda: Company.query.count())
+    result['total_suppliers'] = safe_count(lambda: Supplier.query.count())
+    result['active_contracts'] = safe_count(lambda: Contract.query.filter_by(status='active').count() if hasattr(Contract, 'query') else 0)
 
-    recent_evaluations = Evaluation.query.order_by(Evaluation.date.desc()).limit(5).all()
-
-    return ok({
-        'total_employees': total_employees,
-        'today_attendance': today_attendance,
-        'late_count': late_count,
-        'absent_count': absent_count,
-        'sick_count': sick_count,
-        'leave_count': leave_count,
-        'pending_transactions': pending_transactions,
-        'pending_salaries': pending_salaries,
-        'total_income': float(total_income),
-        'total_expense': float(total_expense),
-        'balance': float(total_income - total_expense),
-        'total_salaries_paid': float(total_salaries_paid),
-        'total_salaries_unpaid': float(total_salaries_unpaid),
-        'total_companies': total_companies,
-        'total_suppliers': total_suppliers,
-        'active_contracts': active_contracts,
-        'work_plans_total': work_plans_total,
-        'work_plans_completed': work_plans_completed,
-        'work_plans_in_progress': work_plans_in_progress,
-        'work_plans_pending': work_plans_pending,
-        'work_plan_tasks_total': work_plan_tasks_total,
-        'work_plan_tasks_completed': work_plan_tasks_completed,
-        'recent_attendance': [{
+    result['recent_attendance'] = []
+    try:
+        recent_attendance = Attendance.query.filter_by(date=today).order_by(Attendance.id.desc()).limit(10).all()
+        result['recent_attendance'] = [{
             'employee_name': r.employee.name if r.employee else '',
-            'date': r.date.strftime('%Y-%m-%d') if r.date else '',
-            'check_in_time': r.check_in_time.strftime('%H:%M') if r.check_in_time else None,
             'status': r.attendance_status,
-        } for r in recent_attendance],
-        'recent_transactions': [{
+            'time': r.check_in_time.strftime('%H:%M') if r.check_in_time else '',
+        } for r in recent_attendance]
+    except Exception:
+        db.session.rollback()
+
+    result['recent_transactions'] = []
+    try:
+        recent_transactions = FinancialTransaction.query.order_by(FinancialTransaction.date.desc()).limit(10).all()
+        result['recent_transactions'] = [{
             'description': t.description or '',
-            'amount': float(t.amount) if t.amount else 0,
+            'amount': t.amount,
             'type': t.transaction_type,
             'date': t.date.strftime('%Y-%m-%d') if t.date else '',
-        } for t in recent_transactions],
-        'overdue_plans': [{
-            'id': p.id,
-            'title': p.title,
-            'due_date': p.due_date.strftime('%Y-%m-%d') if p.due_date else '',
-            'status': p.status,
-            'progress': p.progress,
-        } for p in overdue_plans],
-        'top_employees': [{
-            'name': name,
-            'avg_score': round(float(avg) if avg else 0, 1),
-            'eval_count': eval_count,
-        } for name, avg, eval_count in top_employees],
-        'recent_evaluations': [{
+        } for t in recent_transactions]
+    except Exception:
+        db.session.rollback()
+
+    result['overdue_plans'] = safe_count(lambda: WorkPlan.query.filter(
+        WorkPlan.status.in_(['pending', 'in_progress']),
+        WorkPlan.due_date < today
+    ).count())
+
+    from sqlalchemy import func as sa_func
+    result['top_employees'] = []
+    try:
+        top_employees = db.session.query(
+            Employee.name,
+            sa_func.avg(Evaluation.score).label('avg_score'),
+            sa_func.count(Evaluation.id).label('eval_count')
+        ).join(Evaluation, Evaluation.employee_id == Employee.id).group_by(
+            Employee.id
+        ).having(sa_func.count(Evaluation.id) > 0).order_by(
+            sa_func.avg(Evaluation.score).desc()
+        ).limit(5).all()
+        result['top_employees'] = [{'name': t[0], 'score': round(float(t[1]), 1), 'count': t[2]} for t in top_employees]
+    except Exception:
+        db.session.rollback()
+
+    result['recent_evaluations'] = []
+    try:
+        recent_evaluations = Evaluation.query.order_by(Evaluation.date.desc()).limit(5).all()
+        result['recent_evaluations'] = [{
             'employee_name': e.employee.name if e.employee else '',
             'score': e.score,
             'date': e.date.strftime('%Y-%m-%d') if e.date else '',
-            'notes': e.comments or '',
-        } for e in recent_evaluations],
-    })
+        } for e in recent_evaluations]
+    except Exception:
+        db.session.rollback()
+
+    return ok(result)
 
 
 # ==================== SETTINGS ====================
