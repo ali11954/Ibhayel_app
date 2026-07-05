@@ -3025,23 +3025,6 @@ def api_contractor_profit():
         total_clothing_cost += clothing_cost
         total_profit += profit
 
-    return ok({
-        'month_year': month_year,
-        'employees': results,
-        'summary': {
-            'total_employees': len(employees),
-            'total_revenue': total_revenue,
-            'total_basic_paid': total_basic_paid,
-            'total_resident_paid': total_resident_paid,
-            'total_employer_costs': total_insurance_cost + total_health_cost + total_clothing_cost,
-            'total_insurance_cost': total_insurance_cost,
-            'total_health_cost': total_health_cost,
-            'total_clothing_cost': total_clothing_cost,
-            'total_profit': total_profit,
-            'profit_per_employee': round(total_profit / len(employees), 2) if employees else 0,
-        }
-    })
-
     # Group by company
     companies_map = {}
     for r in results:
