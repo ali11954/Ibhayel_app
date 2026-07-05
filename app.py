@@ -277,52 +277,39 @@ def request_wants_json():
 
 @app.route('/debug/dist-info')
 def debug_dist_info():
-    import os as _dos
-    import subprocess
-    base = _dos.path.dirname(_dos.path.abspath(__file__))
-    cwd = _dos.getcwd()
-    frontend_dir = _dos.path.join(base, 'frontend')
-    candidates = [
-        _dos.path.join(base, 'frontend', 'dist'),
-        _dos.path.join(base, 'dist'),
-        _dos.path.join(cwd, 'frontend', 'dist'),
-        _dos.path.join(cwd, 'dist'),
-    ]
+    base = _os.path.dirname(_os.path.abspath(__file__))
+    cwd = _os.getcwd()
     result = {
         'base': base,
         'cwd': cwd,
-        'candidates': {}
+        'react_dist': _react_dist if '_react_dist' in dir() else 'not set',
+        'has_react_dist': _has_react_dist if '_has_react_dist' in dir() else False,
     }
-    for c in candidates:
-        exists = _dos.path.isdir(c)
-        info = {'exists': exists}
-        if exists:
-            try:
-                info['files'] = _dos.listdir(c)
-            except Exception as e:
-                info['error'] = str(e)
-        result['candidates'][c] = info
     try:
-        result['base_contents'] = _dos.listdir(base)
-    except:
-        pass
-    try:
-        result['frontend_contents'] = _dos.listdir(frontend_dir)
-    except:
-        pass
-    try:
-        node_modules = _dos.path.join(frontend_dir, 'node_modules')
-        result['node_modules_exists'] = _dos.path.isdir(node_modules)
-        if result['node_modules_exists']:
-            result['node_modules_count'] = len(_dos.listdir(node_modules))
-    except:
-        pass
-    try:
-        r = subprocess.run(['node', '--version'], capture_output=True, text=True, timeout=5)
-        result['node_version'] = r.stdout.strip()
-    except:
-        result['node_version'] = 'not available'
+        from models import db as _db
+        from sqlalchemy import text as _text
+        _db.session.execute(_text('SELECT 1'))
+        result['db_ok'] = True
+        try:
+            rows = _db.session.execute(_text('SELECT COUNT(*) FROM attendances')).scalar()
+            result['attendance_count'] = rows
+        except Exception as e:
+            result['attendance_error'] = str(e)
+        try:
+            rows = _db.session.execute(_text('SELECT COUNT(*) FROM employees')).scalar()
+            result['employee_count'] = rows
+        except Exception as e:
+            result['employee_error'] = str(e)
+        try:
+            cols = _db.session.execute(_text("SELECT column_name FROM information_schema.columns WHERE table_name='attendances'")).fetchall()
+            result['attendance_columns'] = [c[0] for c in cols]
+        except Exception as e:
+            result['schema_error'] = str(e)
+    except Exception as e:
+        result['db_ok'] = False
+        result['db_error'] = str(e)
     return jsonify(result)
+
 
 # ==================== Serve React Build (Production) ====================
 import os as _os
