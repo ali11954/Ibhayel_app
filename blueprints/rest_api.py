@@ -2205,29 +2205,61 @@ def api_reports_dashboard():
 def api_reports_attendance():
     today = datetime.now().date()
     from datetime import timedelta
-    thirty_days_ago = today - timedelta(days=30)
+
+    date_from = request.args.get('date_from')
+    date_to = request.args.get('date_to')
+    company_id = request.args.get('company_id')
+
+    if date_from:
+        start_date = datetime.strptime(date_from, '%Y-%m-%d').date()
+    else:
+        start_date = today - timedelta(days=30)
+
+    if date_to:
+        end_date = datetime.strptime(date_to, '%Y-%m-%d').date()
+    else:
+        end_date = today
+
+    q = Attendance.query.filter(Attendance.date >= start_date, Attendance.date <= end_date)
+
+    if company_id:
+        emp_ids = [e.id for e in Employee.query.filter_by(company_id=int(company_id)).all()]
+        q = q.filter(Attendance.employee_id.in_(emp_ids))
 
     daily_counts = db.session.query(
         Attendance.date,
         Attendance.attendance_status,
         func.count(Attendance.id)
-    ).filter(Attendance.date >= thirty_days_ago).group_by(Attendance.date, Attendance.attendance_status).all()
+    ).filter(Attendance.date >= start_date, Attendance.date <= end_date)
+    if company_id:
+        daily_counts = daily_counts.filter(Attendance.employee_id.in_(emp_ids))
+    daily_counts = daily_counts.group_by(Attendance.date, Attendance.attendance_status).all()
 
     daily_map = {}
     for date_val, status, count in daily_counts:
         ds = date_val.strftime('%m/%d')
         if ds not in daily_map:
-            daily_map[ds] = {'date': ds, 'present': 0, 'late': 0, 'absent': 0, 'sick': 0, 'annual_leave': 0}
+            daily_map[ds] = {'date': ds, 'date_full': date_val.strftime('%Y-%m-%d'), 'present': 0, 'late': 0, 'absent': 0, 'sick': 0, 'annual_leave': 0}
         daily_map[ds][status] = count
 
     total_by_status = db.session.query(
         Attendance.attendance_status, func.count(Attendance.id)
-    ).filter(Attendance.date >= thirty_days_ago).group_by(Attendance.attendance_status).all()
+    ).filter(Attendance.date >= start_date, Attendance.date <= end_date)
+    if company_id:
+        total_by_status = total_by_status.filter(Attendance.employee_id.in_(emp_ids))
+    total_by_status = total_by_status.group_by(Attendance.attendance_status).all()
+
+    total_days = sum(c for _, c in total_by_status)
+    present_total = sum(c for s, c in total_by_status if s in ('present', 'late'))
 
     return ok({
         'daily': sorted(daily_map.values(), key=lambda x: x['date']),
         'summary': {s: c for s, c in total_by_status},
-        'period': 'آخر 30 يوم',
+        'period': f'{start_date.strftime("%Y-%m-%d")} ~ {end_date.strftime("%Y-%m-%d")}',
+        'total_days': total_days,
+        'attendance_rate': round(present_total / total_days * 100, 1) if total_days > 0 else 0,
+        'start_date': start_date.strftime('%Y-%m-%d'),
+        'end_date': end_date.strftime('%Y-%m-%d'),
     })
 
 
