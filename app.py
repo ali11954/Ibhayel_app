@@ -285,6 +285,16 @@ if _os.path.isdir(_react_dist):
     @app.route('/')
     def serve_react_root():
         return _send_from_directory(_react_dist, 'index.html')
+
+    @app.route('/<path:path>')
+    def serve_react_static(path):
+        if path.startswith('api/') or path.startswith('auth/'):
+            from flask import abort
+            abort(404)
+        file_path = _os.path.join(_react_dist, path)
+        if _os.path.isfile(file_path):
+            return _send_from_directory(_react_dist, path)
+        return _send_from_directory(_react_dist, 'index.html')
 else:
     _has_react_dist = False
 

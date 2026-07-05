@@ -12,6 +12,11 @@ auth = Blueprint('auth', __name__)
 
 @auth.route('/')
 def index():
+    from flask import send_from_directory, current_app
+    import os
+    react_dist = os.path.join(os.path.dirname(os.path.abspath(current_app.root_path)), 'frontend', 'dist')
+    if os.path.isdir(react_dist):
+        return send_from_directory(react_dist, 'index.html')
     if not current_user.is_authenticated:
         return render_template('landing.html')
     try:
