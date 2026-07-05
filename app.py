@@ -277,9 +277,14 @@ def request_wants_json():
 
 # ==================== Serve React Build (Production) ====================
 import os as _os
-_react_dist = _os.path.join(_os.path.dirname(_os.path.abspath(__file__)), 'frontend', 'dist')
+_base = _os.path.dirname(_os.path.abspath(__file__))
+_react_dist = _os.path.join(_base, 'frontend', 'dist')
 if not _os.path.isdir(_react_dist):
-    _react_dist = _os.path.join(_os.path.dirname(_os.path.abspath(__file__)), 'dist')
+    _react_dist = _os.path.join(_base, 'dist')
+if not _os.path.isdir(_react_dist):
+    _react_dist = _os.path.join(_os.getcwd(), 'frontend', 'dist')
+if not _os.path.isdir(_react_dist):
+    _react_dist = _os.path.join(_os.getcwd(), 'dist')
 if _os.path.isdir(_react_dist):
     from flask import send_from_directory as _send_from_directory
     _has_react_dist = True
@@ -300,13 +305,20 @@ if _os.path.isdir(_react_dist):
         return _send_from_directory(_react_dist, 'index.html')
 else:
     _has_react_dist = False
-    print(f"React dist NOT found at: {_react_dist}")
-    print(f"Checking: {_os.listdir(_os.path.dirname(_os.path.abspath(__file__)))}")
+    print(f"React dist NOT found! Checked:")
+    print(f"  1. {_os.path.join(_base, 'frontend', 'dist')} -> {_os.path.isdir(_os.path.join(_base, 'frontend', 'dist'))}")
+    print(f"  2. {_os.path.join(_base, 'dist')} -> {_os.path.isdir(_os.path.join(_base, 'dist'))}")
+    print(f"  3. {_os.path.join(_os.getcwd(), 'frontend', 'dist')} -> {_os.path.isdir(_os.path.join(_os.getcwd(), 'frontend', 'dist'))}")
+    print(f"  4. {_os.path.join(_os.getcwd(), 'dist')} -> {_os.path.isdir(_os.path.join(_os.getcwd(), 'dist'))}")
+    print(f"  CWD: {_os.getcwd()}")
+    print(f"  __file__: {__file__}")
+    try:
+        print(f"  Contents of base: {_os.listdir(_base)}")
+    except:
+        pass
 
     @app.route('/')
     def serve_fallback():
-        if not current_user.is_authenticated:
-            return render_template('landing.html')
         return render_template('landing.html')
 
 
