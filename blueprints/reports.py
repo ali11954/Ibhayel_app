@@ -7,9 +7,13 @@ from models import (
     AttendancePeriodTransfer, FinancialTransaction
 )
 from utils import role_required, get_financial_month_dates, get_regions
-from weasyprint import HTML
 import pandas as pd
 from io import BytesIO
+
+try:
+    from weasyprint import HTML
+except ImportError:
+    HTML = None
 
 reports_bp = Blueprint('reports_bp', __name__)
 
@@ -736,6 +740,8 @@ def export_evaluations_by_region_pdf():
                                    now=datetime.now(),
                                    current_user=current_user)
 
+    if HTML is None:
+        return 'PDF not available - weasyprint not installed', 503
     pdf = HTML(string=html_content).write_pdf()
 
     response = make_response(pdf)
@@ -783,6 +789,8 @@ def export_evaluations_by_location_pdf():
                                    now=datetime.now(),
                                    current_user=current_user)
 
+    if HTML is None:
+        return 'PDF not available - weasyprint not installed', 503
     pdf = HTML(string=html_content).write_pdf()
 
     response = make_response(pdf)
@@ -819,6 +827,8 @@ def export_attendance_pdf():
                                    now=datetime.now(),
                                    current_user=current_user)
 
+    if HTML is None:
+        return 'PDF not available - weasyprint not installed', 503
     pdf = HTML(string=html_content).write_pdf()
 
     response = make_response(pdf)
@@ -859,6 +869,8 @@ def export_financial_pdf():
                                    now=datetime.now(),
                                    current_user=current_user)
 
+    if HTML is None:
+        return 'PDF not available - weasyprint not installed', 503
     pdf = HTML(string=html_content).write_pdf()
 
     response = make_response(pdf)
