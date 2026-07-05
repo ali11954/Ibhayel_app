@@ -2972,7 +2972,7 @@ def api_contractor_profit():
         present_days = sum(1 for a in attendances if a.attendance_status in ['present', 'late'])
         absent_days = days_in_month - present_days
 
-        base_salary = emp.salary or 0
+        base_salary = emp.basic_salary or emp.salary or 0
         revenue = emp.total_salary or base_salary
 
         basic_paid = round((base_salary / 30) * present_days, 2)
@@ -3028,6 +3028,49 @@ def api_contractor_profit():
     return ok({
         'month_year': month_year,
         'employees': results,
+        'summary': {
+            'total_employees': len(employees),
+            'total_revenue': total_revenue,
+            'total_basic_paid': total_basic_paid,
+            'total_resident_paid': total_resident_paid,
+            'total_employer_costs': total_insurance_cost + total_health_cost + total_clothing_cost,
+            'total_insurance_cost': total_insurance_cost,
+            'total_health_cost': total_health_cost,
+            'total_clothing_cost': total_clothing_cost,
+            'total_profit': total_profit,
+            'profit_per_employee': round(total_profit / len(employees), 2) if employees else 0,
+        }
+    })
+
+    # Group by company
+    companies_map = {}
+    for r in results:
+        cname = r['company_name'] or 'بدون شركة'
+        if cname not in companies_map:
+            companies_map[cname] = {
+                'company_name': cname,
+                'employees': [],
+                'total_revenue': 0, 'total_basic_paid': 0, 'total_resident_paid': 0,
+                'total_overtime': 0, 'total_insurance': 0, 'total_health': 0, 'total_clothing': 0,
+                'total_employer_costs': 0, 'total_profit': 0, 'employee_count': 0,
+            }
+        c = companies_map[cname]
+        c['employees'].append(r)
+        c['total_revenue'] += r['total_salary_revenue']
+        c['total_basic_paid'] += r['basic_paid']
+        c['total_resident_paid'] += r['resident_paid']
+        c['total_overtime'] += r.get('overtime_amount', 0)
+        c['total_insurance'] += r['insurance_cost']
+        c['total_health'] += r['health_cost']
+        c['total_clothing'] += r['clothing_cost']
+        c['total_employer_costs'] += r['total_employer_costs']
+        c['total_profit'] += r['profit']
+        c['employee_count'] += 1
+
+    return ok({
+        'month_year': month_year,
+        'employees': results,
+        'companies': list(companies_map.values()),
         'summary': {
             'total_employees': len(employees),
             'total_revenue': total_revenue,

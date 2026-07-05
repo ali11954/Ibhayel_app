@@ -924,50 +924,92 @@ export default function ReportsPage() {
             </div>
           )}
 
-          <Card>
-            <CardContent className="p-0">
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead className="bg-gray-50">
-                    <tr>
-                      <th className="px-3 py-3 text-right font-medium text-gray-600">العامل</th>
-                      <th className="px-3 py-3 text-right font-medium text-gray-600">الشركة</th>
-                      <th className="px-3 py-3 text-right font-medium text-gray-600">الراتب الشامل</th>
-                      <th className="px-3 py-3 text-right font-medium text-gray-600">الراتب الأساسي</th>
-                      <th className="px-3 py-3 text-right font-medium text-gray-600">أيام الحضور</th>
-                      <th className="px-3 py-3 text-right font-medium text-gray-600">المبلغ المستحق</th>
-                      <th className="px-3 py-3 text-right font-medium text-gray-600">بدل الإقامة</th>
-                      <th className="px-3 py-3 text-right font-medium text-gray-600">بدل الإضافي</th>
-                      <th className="px-3 py-3 text-right font-medium text-gray-600">التأمين</th>
-                      <th className="px-3 py-3 text-right font-medium text-gray-600">صندوق صحي</th>
-                      <th className="px-3 py-3 text-right font-medium text-gray-600">بدل الملابس</th>
-                      <th className="px-3 py-3 text-right font-medium text-gray-600">الربح</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-gray-100">
-                    {(contractorProfit?.employees || []).map((emp: any) => (
-                      <tr key={emp.employee_id} className="hover:bg-gray-50">
-                        <td className="px-3 py-3 font-medium">{emp.employee_name}</td>
-                        <td className="px-3 py-3 text-gray-600 text-xs">{emp.company_name}</td>
-                        <td className="px-3 py-3">{formatNum(emp.total_salary_revenue)} ر.ي</td>
-                        <td className="px-3 py-3">{formatNum(emp.base_salary)} ر.ي</td>
-                        <td className="px-3 py-3">{emp.present_days}/{emp.days_in_month}</td>
-                        <td className="px-3 py-3">{formatNum(emp.basic_paid)} ر.ي</td>
-                        <td className="px-3 py-3">{formatNum(emp.resident_paid)} ر.ي</td>
-                        <td className="px-3 py-3">{formatNum(emp.overtime_amount || 0)} ر.ي</td>
-                        <td className="px-3 py-3">{formatNum(emp.insurance_cost)} ر.ي</td>
-                        <td className="px-3 py-3">{formatNum(emp.health_cost)} ر.ي</td>
-                        <td className="px-3 py-3">{formatNum(emp.clothing_cost)} ر.ي</td>
-                        <td className={`px-3 py-3 font-bold ${emp.profit >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                          {formatNum(emp.profit)} ر.ي
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+          {(contractorProfit?.companies || []).map((comp: any) => (
+            <div key={comp.company_name} className="space-y-4">
+              <div className="flex items-center gap-3 border-b-2 border-primary-600 pb-2">
+                <Building2 className="w-5 h-5 text-primary-600" />
+                <h3 className="text-lg font-bold text-gray-900">{comp.company_name}</h3>
+                <span className="text-sm text-gray-500">({comp.employee_count} عامل)</span>
               </div>
-            </CardContent>
-          </Card>
+
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                <div className="bg-green-50 rounded-lg p-3 border border-green-200">
+                  <div className="text-xs text-gray-500">الإيرادات</div>
+                  <div className="text-lg font-bold text-green-700">{formatNum(comp.total_revenue)} ر.ي</div>
+                </div>
+                <div className="bg-blue-50 rounded-lg p-3 border border-blue-200">
+                  <div className="text-xs text-gray-500">المدفوع للعمال</div>
+                  <div className="text-lg font-bold text-blue-700">{formatNum(comp.total_basic_paid + comp.total_resident_paid)} ر.ي</div>
+                </div>
+                <div className="bg-orange-50 rounded-lg p-3 border border-orange-200">
+                  <div className="text-xs text-gray-500">تكاليف صاحب العمل</div>
+                  <div className="text-lg font-bold text-orange-700">{formatNum(comp.total_employer_costs)} ر.ي</div>
+                </div>
+                <div className={`rounded-lg p-3 border ${comp.total_profit >= 0 ? 'bg-green-50 border-green-200' : 'bg-red-50 border-red-200'}`}>
+                  <div className="text-xs text-gray-500">صافي الربح</div>
+                  <div className={`text-lg font-bold ${comp.total_profit >= 0 ? 'text-green-700' : 'text-red-700'}`}>{formatNum(comp.total_profit)} ر.ي</div>
+                </div>
+              </div>
+
+              <Card>
+                <CardContent className="p-0">
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm">
+                      <thead className="bg-gray-50">
+                        <tr>
+                          <th className="px-3 py-3 text-right font-medium text-gray-600">العامل</th>
+                          <th className="px-3 py-3 text-right font-medium text-gray-600">الراتب الشامل</th>
+                          <th className="px-3 py-3 text-right font-medium text-gray-600">الراتب الأساسي</th>
+                          <th className="px-3 py-3 text-right font-medium text-gray-600">أيام الحضور</th>
+                          <th className="px-3 py-3 text-right font-medium text-gray-600">المبلغ المستحق</th>
+                          <th className="px-3 py-3 text-right font-medium text-gray-600">بدل الإقامة</th>
+                          <th className="px-3 py-3 text-right font-medium text-gray-600">بدل الإضافي</th>
+                          <th className="px-3 py-3 text-right font-medium text-gray-600">التأمين</th>
+                          <th className="px-3 py-3 text-right font-medium text-gray-600">صندوق صحي</th>
+                          <th className="px-3 py-3 text-right font-medium text-gray-600">بدل الملابس</th>
+                          <th className="px-3 py-3 text-right font-medium text-gray-600">الربح</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-gray-100">
+                        {comp.employees.map((emp: any) => (
+                          <tr key={emp.employee_id} className="hover:bg-gray-50">
+                            <td className="px-3 py-3 font-medium">{emp.employee_name}</td>
+                            <td className="px-3 py-3">{formatNum(emp.total_salary_revenue)} ر.ي</td>
+                            <td className="px-3 py-3">{formatNum(emp.base_salary)} ر.ي</td>
+                            <td className="px-3 py-3">{emp.present_days}/{emp.days_in_month}</td>
+                            <td className="px-3 py-3">{formatNum(emp.basic_paid)} ر.ي</td>
+                            <td className="px-3 py-3">{formatNum(emp.resident_paid)} ر.ي</td>
+                            <td className="px-3 py-3">{formatNum(emp.overtime_amount || 0)} ر.ي</td>
+                            <td className="px-3 py-3">{formatNum(emp.insurance_cost)} ر.ي</td>
+                            <td className="px-3 py-3">{formatNum(emp.health_cost)} ر.ي</td>
+                            <td className="px-3 py-3">{formatNum(emp.clothing_cost)} ر.ي</td>
+                            <td className={`px-3 py-3 font-bold ${emp.profit >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                              {formatNum(emp.profit)} ر.ي
+                            </td>
+                          </tr>
+                        ))}
+                        <tr className="bg-gray-100 font-bold">
+                          <td className="px-3 py-3">الإجمالي — {comp.company_name}</td>
+                          <td className="px-3 py-3">{formatNum(comp.total_revenue)} ر.ي</td>
+                          <td className="px-3 py-3">—</td>
+                          <td className="px-3 py-3">—</td>
+                          <td className="px-3 py-3">{formatNum(comp.total_basic_paid)} ر.ي</td>
+                          <td className="px-3 py-3">{formatNum(comp.total_resident_paid)} ر.ي</td>
+                          <td className="px-3 py-3">{formatNum(comp.total_overtime)} ر.ي</td>
+                          <td className="px-3 py-3">{formatNum(comp.total_insurance)} ر.ي</td>
+                          <td className="px-3 py-3">{formatNum(comp.total_health)} ر.ي</td>
+                          <td className="px-3 py-3">{formatNum(comp.total_clothing)} ر.ي</td>
+                          <td className={`px-3 py-3 ${comp.total_profit >= 0 ? 'text-green-700' : 'text-red-700'}`}>
+                            {formatNum(comp.total_profit)} ر.ي
+                          </td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          ))}
         </div>
       )}
 
