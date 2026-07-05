@@ -1,5 +1,5 @@
-from flask import Flask, jsonify, request, redirect, url_for
-from flask_login import LoginManager
+from flask import Flask, jsonify, request, redirect, url_for, render_template
+from flask_login import LoginManager, current_user
 from flask_wtf.csrf import CSRFProtect
 from flask_compress import Compress
 from flask_talisman import Talisman
@@ -278,9 +278,12 @@ def request_wants_json():
 # ==================== Serve React Build (Production) ====================
 import os as _os
 _react_dist = _os.path.join(_os.path.dirname(_os.path.abspath(__file__)), 'frontend', 'dist')
+if not _os.path.isdir(_react_dist):
+    _react_dist = _os.path.join(_os.path.dirname(_os.path.abspath(__file__)), 'dist')
 if _os.path.isdir(_react_dist):
     from flask import send_from_directory as _send_from_directory
     _has_react_dist = True
+    print(f"React dist found at: {_react_dist}")
 
     @app.route('/')
     def serve_react_root():
@@ -288,7 +291,7 @@ if _os.path.isdir(_react_dist):
 
     @app.route('/<path:path>')
     def serve_react_static(path):
-        if path.startswith('api/') or path.startswith('auth/'):
+        if path.startswith('api/') or path.startswith('auth/') or path.startswith('static/'):
             from flask import abort
             abort(404)
         file_path = _os.path.join(_react_dist, path)
@@ -297,6 +300,14 @@ if _os.path.isdir(_react_dist):
         return _send_from_directory(_react_dist, 'index.html')
 else:
     _has_react_dist = False
+    print(f"React dist NOT found at: {_react_dist}")
+    print(f"Checking: {_os.listdir(_os.path.dirname(_os.path.abspath(__file__)))}")
+
+    @app.route('/')
+    def serve_fallback():
+        if not current_user.is_authenticated:
+            return render_template('landing.html')
+        return render_template('landing.html')
 
 
 def auto_migrate():
