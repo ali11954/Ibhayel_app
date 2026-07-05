@@ -2312,6 +2312,36 @@ def api_reports_attendance():
     total_days = sum(c for _, c in total_by_status)
     present_total = sum(c for s, c in total_by_status if s in ('present', 'late'))
 
+    # Group attendance by company
+    companies = Company.query.all()
+    company_map = {c.id: c.name for c in companies}
+    emp_company = {}
+    for emp in Employee.query.all():
+        emp_company[emp.id] = emp.company_id
+
+    company_daily = {}
+    for att in q.all():
+        cid = emp_company.get(att.employee_id)
+        cname = company_map.get(cid, 'بدون شركة')
+        if cname not in company_daily:
+            company_daily[cname] = {}
+        ds = att.date.strftime('%m/%d')
+        if ds not in company_daily[cname]:
+            company_daily[cname][ds] = {'date': ds, 'date_full': att.date.strftime('%Y-%m-%d'), 'present': 0, 'late': 0, 'absent': 0, 'sick': 0, 'annual_leave': 0}
+        company_daily[cname][ds][att.attendance_status] = company_daily[cname][ds].get(att.attendance_status, 0) + 1
+
+    companies_result = []
+    for cname, daily in company_daily.items():
+        days = sorted(daily.values(), key=lambda x: x['date'])
+        td = sum(sum(v for k, v in d.items() if k not in ('date', 'date_full')) for d in days)
+        pt = sum(d.get('present', 0) + d.get('late', 0) for d in days)
+        companies_result.append({
+            'company_name': cname,
+            'daily': days,
+            'total_days': td,
+            'attendance_rate': round(pt / td * 100, 1) if td > 0 else 0,
+        })
+
     return ok({
         'daily': sorted(daily_map.values(), key=lambda x: x['date']),
         'summary': {s: c for s, c in total_by_status},
@@ -2320,6 +2350,7 @@ def api_reports_attendance():
         'attendance_rate': round(present_total / total_days * 100, 1) if total_days > 0 else 0,
         'start_date': start_date.strftime('%Y-%m-%d'),
         'end_date': end_date.strftime('%Y-%m-%d'),
+        'companies': companies_result,
     })
 
 
@@ -2375,6 +2406,27 @@ def api_reports_financial():
     total_income = sum(float(s or 0) for t, s, c in total_by_type if t in ('overtime',))
     total_expense = sum(float(s or 0) for t, s, c in total_by_type if t in ('advance', 'deduction', 'penalty', 'cafeteria', 'restaurant'))
 
+    # Group by company
+    company_map = {c.id: c.name for c in Company.query.all()}
+    emp_company = {e.id: e.company_id for e in Employee.query.all()}
+    company_transactions = FinancialTransaction.query.filter(
+        FinancialTransaction.date >= start_date, FinancialTransaction.date <= end_date
+    ).all()
+    companies_data = {}
+    for t in company_transactions:
+        cid = emp_company.get(t.employee_id)
+        cname = company_map.get(cid, 'بدون شركة') if cid else 'بدون شركة'
+        if cname not in companies_data:
+            companies_data[cname] = {'income': 0, 'expense': 0, 'count': 0, 'by_type': {}}
+        ct = companies_data[cname]
+        ct['count'] += 1
+        tp = t.transaction_type or 'other'
+        ct['by_type'][tp] = ct['by_type'].get(tp, 0) + float(t.amount or 0)
+        if tp in ('overtime',):
+            ct['income'] += float(t.amount or 0)
+        else:
+            ct['expense'] += float(t.amount or 0)
+
     return ok({
         'by_type': [{'type': t, 'total': float(s or 0), 'count': c} for t, s, c in total_by_type],
         'monthly': list(monthly_data.values()),
@@ -2383,6 +2435,7 @@ def api_reports_financial():
         'balance': total_income - total_expense,
         'month_year': month_year or 'current',
         'period': f'{start_date.strftime("%Y-%m-%d")} ~ {end_date.strftime("%Y-%m-%d")}',
+        'companies': [{'company_name': k, **v} for k, v in companies_data.items()],
     })
 
 
@@ -2412,11 +2465,28 @@ def api_reports_employees():
             'company_id': e.company_id,
             'company_name': company_map.get(e.company_id, ''),
             'salary': float(e.salary) if e.salary else 0,
+            'total_salary': float(e.total_salary or e.salary or 0),
             'is_active': e.is_active,
         } for e in employees],
         'by_company': [{'name': k, 'count': v} for k, v in by_company.items()],
         'total': len(employees),
         'total_salary': float(sum(e.salary or 0 for e in employees)),
+        'companies': [
+            {
+                'company_name': cname,
+                'employees': [
+                    {
+                        'id': e.id, 'name': e.name, 'job_title': e.job_title or '',
+                        'salary': float(e.salary) if e.salary else 0,
+                        'total_salary': float(e.total_salary or e.salary or 0),
+                        'is_active': e.is_active,
+                    } for e in employees if company_map.get(e.company_id) == cname
+                ],
+                'count': cnt,
+                'total_salary': sum(float(e.total_salary or e.salary or 0) for e in employees if company_map.get(e.company_id) == cname),
+            }
+            for cname, cnt in by_company.items()
+        ],
     })
 
 
@@ -2485,6 +2555,29 @@ def api_reports_evaluations():
 
     trend_data = [{'month': k, 'count': v['total'], 'avg': round(v['sum']/v['total'], 1)} for k, v in sorted(monthly_trend.items(), reverse=True)[:6]]
 
+    # Group by company
+    company_map = {c.id: c.name for c in companies}
+    emp_company = {e.id: e.company_id for e in employees}
+    company_evals = {}
+    for e in evaluations:
+        cid = emp_company.get(e.employee_id)
+        cname = company_map.get(cid, 'بدون شركة')
+        if cname not in company_evals:
+            company_evals[cname] = {'evaluations': [], 'scores': [], 'count': 0}
+        company_evals[cname]['evaluations'].append(e)
+        company_evals[cname]['scores'].append(e.score)
+        company_evals[cname]['count'] += 1
+
+    companies_result = []
+    for cname, cd in company_evals.items():
+        avg = round(sum(cd['scores']) / len(cd['scores']), 1) if cd['scores'] else 0
+        companies_result.append({
+            'company_name': cname,
+            'total_evaluations': cd['count'],
+            'avg_score': avg,
+            'avg_rating': 'ممتاز' if avg >= 9 else 'جيد جداً' if avg >= 7 else 'جيد' if avg >= 5 else 'مقبول' if avg >= 3 else 'ضعيف',
+        })
+
     return ok({
         'total_evaluations': total_evals,
         'avg_score': round(avg_score, 1),
@@ -2496,6 +2589,7 @@ def api_reports_evaluations():
         'monthly_trend': trend_data,
         'all_employees': emp_avg,
         'month_year': month_year or 'all',
+        'companies': companies_result,
     })
 
 

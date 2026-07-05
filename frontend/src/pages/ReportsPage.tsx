@@ -311,6 +311,23 @@ export default function ReportsPage() {
               </CardContent>
             </Card>
           </div>
+
+          <div className="grid grid-cols-1 gap-6">
+            {(employees?.companies || []).map((comp: any) => (
+              <Card key={comp.company_name}>
+                <CardContent className="p-4">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <Building2 className="w-5 h-5 text-primary-600" />
+                      <span className="font-bold text-gray-900">{comp.company_name}</span>
+                      <span className="text-xs text-gray-500">({comp.count} موظف)</span>
+                    </div>
+                    <span className="text-sm font-bold text-primary-600">{formatNum(comp.total_salary)} ر.ي</span>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
         </div>
       )}
 
@@ -377,6 +394,44 @@ export default function ReportsPage() {
               </div>
             </CardContent>
           </Card>
+
+          {(employees?.companies || []).length > 0 && (
+            <div className="space-y-4">
+              <h3 className="text-lg font-bold text-gray-900 flex items-center gap-2"><Building2 className="w-5 h-5" /> توزيع الموظفين حسب الشركة</h3>
+              {(employees?.companies || []).map((comp: any) => (
+                <Card key={comp.company_name}>
+                  <CardContent className="p-4">
+                    <div className="flex items-center justify-between mb-3 border-b border-gray-200 pb-2">
+                      <div className="flex items-center gap-2">
+                        <Building2 className="w-4 h-4 text-primary-600" />
+                        <span className="font-bold text-gray-900">{comp.company_name}</span>
+                        <span className="text-xs text-gray-500">({comp.count} موظف)</span>
+                      </div>
+                      <span className="text-sm font-bold text-primary-600">{formatNum(comp.total_salary)} ر.ي</span>
+                    </div>
+                    <div className="overflow-x-auto max-h-60">
+                      <table className="w-full text-sm">
+                        <thead><tr className="bg-gray-50">
+                          <th className="px-3 py-2 text-right font-semibold text-xs">الاسم</th>
+                          <th className="px-3 py-2 text-right font-semibold text-xs">الوظيفة</th>
+                          <th className="px-3 py-2 text-right font-semibold text-xs">الراتب</th>
+                        </tr></thead>
+                        <tbody>
+                          {comp.employees.map((e: any) => (
+                            <tr key={e.id} className="border-b border-gray-100 hover:bg-gray-50">
+                              <td className="px-3 py-2 font-medium">{e.name}</td>
+                              <td className="px-3 py-2 text-gray-600 text-xs">{e.job_title || '—'}</td>
+                              <td className="px-3 py-2 font-bold">{formatNum(e.total_salary || e.salary)} ر.ي</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          )}
         </div>
       )}
 
@@ -486,6 +541,38 @@ export default function ReportsPage() {
               </CardContent>
             </Card>
           </div>
+
+          {(attendance?.companies || []).length > 0 && (
+            <div className="space-y-4">
+              <h3 className="text-lg font-bold text-gray-900 flex items-center gap-2"><Building2 className="w-5 h-5" /> الحضور حسب الشركة</h3>
+              {(attendance?.companies || []).map((comp: any) => (
+                <Card key={comp.company_name}>
+                  <CardContent className="p-4">
+                    <div className="flex items-center justify-between mb-3 border-b border-gray-200 pb-2">
+                      <div className="flex items-center gap-2">
+                        <Building2 className="w-4 h-4 text-primary-600" />
+                        <span className="font-bold text-gray-900">{comp.company_name}</span>
+                      </div>
+                      <span className={`text-sm font-bold ${comp.attendance_rate >= 80 ? 'text-green-600' : comp.attendance_rate >= 50 ? 'text-yellow-600' : 'text-red-600'}`}>
+                        نسبة الحضور: {comp.attendance_rate}%
+                      </span>
+                    </div>
+                    <ResponsiveContainer width="100%" height={200}>
+                      <BarChart data={comp.daily || []}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                        <XAxis dataKey="date" tick={{ fontSize: 9 }} />
+                        <YAxis tick={{ fontSize: 10 }} />
+                        <Tooltip />
+                        <Bar dataKey="present" fill="#10b981" name="حاضر" radius={[3, 3, 0, 0]} />
+                        <Bar dataKey="late" fill="#f59e0b" name="متأخر" radius={[3, 3, 0, 0]} />
+                        <Bar dataKey="absent" fill="#ef4444" name="غائب" radius={[3, 3, 0, 0]} />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          )}
         </div>
       )}
 
@@ -820,6 +907,30 @@ export default function ReportsPage() {
               )}
             </>
           )}
+
+          {(evaluations?.companies || []).length > 0 && (
+            <div className="space-y-4">
+              <h3 className="text-lg font-bold text-gray-900 flex items-center gap-2"><Building2 className="w-5 h-5" /> التقييمات حسب الشركة</h3>
+              {(evaluations?.companies || []).map((comp: any) => (
+                <Card key={comp.company_name}>
+                  <CardContent className="p-4">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <Building2 className="w-4 h-4 text-primary-600" />
+                        <span className="font-bold text-gray-900">{comp.company_name}</span>
+                      </div>
+                      <div className="flex items-center gap-4">
+                        <span className="text-sm text-gray-600">{comp.total_evaluations} تقييم</span>
+                        <span className={`text-sm font-bold ${comp.avg_score >= 7 ? 'text-green-600' : comp.avg_score >= 5 ? 'text-yellow-600' : 'text-red-600'}`}>
+                          المتوسط: {comp.avg_score}/10 — {comp.avg_rating}
+                        </span>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          )}
         </div>
       )}
 
@@ -884,6 +995,29 @@ export default function ReportsPage() {
               </ResponsiveContainer>
             </CardContent>
           </Card>
+
+          {(financial?.companies || []).length > 0 && (
+            <div className="space-y-4">
+              <h3 className="text-lg font-bold text-gray-900 flex items-center gap-2"><Building2 className="w-5 h-5" /> المعاملات حسب الشركة</h3>
+              {(financial?.companies || []).map((comp: any) => (
+                <Card key={comp.company_name}>
+                  <CardContent className="p-4">
+                    <div className="flex items-center justify-between mb-3 border-b border-gray-200 pb-2">
+                      <div className="flex items-center gap-2">
+                        <Building2 className="w-4 h-4 text-primary-600" />
+                        <span className="font-bold text-gray-900">{comp.company_name}</span>
+                      </div>
+                      <div className="flex items-center gap-4 text-sm">
+                        <span className="text-green-600 font-bold">إيرادات: {formatNum(comp.income)} ر.ي</span>
+                        <span className="text-red-600 font-bold">مصروفات: {formatNum(comp.expense)} ر.ي</span>
+                        <span className="font-bold">{comp.count} معاملة</span>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          )}
         </div>
       )}
 
