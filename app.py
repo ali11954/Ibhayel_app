@@ -309,10 +309,12 @@ def auto_migrate():
         except Exception:
             return
         if column not in cols:
-            default_sql = f" DEFAULT {default}" if default is not None else ""
-            nullable_sql = "" if default is not None else " NOT NULL DEFAULT ''"
+            if default is not None:
+                sql = f'ALTER TABLE {table} ADD COLUMN {column} {col_type} DEFAULT {default}'
+            else:
+                sql = f'ALTER TABLE {table} ADD COLUMN {column} {col_type}'
             try:
-                db.session.execute(sa.text(f'ALTER TABLE {table} ADD COLUMN {column} {col_type}{default_sql or nullable_sql}'))
+                db.session.execute(sa.text(sql))
                 db.session.commit()
                 print(f"  + {table}.{column}")
             except Exception as e:
