@@ -1607,6 +1607,55 @@ def api_journal_delete(jid):
     return ok(message='تم حذف القيد')
 
 
+@rest_api.route('/accounts/journal/bulk-reverse', methods=['POST'])
+@login_required
+def api_journal_bulk_reverse():
+    """عكس قيود خاطئة بالجملة"""
+    data = request.get_json(force=True, silent=True) or {}
+    entry_ids = data.get('entry_ids', [])
+    if not entry_ids:
+        return fail('معرفات القيود مطلوبة', 400)
+
+    reversed_count = 0
+    errors = []
+    for eid in entry_ids:
+        entry = JournalEntry.query.get(eid)
+        if not entry:
+            errors.append(f'القيد {eid} غير موجود')
+            continue
+        existing_reverse = JournalEntry.query.filter(
+            JournalEntry.reference_type == 'reverse',
+            JournalEntry.reference_id == entry.id
+        ).first()
+        if existing_reverse:
+            errors.append(f'القيد {entry.entry_number} تم عكسه مسبقاً')
+            continue
+
+        reverse_entry = JournalEntry(
+            entry_number=f'REV-{entry.entry_number}',
+            date=datetime.now().date(),
+            description=f'عكس قيد خاطئ: {entry.entry_number} - {entry.description}',
+            reference_type='reverse',
+            reference_id=entry.id,
+            created_by=current_user.id,
+        )
+        db.session.add(reverse_entry)
+        db.session.flush()
+
+        for detail in entry.details:
+            db.session.add(JournalEntryDetail(
+                entry_id=reverse_entry.id,
+                account_id=detail.account_id,
+                debit=detail.credit,
+                credit=detail.debit,
+                description=f'عكس: {detail.description}',
+            ))
+        reversed_count += 1
+
+    db.session.commit()
+    return ok({'reversed': reversed_count, 'errors': errors}, f'تم عكس {reversed_count} قيود')
+
+
 @rest_api.route('/accounts/trial-balance')
 @login_required
 def api_trial_balance():
