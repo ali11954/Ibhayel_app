@@ -875,8 +875,8 @@ def create_transaction_journal_entry(txn, data):
     bank_account = Account.query.filter_by(code='110002').first()
     advances_account = Account.query.filter_by(code='130001').first()
     salary_payable = Account.query.filter_by(code='210001').first()
-    cafeteria_expense = Account.query.filter_by(code='511009').first()
-    restaurant_expense = Account.query.filter_by(code='511010').first()
+    cafeteria_expense = Account.query.filter_by(code='511009').first() or Account.query.filter_by(code='520001').first()
+    restaurant_expense = Account.query.filter_by(code='511010').first() or Account.query.filter_by(code='520002').first()
     deduction_expense = Account.query.filter_by(code='510002').first()
     overtime_expense = Account.query.filter_by(code='510003').first()
 
@@ -942,15 +942,15 @@ def create_salary_journal_entry(salary, emp, month_year):
     """
     year, month = int(month_year.split('-')[1]), int(month_year.split('-')[0])
 
-    salary_expense = Account.query.filter_by(code='511001').first()
+    salary_expense = Account.query.filter_by(code='511001').first() or Account.query.filter_by(code='510001').first()
     resident_expense = Account.query.filter_by(code='511002').first()
-    overtime_expense = Account.query.filter_by(code='510003').first()
-    insurance_expense = Account.query.filter_by(code='511003').first()
+    overtime_expense = Account.query.filter_by(code='510003').first() or Account.query.filter_by(code='510002').first()
+    insurance_expense = Account.query.filter_by(code='511003').first() or Account.query.filter_by(code='510003').first()
     clothing_expense = Account.query.filter_by(code='511004').first()
     health_expense = Account.query.filter_by(code='511005').first()
     deduction_expense = Account.query.filter_by(code='510002').first()
-    cafeteria_expense = Account.query.filter_by(code='511009').first()
-    restaurant_expense = Account.query.filter_by(code='511010').first()
+    cafeteria_expense = Account.query.filter_by(code='511009').first() or Account.query.filter_by(code='520001').first()
+    restaurant_expense = Account.query.filter_by(code='511010').first() or Account.query.filter_by(code='520002').first()
     salary_payable = Account.query.filter_by(code='210001').first()
     insurance_payable = Account.query.filter_by(code='211003').first()
     health_payable = Account.query.filter_by(code='211004').first()
@@ -1615,18 +1615,22 @@ def api_trial_balance():
     total_debit = 0
     total_credit = 0
     for a in accounts:
-        balance = a.get_balance()
-        if balance > 0:
-            d = float(balance)
-            c = 0
+        balance = float(a.get_balance())
+        if a.nature == 'debit':
+            if balance >= 0:
+                d, c = balance, 0
+            else:
+                d, c = 0, abs(balance)
         else:
-            d = 0
-            c = abs(float(balance))
+            if balance >= 0:
+                d, c = 0, balance
+            else:
+                d, c = abs(balance), 0
         if d > 0 or c > 0:
-            result.append({'code': a.code, 'name': a.name_ar or a.name, 'debit': d, 'credit': c})
+            result.append({'code': a.code, 'name': a.name_ar or a.name, 'debit': d, 'credit': c, 'nature': a.nature})
             total_debit += d
             total_credit += c
-    return ok({'accounts': result, 'total_debit': total_debit, 'total_credit': total_credit})
+    return ok({'accounts': result, 'total_debit': round(total_debit, 2), 'total_credit': round(total_credit, 2)})
 
 
 @rest_api.route('/accounts/income-statement')
