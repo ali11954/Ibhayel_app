@@ -220,6 +220,7 @@ def auto_migrate():
     print("Auto-migration: checking columns...")
     add_column('users', 'employee_id', 'INTEGER')
     add_column('users', 'allowed_pages', 'TEXT')
+    add_column('users', 'company_id', 'INTEGER')
 
     add_column('employees', 'supervisor_id', 'INTEGER')
     add_column('employees', 'basic_salary', 'FLOAT', '2000')

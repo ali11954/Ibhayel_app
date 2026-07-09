@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Plus, Edit, Trash2, User, Lock, Eye, EyeOff, Check } from 'lucide-react';
+import { Plus, Edit, Trash2, User, Eye, EyeOff, Check } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -12,20 +12,45 @@ const roleLabels: Record<string, string> = {
   viewer: 'مشاهد', employee: 'موظف',
 };
 
-const employeePages = [
-  { key: 'my-portal', label: 'بوابة الموظف' },
+const allPages = [
+  { key: 'employees', label: 'الموظفين' },
   { key: 'attendance', label: 'الحضور' },
+  { key: 'companies', label: 'الشركات' },
+  { key: 'contracts', label: 'العقود' },
+  { key: 'invoices', label: 'الفواتير' },
+  { key: 'evaluations', label: 'التقييمات' },
+  { key: 'work-plans', label: 'خطط العمل' },
   { key: 'salaries', label: 'الرواتب' },
+  { key: 'financial', label: 'المالية' },
+  { key: 'accounts', label: 'الحسابات' },
+  { key: 'suppliers', label: 'الموردين' },
+  { key: 'supplier-invoices', label: 'فواتير الموردين' },
+  { key: 'periods', label: 'الفترات المالية' },
   { key: 'leaves', label: 'الإجازات' },
+  { key: 'reports', label: 'التقارير' },
+  { key: 'users', label: 'المستخدمين' },
+  { key: 'settings', label: 'الإعدادات' },
+  { key: 'my-portal', label: 'بوابة الموظف' },
 ];
+
+const roleDefaultPages: Record<string, string[]> = {
+  supervisor: ['employees', 'attendance', 'companies', 'evaluations', 'work-plans', 'leaves'],
+  accountant: ['salaries', 'financial', 'accounts', 'suppliers', 'supplier-invoices', 'periods', 'reports'],
+  viewer: ['employees', 'attendance', 'companies', 'reports'],
+  employee: ['my-portal', 'attendance', 'salaries', 'leaves'],
+};
 
 export default function UsersPage() {
   const [users, setUsers] = useState<any[]>([]);
   const [employees, setEmployees] = useState<any[]>([]);
+  const [companies, setCompanies] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [modalOpen, setModalOpen] = useState(false);
   const [editItem, setEditItem] = useState<any>(null);
-  const [form, setForm] = useState<any>({ username: '', full_name: '', password: '', role: 'viewer', employee_code: '', employee_id: null, allowed_pages: ['my-portal'] });
+  const [form, setForm] = useState<any>({
+    username: '', full_name: '', password: '', role: 'viewer',
+    employee_code: '', employee_id: null, company_id: null, allowed_pages: [],
+  });
   const [saving, setSaving] = useState(false);
   const [codeSearch, setCodeSearch] = useState('');
   const [codeResults, setCodeResults] = useState<any[]>([]);
@@ -33,13 +58,17 @@ export default function UsersPage() {
 
   const loadData = () => {
     api.get('/users').then(res => setUsers(res.data.data || [])).catch(() => {});
-    api.get('/employees').then(res => setEmployees(res.data.data || [])).finally(() => setLoading(false));
+    api.get('/employees').then(res => setEmployees(res.data.data || [])).catch(() => {});
+    api.get('/companies').then(res => setCompanies(res.data.data || [])).finally(() => setLoading(false));
   };
   useEffect(() => { loadData(); }, []);
 
   const openAdd = () => {
     setEditItem(null);
-    setForm({ username: '', full_name: '', password: '', role: 'viewer', employee_code: '', employee_id: null, allowed_pages: ['my-portal'] });
+    setForm({
+      username: '', full_name: '', password: '', role: 'viewer',
+      employee_code: '', employee_id: null, company_id: null, allowed_pages: [],
+    });
     setCodeSearch('');
     setModalOpen(true);
   };
@@ -50,7 +79,8 @@ export default function UsersPage() {
     setForm({
       username: u.username, full_name: u.full_name, password: '', role: u.role,
       employee_code: emp?.code || '', employee_id: u.employee_id || null,
-      allowed_pages: u.allowed_pages || ['my-portal'],
+      company_id: u.company_id || null,
+      allowed_pages: u.allowed_pages || [],
     });
     setCodeSearch(emp?.code || '');
     setModalOpen(true);
@@ -81,12 +111,26 @@ export default function UsersPage() {
     }
   };
 
+  const selectAllPages = () => {
+    setForm({ ...form, allowed_pages: allPages.map(p => p.key) });
+  };
+
+  const clearAllPages = () => {
+    setForm({ ...form, allowed_pages: [] });
+  };
+
+  const applyRoleDefaults = () => {
+    const defaults = roleDefaultPages[form.role] || [];
+    setForm({ ...form, allowed_pages: defaults });
+  };
+
   const handleSave = async () => {
     setSaving(true);
     try {
       const payload: any = {
         username: form.username, full_name: form.full_name, role: form.role,
-        employee_id: form.employee_id, allowed_pages: form.allowed_pages,
+        employee_id: form.employee_id, company_id: form.company_id,
+        allowed_pages: form.allowed_pages,
       };
       if (form.password) payload.password = form.password;
       if (editItem) { await api.put(`/users/${editItem.id}`, payload); }
@@ -126,12 +170,14 @@ export default function UsersPage() {
               <th className="px-4 py-3 text-right font-semibold">المستخدم</th>
               <th className="px-4 py-3 text-right font-semibold">الاسم الكامل</th>
               <th className="px-4 py-3 text-right font-semibold">الصلاحية</th>
-              <th className="px-4 py-3 text-right font-semibold">الموظف المرتبط</th>
+              <th className="px-4 py-3 text-right font-semibold">الشركة</th>
+              <th className="px-4 py-3 text-right font-semibold">الصلاحيات</th>
               <th className="px-4 py-3 text-right font-semibold">إجراءات</th>
             </tr></thead>
             <tbody>
               {users.map((user) => {
                 const emp = employees.find((e: any) => e.id === user.employee_id);
+                const comp = companies.find((c: any) => c.id === user.company_id);
                 return (
                   <tr key={user.id} className="border-b border-gray-100 hover:bg-gray-50">
                     <td className="px-4 py-3">
@@ -146,7 +192,21 @@ export default function UsersPage() {
                         {roleLabels[user.role] || user.role}
                       </Badge>
                     </td>
-                    <td className="px-4 py-3 text-gray-600">{emp ? `${emp.name} (${emp.code})` : '-'}</td>
+                    <td className="px-4 py-3 text-gray-600">{comp ? comp.name : '-'}</td>
+                    <td className="px-4 py-3">
+                      <div className="flex flex-wrap gap-1">
+                        {(user.allowed_pages || []).slice(0, 3).map((p: string) => (
+                          <span key={p} className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full">
+                            {allPages.find(pg => pg.key === p)?.label || p}
+                          </span>
+                        ))}
+                        {(user.allowed_pages || []).length > 3 && (
+                          <span className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full">
+                            +{(user.allowed_pages || []).length - 3}
+                          </span>
+                        )}
+                      </div>
+                    </td>
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-1">
                         <button onClick={() => openEdit(user)} className="p-1.5 rounded-lg hover:bg-blue-50 text-blue-500"><Edit className="w-4 h-4" /></button>
@@ -166,7 +226,11 @@ export default function UsersPage() {
           {/* Role */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">نوع المستخدم *</label>
-            <select value={form.role} onChange={(e) => setForm({ ...form, role: e.target.value })} className="w-full h-10 px-3 rounded-lg border-2 border-gray-200 text-sm">
+            <select value={form.role} onChange={(e) => {
+              const newRole = e.target.value;
+              const defaults = roleDefaultPages[newRole] || [];
+              setForm({ ...form, role: newRole, allowed_pages: defaults });
+            }} className="w-full h-10 px-3 rounded-lg border-2 border-gray-200 text-sm">
               <option value="admin">مدير النظام</option>
               <option value="supervisor">مشرف</option>
               <option value="accountant">محاسب</option>
@@ -174,6 +238,19 @@ export default function UsersPage() {
               <option value="employee">موظف</option>
             </select>
           </div>
+
+          {/* Company (for supervisor) */}
+          {form.role === 'supervisor' && (
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">الشركة المرتبطة *</label>
+              <select value={form.company_id || ''} onChange={(e) => setForm({ ...form, company_id: e.target.value ? Number(e.target.value) : null })} className="w-full h-10 px-3 rounded-lg border-2 border-gray-200 text-sm">
+                <option value="">اختر الشركة...</option>
+                {companies.map((c: any) => (
+                  <option key={c.id} value={c.id}>{c.name}</option>
+                ))}
+              </select>
+            </div>
+          )}
 
           {/* Employee Code (only for employee role) */}
           {form.role === 'employee' && (
@@ -239,23 +316,31 @@ export default function UsersPage() {
             </div>
           </div>
 
-          {/* Allowed Pages (only for employee role) */}
-          {form.role === 'employee' && (
+          {/* Allowed Pages (for ALL non-admin roles) */}
+          {form.role !== 'admin' && (
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">الصفحات المتاحة للموظف</label>
-              <div className="space-y-2">
-                {employeePages.map((page) => (
-                  <label key={page.key} className="flex items-center gap-3 p-2 rounded-lg hover:bg-gray-50 cursor-pointer">
+              <div className="flex items-center justify-between mb-2">
+                <label className="block text-sm font-medium text-gray-700">الصفحات المتاحة</label>
+                <div className="flex gap-2">
+                  <button type="button" onClick={selectAllPages} className="text-xs text-blue-600 hover:text-blue-800">تحديد الكل</button>
+                  <button type="button" onClick={clearAllPages} className="text-xs text-red-600 hover:text-red-800">إلغاء الكل</button>
+                  <button type="button" onClick={applyRoleDefaults} className="text-xs text-green-600 hover:text-green-800">الافتراضي</button>
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-1 max-h-48 overflow-y-auto border border-gray-200 rounded-lg p-2">
+                {allPages.map((page) => (
+                  <label key={page.key} className="flex items-center gap-2 p-1.5 rounded hover:bg-gray-50 cursor-pointer">
                     <input
                       type="checkbox"
                       checked={(form.allowed_pages || []).includes(page.key)}
                       onChange={() => togglePage(page.key)}
-                      className="w-4 h-4 text-blue-600 rounded"
+                      className="w-3.5 h-3.5 text-blue-600 rounded"
                     />
-                    <span className="text-sm">{page.label}</span>
+                    <span className="text-xs">{page.label}</span>
                   </label>
                 ))}
               </div>
+              <p className="text-xs text-gray-400 mt-1">{(form.allowed_pages || []).length} صفحة محددة</p>
             </div>
           )}
 

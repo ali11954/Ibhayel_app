@@ -91,6 +91,9 @@ def api_employees_list():
     if is_active is not None:
         q = q.filter_by(is_active=is_active.lower() == 'true')
 
+    if current_user.role == 'supervisor' and current_user.company_id:
+        q = q.filter_by(company_id=current_user.company_id)
+
     employees = q.order_by(Employee.name).all()
     return ok([emp.to_dict() for emp in employees])
 
@@ -2811,6 +2814,7 @@ def api_user_create():
         full_name=data.get('full_name', ''),
         role=data.get('role', 'viewer'),
         employee_id=data.get('employee_id'),
+        company_id=data.get('company_id'),
         allowed_pages=json.dumps(data.get('allowed_pages', [])),
     )
     db.session.add(u)
@@ -2833,6 +2837,8 @@ def api_user_update(uid):
         u.password = generate_password_hash(data['password'])
     if 'employee_id' in data:
         u.employee_id = data.get('employee_id')
+    if 'company_id' in data:
+        u.company_id = data.get('company_id')
     if 'allowed_pages' in data:
         u.allowed_pages = json.dumps(data.get('allowed_pages', []))
     db.session.commit()

@@ -32,11 +32,13 @@ class User(UserMixin, db.Model):
     role = db.Column(db.String(50), nullable=False)
     is_active = db.Column(db.Boolean, default=True)
     employee_id = db.Column(db.Integer, db.ForeignKey('employees.id'), nullable=True)
+    company_id = db.Column(db.Integer, db.ForeignKey('companies.id'), nullable=True)
     allowed_pages = db.Column(db.Text, nullable=True)  # JSON list of allowed page keys
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
     # العلاقة
     linked_employee = db.relationship('Employee', foreign_keys=[employee_id], backref='user_account')
+    linked_company = db.relationship('Company', foreign_keys=[company_id], backref='users')
 
     def has_role(self, role):
         return self.role == role or self.role == 'admin'
@@ -53,6 +55,7 @@ class User(UserMixin, db.Model):
             'role': self.role,
             'is_active': self.is_active,
             'employee_id': self.employee_id,
+            'company_id': self.company_id,
             'allowed_pages': json.loads(self.allowed_pages) if self.allowed_pages else [],
         }
 
