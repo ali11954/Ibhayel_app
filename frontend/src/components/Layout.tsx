@@ -9,7 +9,7 @@ import {
 import api from '@/api/client';
 
 const navItems = [
-  { path: '/', label: 'الرئيسية', icon: Home, roles: ['admin', 'supervisor', 'accountant', 'viewer'] },
+  { path: '/dashboard', label: 'الرئيسية', icon: Home, roles: ['admin', 'supervisor', 'accountant', 'viewer'] },
   { path: '/employees', label: 'الموظفين', icon: Users, roles: ['admin', 'supervisor'] },
   { path: '/attendance', label: 'الحضور', icon: CalendarCheck, roles: ['admin', 'supervisor'] },
   { path: '/companies', label: 'الشركات', icon: Building2, roles: ['admin', 'supervisor', 'accountant'] },

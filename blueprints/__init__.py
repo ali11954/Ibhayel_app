@@ -1,9 +1,7 @@
-from .auth import auth
 from .api import api_bp
 from .rest_api import rest_api
 
 ALL_BLUEPRINTS = [
-    auth,
     api_bp,
     rest_api,
 ]

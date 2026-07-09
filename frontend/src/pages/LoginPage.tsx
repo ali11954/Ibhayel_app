@@ -19,7 +19,7 @@ export default function LoginPage() {
       const res = await authAPI.login(username, password);
       localStorage.setItem('token', 'session');
       localStorage.setItem('user', JSON.stringify(res.data.data?.user));
-      navigate('/');
+      navigate('/dashboard');
     } catch (err: any) {
       setError(err.response?.data?.message || 'خطأ في تسجيل الدخول');
     } finally {

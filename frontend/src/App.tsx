@@ -54,7 +54,7 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
   }
 
   if (!authed) return <Navigate to="/login" replace />;
-  return <Layout>{children}</Layout>;
+  return <>{children}</>;
 }
 
 export default function App() {
@@ -64,34 +64,158 @@ export default function App() {
         <Route path="/" element={<WelcomePage />} />
         <Route path="/login" element={<LoginPage />} />
         <Route
-          path="/*"
+          path="/dashboard"
           element={
             <ProtectedRoute>
-              <Routes>
-                <Route path="/" element={<DashboardPage />} />
-                <Route path="/employees" element={<EmployeesPage />} />
-                <Route path="/attendance" element={<AttendancePage />} />
-                <Route path="/companies" element={<CompaniesPage />} />
-                <Route path="/contracts" element={<ContractsPage />} />
-                <Route path="/invoices" element={<InvoicesPage />} />
-                <Route path="/evaluations" element={<EvaluationsPage />} />
-                <Route path="/work-plans" element={<WorkPlansPage />} />
-                <Route path="/salaries" element={<SalariesPage />} />
-                <Route path="/financial" element={<FinancialPage />} />
-                <Route path="/accounts" element={<AccountsPage />} />
-                <Route path="/suppliers" element={<SuppliersPage />} />
-                <Route path="/supplier-invoices" element={<SupplierInvoicesPage />} />
-                <Route path="/periods" element={<PeriodsPage />} />
-                <Route path="/leaves" element={<LeavesPage />} />
-                <Route path="/my-portal" element={<EmployeePortalPage />} />
-                <Route path="/reports" element={<ReportsPage />} />
-                <Route path="/users" element={<UsersPage />} />
-                <Route path="/settings" element={<SettingsPage />} />
-                <Route path="*" element={<Navigate to="/" replace />} />
-              </Routes>
+              <Layout><DashboardPage /></Layout>
             </ProtectedRoute>
           }
         />
+        <Route
+          path="/employees"
+          element={
+            <ProtectedRoute>
+              <Layout><EmployeesPage /></Layout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/attendance"
+          element={
+            <ProtectedRoute>
+              <Layout><AttendancePage /></Layout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/companies"
+          element={
+            <ProtectedRoute>
+              <Layout><CompaniesPage /></Layout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/contracts"
+          element={
+            <ProtectedRoute>
+              <Layout><ContractsPage /></Layout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/invoices"
+          element={
+            <ProtectedRoute>
+              <Layout><InvoicesPage /></Layout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/evaluations"
+          element={
+            <ProtectedRoute>
+              <Layout><EvaluationsPage /></Layout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/work-plans"
+          element={
+            <ProtectedRoute>
+              <Layout><WorkPlansPage /></Layout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/salaries"
+          element={
+            <ProtectedRoute>
+              <Layout><SalariesPage /></Layout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/financial"
+          element={
+            <ProtectedRoute>
+              <Layout><FinancialPage /></Layout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/accounts"
+          element={
+            <ProtectedRoute>
+              <Layout><AccountsPage /></Layout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/suppliers"
+          element={
+            <ProtectedRoute>
+              <Layout><SuppliersPage /></Layout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/supplier-invoices"
+          element={
+            <ProtectedRoute>
+              <Layout><SupplierInvoicesPage /></Layout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/periods"
+          element={
+            <ProtectedRoute>
+              <Layout><PeriodsPage /></Layout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/leaves"
+          element={
+            <ProtectedRoute>
+              <Layout><LeavesPage /></Layout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/my-portal"
+          element={
+            <ProtectedRoute>
+              <Layout><EmployeePortalPage /></Layout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/reports"
+          element={
+            <ProtectedRoute>
+              <Layout><ReportsPage /></Layout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/users"
+          element={
+            <ProtectedRoute>
+              <Layout><UsersPage /></Layout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/settings"
+          element={
+            <ProtectedRoute>
+              <Layout><SettingsPage /></Layout>
+            </ProtectedRoute>
+          }
+        />
+        <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </BrowserRouter>
   );
