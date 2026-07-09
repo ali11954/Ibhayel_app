@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Leaf, Shield, Eye, EyeOff } from 'lucide-react';
+import { Leaf, Shield, Eye, EyeOff, ArrowRight } from 'lucide-react';
 import { authAPI } from '@/api/client';
 
 export default function LoginPage() {
@@ -32,7 +32,15 @@ export default function LoginPage() {
       <div className="w-full max-w-md">
         <div className="bg-white rounded-2xl shadow-2xl overflow-hidden">
           {/* Header */}
-          <div className="bg-gradient-to-r from-primary-50 to-primary-100 px-8 py-10 text-center border-b border-gray-100">
+          <div className="bg-gradient-to-r from-primary-50 to-primary-100 px-8 py-10 text-center border-b border-gray-100 relative">
+            <button
+              type="button"
+              onClick={() => navigate('/')}
+              className="absolute top-4 left-4 flex items-center gap-1 text-xs text-gray-400 hover:text-primary-600 transition-colors"
+            >
+              <ArrowRight className="w-3.5 h-3.5" />
+              الرئيسية
+            </button>
             <img src="/logo.png" alt="طلعت هائل" className="w-16 h-16 rounded-2xl object-contain mx-auto mb-4" />
             <h1 className="text-2xl font-bold text-primary-800">طلعت هائل</h1>
             <p className="text-sm text-gray-500 mt-1">للخدمات والاستشارات الزراعية</p>
