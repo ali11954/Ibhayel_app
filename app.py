@@ -163,7 +163,17 @@ if _os.path.isdir(_react_dist):
     print(f"React dist found at: {_react_dist}")
 
     @app.route('/')
-    def serve_react_root():
+    def serve_landing():
+        from flask import render_template
+        return render_template('landing.html')
+
+    @app.route('/app')
+    @app.route('/app/<path:path>')
+    def serve_react_app(path=None):
+        if path:
+            file_path = _os.path.join(_react_dist, path)
+            if _os.path.isfile(file_path):
+                return _send_from_directory(_react_dist, path)
         return _send_from_directory(_react_dist, 'index.html')
 
     @app.route('/<path:path>')

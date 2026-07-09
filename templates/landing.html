@@ -107,10 +107,13 @@
 
         /* Partners */
         .partners-section { background: #f0fdf4; }
-        .partners-grid { display: flex; flex-wrap: wrap; gap: 1rem; justify-content: center; }
-        .partner-card { background: white; padding: 1rem 1.8rem; border-radius: 14px; box-shadow: 0 2px 10px rgba(0,0,0,0.03); display: flex; align-items: center; gap: 10px; font-weight: 700; color: #166534; font-size: 0.9rem; border: 1px solid #e5e7eb; transition: all 0.2s ease; }
+        .partners-grid { display: flex; flex-wrap: wrap; gap: 1.2rem; justify-content: center; }
+        .partner-card { background: white; padding: 1.2rem 2rem; border-radius: 14px; box-shadow: 0 2px 10px rgba(0,0,0,0.03); display: flex; align-items: center; gap: 12px; border: 1px solid #e5e7eb; transition: all 0.2s ease; }
         .partner-card:active { transform: scale(0.97); }
-        .partner-card i { font-size: 1.3rem; color: #22c55e; }
+        @media (hover:hover) { .partner-card:hover { transform: translateY(-3px); box-shadow: 0 8px 20px rgba(0,0,0,0.06); } }
+        .partner-card img { height: 50px; width: auto; object-fit: contain; }
+        .partner-card-info h4 { font-size: 0.9rem; font-weight: 700; color: #166534; margin-bottom: 2px; }
+        .partner-card-info p { font-size: 0.75rem; color: #6b7280; }
 
         /* CTA */
         .cta-section { background: linear-gradient(135deg, #14532d, #166534); color: white; text-align: center; padding: 4rem 16px; }
@@ -143,10 +146,10 @@
             </div>
         </a>
         <div class="nav-links">
-            <a href="#features">المميزات</a>
+            <a href="#about">عن الشركة</a>
             <a href="#services">خدماتنا</a>
             <a href="#partners">شركاؤنا</a>
-            <a href="/login" class="btn-nav-login">دخول النظام</a>
+            <a href="/app/login" class="btn-nav-login">دخول النظام</a>
         </div>
         <button class="nav-mobile-btn" onclick="document.getElementById('mobileNav').classList.add('show')">
             <i class="fas fa-bars"></i>
@@ -157,10 +160,10 @@
 <!-- Mobile Nav Panel -->
 <div class="nav-mobile-panel" id="mobileNav" onclick="if(event.target===this)this.classList.remove('show')">
     <div class="nav-mobile-panel-inner">
-        <a href="#features" onclick="document.getElementById('mobileNav').classList.remove('show')"><i class="fas fa-star"></i> المميزات</a>
+        <a href="#about" onclick="document.getElementById('mobileNav').classList.remove('show')"><i class="fas fa-info-circle"></i> عن الشركة</a>
         <a href="#services" onclick="document.getElementById('mobileNav').classList.remove('show')"><i class="fas fa-cogs"></i> خدماتنا</a>
         <a href="#partners" onclick="document.getElementById('mobileNav').classList.remove('show')"><i class="fas fa-handshake"></i> شركاؤنا</a>
-        <a href="/login" style="color:#16a34a;"><i class="fas fa-sign-in-alt"></i> دخول النظام</a>
+        <a href="/app/login" style="color:#16a34a;"><i class="fas fa-sign-in-alt"></i> دخول النظام</a>
         <button class="nav-mobile-close" onclick="document.getElementById('mobileNav').classList.remove('show')">إغلاق</button>
     </div>
 </div>
@@ -170,46 +173,46 @@
     <div class="hero-content">
         <div class="hero-badge"><i class="fas fa-leaf"></i> منذ عام 2021</div>
         <h1>حلول زراعية <span>مستدامة</span><br>باحترافية عالمية</h1>
-        <p>متخصصون في تصميم الحدائق وتركيب شبكات الري الحديثة والزراعة المبتكرة لتحقيق أعلى مستويات الجودة والكفاءة</p>
+        <p>متخصصون في إدارة وتشغيل المزارع الزراعية وتقديم الاستشارات الزراعية لتحقيق أعلى مستويات الإنتاجية والكفاءة</p>
         <div class="hero-buttons">
-            <a href="/login" class="btn-hero btn-hero-primary"><i class="fas fa-sign-in-alt"></i> دخول النظام</a>
+            <a href="/app/login" class="btn-hero btn-hero-primary"><i class="fas fa-sign-in-alt"></i> دخول النظام</a>
             <a href="#services" class="btn-hero btn-hero-outline"><i class="fas fa-info-circle"></i> تعرف علينا</a>
         </div>
         <div class="hero-stats">
             <div class="hero-stat"><div class="hero-stat-num">6+</div><div class="hero-stat-label">سنوات خبرة</div></div>
-            <div class="hero-stat"><div class="hero-stat-num">50+</div><div class="hero-stat-label">مشروع منجز</div></div>
-            <div class="hero-stat"><div class="hero-stat-num">100+</div><div class="hero-stat-label">عميل سعيد</div></div>
+            <div class="hero-stat"><div class="hero-stat-num">30+</div><div class="hero-stat-label">موظف وعميل</div></div>
+            <div class="hero-stat"><div class="hero-stat-num">3+</div><div class="hero-stat-label">مشاريع نشطة</div></div>
         </div>
     </div>
 </section>
 
-<!-- Features -->
-<section class="section" id="features">
+<!-- About -->
+<section class="section" id="about">
     <div class="section-header">
-        <div class="section-badge"><i class="fas fa-star"></i> لماذا نحن</div>
-        <h2>مميزاتنا الرئيسية</h2>
-        <p>نقدم حلولاً زراعية متكاملة بأعلى معايير الجودة العالمية</p>
+        <div class="section-badge"><i class="fas fa-building"></i> من نحن</div>
+        <h2>طلعت هائل للخدمات والاستشارات الزراعية</h2>
+        <p>شركة متخصصة في تقديم الحلول الزراعية المتكاملة والاستشارات الإدارية والمالية في الجمهورية اليمنية</p>
     </div>
     <div class="features-grid">
         <div class="feature-card">
             <div class="feature-icon"><i class="fas fa-award"></i></div>
-            <h3>جودة عالمية</h3>
+            <h3>جودة عالية</h3>
             <p>نلتزم بأعلى معايير الجودة العالمية في جميع خدماتنا ومشاريعنا الزراعية</p>
         </div>
         <div class="feature-card">
             <div class="feature-icon"><i class="fas fa-users"></i></div>
             <h3>فريق متخصص</h3>
-            <p>عمالة مهنية مدربة ذات كفاءة عالية في جميع التخصصات الزراعية</p>
+            <p>عمالة مهنة مدربة ذات كفاءة عالية في جميع التخصصات الزراعية والإدارية</p>
         </div>
         <div class="feature-card">
             <div class="feature-icon"><i class="fas fa-leaf"></i></div>
             <h3>استدامة بيئية</h3>
-            <p>حلول زراعية صديقة للبيئة تدعم التنمية المحلية المستدامة</p>
+            <p>حلول زراعية صديقة للبيئة تدعم التنمية المحلية المستدامة والزراعة العضوية</p>
         </div>
         <div class="feature-card">
-            <div class="feature-icon"><i class="fas fa-handshake"></i></div>
-            <h3>شراكات استراتيجية</h3>
-            <p>نتعامل مع أكبر الشركات والمؤسسات في الجمهورية اليمنية وخارجها</p>
+            <div class="feature-icon"><i class="fas fa-chart-line"></i></div>
+            <h3>إدارة احترافية</h3>
+            <p>أنظمة مالية وإدارية متطورة لإدارة المزارع والمشاريع بكفاءة عالية</p>
         </div>
     </div>
 </section>
@@ -218,33 +221,33 @@
 <section class="section" id="services">
     <div class="section-header">
         <div class="section-badge"><i class="fas fa-cogs"></i> خدماتنا</div>
-        <h2>الخدمات المتخصصة</h2>
-        <p>نقدم مجموعة شاملة من الخدمات الزراعية المتخصصة</p>
+        <h2>الخدمات الزراعية المتخصصة</h2>
+        <p>نقدم مجموعة شاملة من الخدمات الزراعية والإدارية المتكاملة</p>
     </div>
     <div class="services-grid">
         <div class="service-card">
-            <h3><i class="fas fa-seedling"></i> تصميم الحدائق</h3>
-            <p>تصميم وتنفيذ المناظر الطبيعية والحدائق العصرية بأحدث التصاميم العالمية</p>
+            <h3><i class="fas fa-seedling"></i> إدارة المزارع</h3>
+            <p>إدارة وتشغيل المزارع الزراعية بأحدث التقنيات والأساليب الحديثة لتحقيق أقصى إنتاجية</p>
         </div>
         <div class="service-card">
             <h3><i class="fas fa-tint"></i> شبكات الري الحديثة</h3>
-            <p>تخطيط وتركيب وصيانة شبكات الري بالتنقيط والرش على الأسطح</p>
-        </div>
-        <div class="service-card">
-            <h3><i class="fas fa-fence"></i> السياجات والزينة</h3>
-            <p>زراعة وتركيب السياجات الحية والصناعية مع النباتات الزينية المتنوعة</p>
-        </div>
-        <div class="service-card">
-            <h3><i class="fas fa-futbol"></i> الملاعب الصناعية</h3>
-            <p>تصميم وتنفيذ الملاعب الصناعية والطبيعية بأعلى المعايير الدولية</p>
-        </div>
-        <div class="service-card">
-            <h3><i class="fas fa-tree"></i> العناية بالمسطحات</h3>
-            <p>خدمات العناية والصيانة الدورية للمسطحات الخضراء والحدائق</p>
+            <p>تصميم وتركيب وصيانة شبكات الري بالتنقيط والري المطاطي الحديثة</p>
         </div>
         <div class="service-card">
             <h3><i class="fas fa-tractor"></i> الاستشارات الزراعية</h3>
-            <p>استشارات زراعية متخصصة وتخطيط مشاريع تنمية محلية مستدامة</p>
+            <p>استشارات زراعية متخصصة في تخطيط وتنفيذ مشاريع التنمية الزراعية المستدامة</p>
+        </div>
+        <div class="service-card">
+            <h3><i class="fas fa-tree"></i> العناية بالمسطحات</h3>
+            <p>خدمات العناية والصيانة الدورية للمسطحات الخضراء والحديقية والمناظر الطبيعية</p>
+        </div>
+        <div class="service-card">
+            <h3><i class="fas fa-file-invoice-dollar"></i> الخدمات المالية والإدارية</h3>
+            <p>إدارة الحسابات والميزانيات والرواتب وتقارير الأرباح والخسائر للشركات والمزارع</p>
+        </div>
+        <div class="service-card">
+            <h3><i class="fas fa-clipboard-check"></i> المتابعة والتقييم</h3>
+            <p>نظام متكامل لمتابعة الأداء وتقييم العمال والإنتاج الزراعي</p>
         </div>
     </div>
 </section>
@@ -254,19 +257,33 @@
     <div class="section-header">
         <div class="section-badge"><i class="fas fa-handshake"></i> الشركاء</div>
         <h2>شركاؤنا الاستراتيجيون</h2>
-        <p>نتعامل مع كبرى المؤسسات والشركات في الجمهورية اليمنية</p>
+        <p>نفخر بالعمل مع أرقى الشركات والمؤسسات في الجمهورية اليمنية</p>
     </div>
     <div class="partners-grid">
-        <div class="partner-card"><i class="fas fa-industry"></i> الشركة اليمنية لتكرير السكر</div>
-        <div class="partner-card"><i class="fas fa-bolt"></i> شركة رأس عيسى الصناعية</div>
+        <div class="partner-card">
+            <img src="{{ url_for('static', filename='images/logo.png') }}" alt="طلعت هائل">
+            <div class="partner-card-info">
+                <h4>طلعت هائل للخدمات والاستشارات الزراعية</h4>
+                <p>TALAAT HAIL FOR AGRICULTURAL SERVICES</p>
+            </div>
+        </div>
+        <div class="partner-card">
+            <img src="{{ url_for('static', filename='images/yemen_sugar.png') }}" alt="الشركة اليمنية لتكرير السكر">
+            <div class="partner-card-info">
+                <h4>الشركة اليمنية لتكرير السكر</h4>
+                <p>Yemen Company for Sugar Refining</p>
+            </div>
+        </div>
     </div>
+    <p style="text-align:center; margin-top:1.5rem; font-size:0.9rem; color:#6b7280;">نلتزم بتقديم أفضل خدماتنا لشركائنا الكرام</p>
+    <p style="text-align:center; margin-top:0.3rem; font-size:0.8rem; color:#9ca3af;">جودة عالية • أسعار منافسة • التزام بالمواعيد</p>
 </section>
 
 <!-- CTA -->
 <section class="cta-section">
     <h2>ابدأ معنا الآن</h2>
-    <p>انضم إلى شركائنا واستفد من خبرتنا في تقديم أفضل الحلول الزراعية</p>
-    <a href="/login" class="btn-hero btn-hero-primary"><i class="fas fa-sign-in-alt"></i> دخول النظام</a>
+    <p>انضم إلى شركائنا واستفد من خبرتنا في تقديم أفضل الحلول الزراعية والاستشارية</p>
+    <a href="/app/login" class="btn-hero btn-hero-primary"><i class="fas fa-sign-in-alt"></i> دخول النظام</a>
 </section>
 
 <!-- Footer -->
@@ -275,6 +292,7 @@
     <div class="footer-divider">
         <small>الجمهورية اليمنية - محافظة الحديدة &copy; 2026 جميع الحقوق محفوظة</small>
     </div>
+    <small style="margin-top:0.5rem; display:block; color:#64748b;">تصميم وتطوير <strong style="color:#94a3b8;">الغيث لتصميم التطبيقات والأنظمة</strong></small>
 </footer>
 
 <script>
