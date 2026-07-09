@@ -33,7 +33,7 @@ export default function WelcomePage() {
   }, []);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-[#0a1628] via-[#0f1d35] to-[#0a1628] flex flex-col items-center justify-center px-4 py-8 relative overflow-hidden">
+    <div className="min-h-screen bg-gradient-to-br from-[#0a1628] via-[#0f1d35] to-[#0a1628] flex flex-col items-center px-4 py-8 relative overflow-hidden">
       {/* Background decorations */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
         <div className="absolute top-20 right-20 w-72 h-72 bg-green-500/5 rounded-full blur-3xl" />
@@ -42,81 +42,84 @@ export default function WelcomePage() {
       </div>
 
       <div className="relative z-10 flex flex-col items-center max-w-2xl w-full">
-        {/* Logo */}
-        <div className="mb-6 animate-fade-in">
-          <img
-            src="/logo.png"
-            alt="طلعت هائل"
-            className="w-24 h-24 md:w-28 md:h-28 rounded-2xl shadow-2xl shadow-green-500/20 border-2 border-white/10 bg-white p-2"
-          />
-        </div>
+        {/* Hero Section */}
+        <div className="flex flex-col items-center pt-12 pb-8">
+          {/* Logo */}
+          <div className="mb-6 animate-fade-in">
+            <img
+              src="/logo.png"
+              alt="طلعت هائل"
+              className="w-24 h-24 md:w-28 md:h-28 rounded-2xl shadow-2xl shadow-green-500/20 border-2 border-white/10 bg-white p-2"
+            />
+          </div>
 
-        {/* Company Name */}
-        <h1 className="text-4xl md:text-5xl font-black text-white mb-2 text-center tracking-tight">
-          طلعت هائل
-        </h1>
-        <div className="flex items-center gap-3 mb-6">
-          <div className="h-px w-12 bg-gradient-to-r from-transparent to-green-400" />
-          <p className="text-green-400 text-base md:text-lg font-semibold">
-            للخدمات والاستشارات الزراعية
-          </p>
-          <div className="h-px w-12 bg-gradient-to-l from-transparent to-green-400" />
-        </div>
+          {/* Company Name */}
+          <h1 className="text-4xl md:text-5xl font-black text-white mb-2 text-center tracking-tight">
+            طلعت هائل
+          </h1>
+          <div className="flex items-center gap-3 mb-6">
+            <div className="h-px w-12 bg-gradient-to-r from-transparent to-green-400" />
+            <p className="text-green-400 text-base md:text-lg font-semibold">
+              للخدمات والاستشارات الزراعية
+            </p>
+            <div className="h-px w-12 bg-gradient-to-l from-transparent to-green-400" />
+          </div>
 
-        {/* Feature badges */}
-        <div className="flex flex-wrap justify-center gap-3 mb-8">
-          {features.map((f, i) => (
-            <span
-              key={i}
-              className={`flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium border transition-all duration-500 ${
-                i === currentFeature
-                  ? 'bg-green-500/20 border-green-400/50 text-green-300 shadow-lg shadow-green-500/10'
-                  : 'bg-white/5 border-white/10 text-gray-400'
-              }`}
+          {/* Feature badges */}
+          <div className="flex flex-wrap justify-center gap-3 mb-8">
+            {features.map((f, i) => (
+              <span
+                key={i}
+                className={`flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium border transition-all duration-500 ${
+                  i === currentFeature
+                    ? 'bg-green-500/20 border-green-400/50 text-green-300 shadow-lg shadow-green-500/10'
+                    : 'bg-white/5 border-white/10 text-gray-400'
+                }`}
+              >
+                <span>{f.icon}</span>
+                <span>{f.text}</span>
+              </span>
+            ))}
+          </div>
+
+          {/* CTA Buttons */}
+          <div className="flex gap-4 mb-10">
+            <button
+              onClick={() => navigate('/login')}
+              className="px-8 py-3 bg-gradient-to-r from-green-500 to-emerald-600 text-white font-bold rounded-xl shadow-lg shadow-green-500/30 hover:shadow-green-500/50 hover:scale-105 transition-all duration-300 text-sm"
             >
-              <span>{f.icon}</span>
-              <span>{f.text}</span>
-            </span>
-          ))}
+              سجل الآن
+            </button>
+            <button
+              onClick={() => {
+                const el = document.getElementById('vision-section');
+                el?.scrollIntoView({ behavior: 'smooth' });
+              }}
+              className="px-8 py-3 bg-white/10 text-white font-bold rounded-xl border border-white/20 hover:bg-white/15 hover:scale-105 transition-all duration-300 text-sm backdrop-blur-sm"
+            >
+              تعرف علينا
+            </button>
+          </div>
         </div>
 
-        {/* CTA Buttons */}
-        <div className="flex gap-4 mb-10">
-          <button
-            onClick={() => navigate('/login')}
-            className="px-8 py-3 bg-gradient-to-r from-green-500 to-emerald-600 text-white font-bold rounded-xl shadow-lg shadow-green-500/30 hover:shadow-green-500/50 hover:scale-105 transition-all duration-300 text-sm"
-          >
-            سجل الآن
-          </button>
-          <button
-            onClick={() => {
-              const el = document.getElementById('mission-section');
-              el?.scrollIntoView({ behavior: 'smooth' });
-            }}
-            className="px-8 py-3 bg-white/10 text-white font-bold rounded-xl border border-white/20 hover:bg-white/15 hover:scale-105 transition-all duration-300 text-sm backdrop-blur-sm"
-          >
-            تعرف علينا
-          </button>
-        </div>
-
-        {/* Mission Card */}
+        {/* Vision & Goal Card */}
         <div
-          id="mission-section"
-          className="w-full bg-white/5 backdrop-blur-md rounded-2xl border border-white/10 p-6 md:p-8 mb-8"
+          id="vision-section"
+          className="w-full bg-white/5 backdrop-blur-md rounded-2xl border border-white/10 p-6 md:p-8 mb-6"
         >
-          <div className="flex items-start gap-4">
+          <div className="flex items-start gap-4 mb-5">
             <div className="w-12 h-12 rounded-xl bg-green-500/20 flex items-center justify-center flex-shrink-0">
               <span className="text-2xl">🎯</span>
             </div>
             <div>
-              <h3 className="text-white font-bold text-lg mb-2">رسالتنا</h3>
+              <h3 className="text-white font-bold text-lg mb-2">هدفنا ورؤيتنا</h3>
               <p className="text-gray-300 text-sm leading-relaxed">
                 نسعى لأن نكون الخيار الأول في مجال الخدمات والاستشارات الزراعية في اليمن، من خلال تقديم حلول
                 مبتكرة تلبي احتياجات عملائنا بأعلى معايير الجودة والكفاءة والاحترافية.
               </p>
             </div>
           </div>
-          <div className="flex flex-wrap gap-3 mt-5">
+          <div className="flex flex-wrap gap-3">
             {services.map((s, i) => (
               <span
                 key={i}
@@ -130,7 +133,7 @@ export default function WelcomePage() {
         </div>
 
         {/* Stats */}
-        <div className="flex gap-8 mb-8">
+        <div className="flex gap-8 mb-6">
           {stats.map((s, i) => (
             <div key={i} className="text-center">
               <div className="text-2xl md:text-3xl font-black text-green-400">{s.num}</div>
@@ -139,11 +142,39 @@ export default function WelcomePage() {
           ))}
         </div>
 
-        {/* Footer credit */}
-        <p className="text-gray-600 text-xs">
-          تصميم وتطوير{' '}
-          <span className="text-gray-400 font-semibold">الغيث لتصميم التطبيقات والأنظمة</span>
-        </p>
+        {/* Partners Section */}
+        <div className="w-full bg-white/5 backdrop-blur-md rounded-2xl border border-white/10 p-6 md:p-8 mb-6">
+          <div className="text-center mb-5">
+            <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-green-500/10 text-green-400 rounded-full text-xs font-semibold mb-3">
+              شركاؤنا
+            </span>
+            <h3 className="text-white font-bold text-lg">شركاؤنا الاستراتيجيون</h3>
+          </div>
+          <div className="flex flex-col items-center gap-4">
+            <div className="flex items-center gap-4 bg-white/5 rounded-xl px-6 py-4 border border-white/5 w-full max-w-sm">
+              <img
+                src="/static/images/yemen_sugar.png"
+                alt="الشركة اليمنية لتكرير السكر"
+                className="w-14 h-14 rounded-xl object-contain bg-white p-1"
+              />
+              <div className="text-right">
+                <h4 className="text-white font-bold text-sm">الشركة اليمنية لتكرير السكر</h4>
+                <p className="text-gray-400 text-xs">Yemen Company for Sugar Refining</p>
+              </div>
+            </div>
+          </div>
+          <p className="text-center text-gray-500 text-xs mt-4">
+            نلتزم بتقديم أفضل خدماتنا لشركائنا الكرام
+          </p>
+        </div>
+
+        {/* Footer */}
+        <div className="w-full text-center py-6 border-t border-white/5">
+          <p className="text-gray-600 text-xs">
+            تصميم وتطوير{' '}
+            <span className="text-gray-400 font-semibold">الغيث لتصميم التطبيقات والأنظمة</span>
+          </p>
+        </div>
       </div>
 
       <style>{`
