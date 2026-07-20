@@ -113,10 +113,19 @@ def api_employee_create():
         return fail('رقم البطاقة مطلوب')
     if not data.get('code'):
         data['code'] = data.get('card_number', '')
+
+    card_number = data.get('card_number', '').strip()
+    code = (data.get('code', '') or card_number).strip()
+
+    if Employee.query.filter_by(card_number=card_number).first():
+        return fail('رقم البطاقة مسجل بالفعل', 400)
+    if Employee.query.filter_by(code=code).first():
+        return fail('كود الموظف مسجل بالفعل', 400)
+
     emp = Employee(
         name=data.get('name', ''),
-        card_number=data.get('card_number', ''),
-        code=data.get('code', '') or data.get('card_number', ''),
+        card_number=card_number,
+        code=code,
         job_title=data.get('job_title', ''),
         phone=data.get('phone', ''),
         company_id=data.get('company_id'),
@@ -136,11 +145,7 @@ def api_employee_create():
         supervisor_id=data.get('supervisor_id'),
     )
     db.session.add(emp)
-    try:
-        db.session.commit()
-    except Exception:
-        db.session.rollback()
-        return fail('رقم البطاقة أو الكود مسجل بالفعل', 400)
+    db.session.commit()
     return ok(emp.to_dict(), 'تم إضافة الموظف بنجاح')
 
 
@@ -255,6 +260,9 @@ def api_attendance_list():
         q = q.filter_by(date=datetime.strptime(date_str, '%Y-%m-%d').date())
     if emp_id:
         q = q.filter_by(employee_id=int(emp_id))
+
+    if current_user.role == 'supervisor' and current_user.company_id:
+        q = q.join(Employee, Attendance.employee_id == Employee.id).filter(Employee.company_id == current_user.company_id)
 
     records = q.order_by(Attendance.date.desc()).limit(200).all()
     return ok([{
@@ -464,6 +472,10 @@ def api_evaluations_list():
     emp_id = request.args.get('employee_id')
     if emp_id:
         q = q.filter_by(employee_id=int(emp_id))
+
+    if current_user.role == 'supervisor' and current_user.company_id:
+        q = q.join(Employee, Evaluation.employee_id == Employee.id).filter(Employee.company_id == current_user.company_id)
+
     evaluations = q.order_by(Evaluation.date.desc()).limit(200).all()
     return ok([{
         'id': e.id,
