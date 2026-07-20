@@ -236,6 +236,28 @@ def auto_migrate():
     add_column('employees', 'user_id', 'INTEGER')
     add_column('employees', 'worker_type', "VARCHAR(20)", "'permanent'")
 
+    def fix_column_type(table, column, new_type):
+        try:
+            cols = [c for c in inspector.get_columns(table) if c['name'] == column]
+            if cols:
+                current = str(cols[0]['type'])
+                if 'FLOAT' in current.upper() or 'DOUBLE' in current.upper() or 'NUMERIC' in current.upper():
+                    if 'VARCHAR' in new_type.upper() or 'TEXT' in new_type.upper() or 'BOOLEAN' in new_type.upper():
+                        sql = f'ALTER TABLE {table} ALTER COLUMN {column} TYPE {new_type} USING {column}::text::{new_type.lower()}'
+                        try:
+                            db.session.execute(sa.text(sql))
+                            db.session.commit()
+                            print(f"  ~ fixed {table}.{column} type to {new_type}")
+                        except Exception as e:
+                            db.session.rollback()
+                            if 'does not exist' not in str(e).lower():
+                                print(f"  ! fix {table}.{column}: {e}")
+        except Exception:
+            pass
+
+    fix_column_type('employees', 'worker_type', 'VARCHAR(20)')
+    fix_column_type('employees', 'employee_type', 'VARCHAR(20)')
+
     add_column('financial_transactions', 'payment_method', "VARCHAR(20)", "'cash'")
     add_column('financial_transactions', 'supplier_id', 'INTEGER')
     add_column('financial_transactions', 'monthly_installment', 'FLOAT', '0')

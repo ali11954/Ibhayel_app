@@ -145,7 +145,11 @@ def api_employee_create():
         supervisor_id=data.get('supervisor_id'),
     )
     db.session.add(emp)
-    db.session.commit()
+    try:
+        db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+        return fail(f'خطأ في إضافة الموظف: {str(e)}', 400)
     return ok(emp.to_dict(), 'تم إضافة الموظف بنجاح')
 
 
