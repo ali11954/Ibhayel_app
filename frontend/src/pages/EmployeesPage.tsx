@@ -913,10 +913,12 @@ export default function EmployeesPage() {
               <label className="block text-sm font-medium text-gray-700 mb-1">الراتب النقدي (ر.ي)</label>
               <Input type="number" value={form.salary || ''} onChange={(e) => setForm({ ...form, salary: e.target.value })} placeholder="0" />
             </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">البدل اليومي (ر.ي)</label>
-              <Input type="number" value={form.daily_allowance || ''} onChange={(e) => setForm({ ...form, daily_allowance: e.target.value })} placeholder="0" />
-            </div>
+            {form.is_resident && (
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">البدل اليومي (ر.ي)</label>
+                <Input type="number" value={form.daily_allowance || ''} onChange={(e) => setForm({ ...form, daily_allowance: e.target.value })} placeholder="0" />
+              </div>
+            )}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">بدل الملابس (ر.ي)</label>
               <Input type="number" value={form.clothing_allowance || ''} onChange={(e) => setForm({ ...form, clothing_allowance: e.target.value })} placeholder="0" />
