@@ -127,20 +127,68 @@ def debug_dist_info():
         _db.session.execute(_text('SELECT 1'))
         result['db_ok'] = True
         try:
-            rows = _db.session.execute(_text('SELECT COUNT(*) FROM attendances')).scalar()
-            result['attendance_count'] = rows
-        except Exception as e:
-            result['attendance_error'] = str(e)
-        try:
             rows = _db.session.execute(_text('SELECT COUNT(*) FROM employees')).scalar()
             result['employee_count'] = rows
         except Exception as e:
             result['employee_error'] = str(e)
         try:
-            cols = _db.session.execute(_text("SELECT column_name FROM information_schema.columns WHERE table_name='attendances'")).fetchall()
-            result['attendance_columns'] = [c[0] for c in cols]
+            cols = _db.session.execute(_text(
+                "SELECT column_name, data_type FROM information_schema.columns "
+                "WHERE table_name='employees' ORDER BY ordinal_position"
+            )).fetchall()
+            result['employee_columns'] = {c[0]: c[1] for c in cols}
         except Exception as e:
             result['schema_error'] = str(e)
+    except Exception as e:
+        result['db_ok'] = False
+        result['db_error'] = str(e)
+    return jsonify(result)
+
+@app.route('/debug/fix-columns')
+def debug_fix_columns():
+    results = []
+    try:
+        from models import db as _db
+        from sqlalchemy import text as _text
+        fixes = [
+            ('employees', 'allowances_updated_at', 'TIMESTAMP'),
+            ('employees', 'worker_type', 'VARCHAR(20)'),
+            ('employees', 'employee_type', 'VARCHAR(20)'),
+            ('employees', 'name', 'VARCHAR(100)'),
+            ('employees', 'card_number', 'VARCHAR(20)'),
+            ('employees', 'code', 'VARCHAR(20)'),
+            ('employees', 'job_title', 'VARCHAR(100)'),
+            ('employees', 'region', 'VARCHAR(100)'),
+            ('employees', 'phone', 'VARCHAR(20)'),
+        ]
+        for table, column, target in fixes:
+            row = _db.session.execute(_text(
+                f"SELECT data_type FROM information_schema.columns "
+                f"WHERE table_name = '{table}' AND column_name = '{column}'"
+            )).fetchone()
+            if not row:
+                results.append({'col': column, 'status': 'not found'})
+                continue
+            current = row[0]
+            results.append({'col': column, 'current': current, 'target': target})
+            if current == target.lower().split('(')[0].strip():
+                results.append({'col': column, 'action': 'already correct'})
+                continue
+            try:
+                if 'timestamp' in target.lower():
+                    _db.session.execute(_text(f'ALTER TABLE {table} ALTER COLUMN {column} DROP DEFAULT'))
+                    _db.session.execute(_text(f'UPDATE {table} SET {column} = NULL'))
+                    _db.session.execute(_text(f'ALTER TABLE {table} ALTER COLUMN {column} TYPE {target}'))
+                else:
+                    _db.session.execute(_text(f"ALTER TABLE {table} ALTER COLUMN {column} TYPE {target} USING {column}::text"))
+                _db.session.commit()
+                results.append({'col': column, 'action': f'fixed to {target}'})
+            except Exception as e:
+                _db.session.rollback()
+                results.append({'col': column, 'error': str(e)[:200]})
+    except Exception as e:
+        results.append({'error': str(e)[:200]})
+    return jsonify(results)
     except Exception as e:
         result['db_ok'] = False
         result['db_error'] = str(e)
