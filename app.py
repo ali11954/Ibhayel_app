@@ -239,8 +239,44 @@ else:
 
 
 def auto_migrate():
-    """إضافة أعمدة جديدة للجداول الموجودة تلقائياً - آمن للتشغيل المتكرر"""
-    inspector = sa.inspect(db.engine)
+    """Fix Supabase column types + add missing columns"""
+    print("Auto-migration: fixing column types...")
+
+    def force_alter(table, column, target_type):
+        try:
+            row = db.session.execute(sa.text(
+                "SELECT data_type FROM information_schema.columns "
+                "WHERE table_name = :tbl AND column_name = :col"
+            ), {'tbl': table, 'col': column}).fetchone()
+            if not row:
+                return
+            current = row[0]
+            target_base = target_type.lower().split('(')[0].strip()
+            if current == target_base:
+                return
+            if 'timestamp' in target_base:
+                db.session.execute(sa.text(f'ALTER TABLE {table} ALTER COLUMN {column} DROP DEFAULT'))
+                db.session.execute(sa.text(f'UPDATE {table} SET {column} = NULL'))
+            db.session.execute(sa.text(f'ALTER TABLE {table} ALTER COLUMN {column} TYPE {target_type}'))
+            db.session.commit()
+            print(f"  ~ fixed {table}.{column}: {current} -> {target_type}")
+        except Exception as e:
+            db.session.rollback()
+            print(f"  ! fix {table}.{column}: {e}")
+
+    force_alter('employees', 'allowances_updated_at', 'TIMESTAMP')
+    force_alter('employees', 'worker_type', 'VARCHAR(20)')
+    force_alter('employees', 'employee_type', 'VARCHAR(20)')
+    force_alter('employees', 'name', 'VARCHAR(100)')
+    force_alter('employees', 'card_number', 'VARCHAR(20)')
+    force_alter('employees', 'code', 'VARCHAR(20)')
+    force_alter('employees', 'job_title', 'VARCHAR(100)')
+    force_alter('employees', 'region', 'VARCHAR(100)')
+    force_alter('employees', 'phone', 'VARCHAR(20)')
+    force_alter('employees', 'notes', 'TEXT')
+    force_alter('employees', 'created_at', 'TIMESTAMP')
+
+    print("Auto-migration: adding missing columns...")
 
     def add_column(table, column, col_type, default=None):
         try:
