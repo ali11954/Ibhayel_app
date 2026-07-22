@@ -246,14 +246,19 @@ def auto_migrate():
                 if needs_fix:
                     try:
                         if 'TIMESTAMP' in new_type.upper():
+                            db.session.execute(sa.text(f'ALTER TABLE {table} ALTER COLUMN {column} DROP DEFAULT'))
                             db.session.execute(sa.text(f'UPDATE {table} SET {column} = NULL'))
-                            db.session.commit()
-                        db.session.execute(sa.text(f'ALTER TABLE {table} ALTER COLUMN {column} TYPE {new_type}'))
+                            db.session.execute(sa.text(f'ALTER TABLE {table} ALTER COLUMN {column} TYPE {new_type}'))
+                        elif 'VARCHAR' in new_type.upper() or 'TEXT' in new_type.upper():
+                            db.session.execute(sa.text(f"ALTER TABLE {table} ALTER COLUMN {column} TYPE {new_type} USING {column}::text::{new_type.lower()}"))
+                        else:
+                            db.session.execute(sa.text(f'ALTER TABLE {table} ALTER COLUMN {column} TYPE {new_type}'))
                         db.session.commit()
                         print(f"  ~ fixed {table}.{column} from {current} to {new_type}")
                     except Exception as e:
                         db.session.rollback()
-                        if 'does not exist' not in str(e).lower():
+                        msg = str(e).lower()
+                        if 'does not exist' not in msg and 'could not' not in msg:
                             print(f"  ! fix {table}.{column}: {e}")
         except Exception:
             pass
