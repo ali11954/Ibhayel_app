@@ -189,10 +189,6 @@ def debug_fix_columns():
     except Exception as e:
         results.append({'error': str(e)[:200]})
     return jsonify(results)
-    except Exception as e:
-        result['db_ok'] = False
-        result['db_error'] = str(e)
-    return jsonify(result)
 
 
 # ==================== Serve React Build (Production) ====================
