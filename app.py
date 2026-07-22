@@ -282,6 +282,46 @@ def auto_migrate():
         for col_name, col_type in columns_and_types:
             safe_fix_column(table, col_name, col_type)
 
+    def raw_fix_column(table, column, target_type):
+        try:
+            row = db.session.execute(sa.text(
+                f"SELECT data_type FROM information_schema.columns "
+                f"WHERE table_name = '{table}' AND column_name = '{column}'"
+            )).fetchone()
+            if not row:
+                return
+            current = row[0]
+            target_lower = target_type.lower().split('(')[0].strip()
+            if current == target_lower or (current in ('character varying','varchar') and 'varchar' in target_lower):
+                return
+            print(f"  raw fix: {table}.{column} is {current}, changing to {target_type}")
+            if 'timestamp' in target_lower:
+                db.session.execute(sa.text(f'ALTER TABLE {table} ALTER COLUMN {column} DROP DEFAULT'))
+                db.session.execute(sa.text(f'UPDATE {table} SET {column} = NULL'))
+                db.session.execute(sa.text(f'ALTER TABLE {table} ALTER COLUMN {column} TYPE {target_type}'))
+            elif 'varchar' in target_lower or 'text' in target_lower:
+                db.session.execute(sa.text(f"ALTER TABLE {table} ALTER COLUMN {column} TYPE {target_type} USING {column}::text"))
+            else:
+                db.session.execute(sa.text(f'ALTER TABLE {table} ALTER COLUMN {column} TYPE {target_type}'))
+            db.session.commit()
+            print(f"  raw fix: {table}.{column} -> {target_type} OK")
+        except Exception as e:
+            db.session.rollback()
+            print(f"  raw fix: {table}.{column} -> {e}")
+
+    raw_fix_column('employees', 'allowances_updated_at', 'TIMESTAMP')
+    raw_fix_column('employees', 'worker_type', 'VARCHAR(20)')
+    raw_fix_column('employees', 'employee_type', 'VARCHAR(20)')
+
+    try:
+        raw_cols = db.session.execute(sa.text(
+            "SELECT column_name, data_type FROM information_schema.columns "
+            "WHERE table_name = 'employees' ORDER BY ordinal_position"
+        )).fetchall()
+        print(f"  employees columns: {[(c[0], c[1]) for c in raw_cols]}")
+    except Exception as e:
+        print(f"  ! could not inspect columns: {e}")
+
     try:
         table_columns = {
             'financial_transactions': [
