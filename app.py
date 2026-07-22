@@ -216,7 +216,7 @@ if _os.path.isdir(_react_dist):
 
     @app.route('/<path:path>')
     def serve_react_static(path):
-        if path.startswith('api/') or path.startswith('auth/') or path.startswith('static/'):
+        if path.startswith('api/') or path.startswith('auth/') or path.startswith('static/') or path.startswith('debug/'):
             from flask import abort
             abort(404)
         file_path = _os.path.join(_react_dist, path)
