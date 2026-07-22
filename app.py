@@ -236,46 +236,51 @@ def auto_migrate():
     add_column('employees', 'user_id', 'INTEGER')
     add_column('employees', 'worker_type', "VARCHAR(20)", "'permanent'")
 
-    def fix_column_type(table, column, new_type):
+    def safe_fix_column(table, column, target_type):
         try:
             cols = [c for c in inspector.get_columns(table) if c['name'] == column]
-            if cols:
-                current = str(cols[0]['type'])
-                is_numeric = 'FLOAT' in current.upper() or 'DOUBLE' in current.upper() or 'NUMERIC' in current.upper() or 'INT' in current.upper()
-                needs_fix = is_numeric and ('VARCHAR' in new_type.upper() or 'TEXT' in new_type.upper() or 'TIMESTAMP' in new_type.upper() or 'BOOLEAN' in new_type.upper())
-                if needs_fix:
-                    try:
-                        if 'TIMESTAMP' in new_type.upper():
-                            db.session.execute(sa.text(f'ALTER TABLE {table} ALTER COLUMN {column} DROP DEFAULT'))
-                            db.session.execute(sa.text(f'UPDATE {table} SET {column} = NULL'))
-                            db.session.execute(sa.text(f'ALTER TABLE {table} ALTER COLUMN {column} TYPE {new_type}'))
-                        elif 'VARCHAR' in new_type.upper() or 'TEXT' in new_type.upper():
-                            db.session.execute(sa.text(f"ALTER TABLE {table} ALTER COLUMN {column} TYPE {new_type} USING {column}::text::{new_type.lower()}"))
-                        else:
-                            db.session.execute(sa.text(f'ALTER TABLE {table} ALTER COLUMN {column} TYPE {new_type}'))
-                        db.session.commit()
-                        print(f"  ~ fixed {table}.{column} from {current} to {new_type}")
-                    except Exception as e:
-                        db.session.rollback()
-                        msg = str(e).lower()
-                        if 'does not exist' not in msg and 'could not' not in msg:
-                            print(f"  ! fix {table}.{column}: {e}")
-        except Exception:
-            pass
+            if not cols:
+                return
+            current = str(cols[0]['type']).upper()
+            target_upper = target_type.upper()
+            type_map = {
+                'VARCHAR': ['FLOAT', 'DOUBLE', 'NUMERIC', 'INT', 'TEXT', 'BOOLEAN'],
+                'TEXT': ['FLOAT', 'DOUBLE', 'NUMERIC', 'INT', 'BOOLEAN'],
+                'TIMESTAMP': ['FLOAT', 'DOUBLE', 'NUMERIC', 'INT'],
+                'INTEGER': ['FLOAT', 'DOUBLE', 'NUMERIC'],
+                'FLOAT': ['INT', 'BIGINT'],
+            }
+            wrong_from = type_map.get(target_upper.split('(')[0].split(' ')[0], [])
+            needs_fix = any(t in current for t in wrong_from)
+            if not needs_fix:
+                return
+            if 'TIMESTAMP' in target_upper:
+                db.session.execute(sa.text(f'ALTER TABLE {table} ALTER COLUMN {column} DROP DEFAULT'))
+                db.session.execute(sa.text(f'UPDATE {table} SET {column} = NULL'))
+                db.session.execute(sa.text(f'ALTER TABLE {table} ALTER COLUMN {column} TYPE {target_type}'))
+            else:
+                db.session.execute(sa.text(f"ALTER TABLE {table} ALTER COLUMN {column} TYPE {target_type} USING {column}::text::{target_type.lower()}"))
+            db.session.commit()
+            print(f"  ~ fixed {table}.{column}: {current} -> {target_type}")
+        except Exception as e:
+            db.session.rollback()
+            msg = str(e).lower()
+            if 'already' not in msg and 'does not exist' not in msg:
+                print(f"  ! fix {table}.{column}: {e}")
 
-    fix_column_type('employees', 'worker_type', 'VARCHAR(20)')
-    fix_column_type('employees', 'employee_type', 'VARCHAR(20)')
-    fix_column_type('employees', 'allowances_updated_at', 'TIMESTAMP')
-    fix_column_type('employees', 'region', 'VARCHAR(100)')
-    fix_column_type('employees', 'phone', 'VARCHAR(20)')
-    fix_column_type('employees', 'job_title', 'VARCHAR(100)')
-    fix_column_type('employees', 'name', 'VARCHAR(100)')
-    fix_column_type('employees', 'card_number', 'VARCHAR(20)')
-    fix_column_type('employees', 'code', 'VARCHAR(20)')
+    safe_fix_column('employees', 'worker_type', 'VARCHAR(20)')
+    safe_fix_column('employees', 'employee_type', 'VARCHAR(20)')
+    safe_fix_column('employees', 'allowances_updated_at', 'TIMESTAMP')
+    safe_fix_column('employees', 'region', 'VARCHAR(100)')
+    safe_fix_column('employees', 'phone', 'VARCHAR(20)')
+    safe_fix_column('employees', 'job_title', 'VARCHAR(100)')
+    safe_fix_column('employees', 'name', 'VARCHAR(100)')
+    safe_fix_column('employees', 'card_number', 'VARCHAR(20)')
+    safe_fix_column('employees', 'code', 'VARCHAR(20)')
 
     def fix_all_numeric_string_columns(table, columns_and_types):
         for col_name, col_type in columns_and_types:
-            fix_column_type(table, col_name, col_type)
+            safe_fix_column(table, col_name, col_type)
 
     try:
         table_columns = {
