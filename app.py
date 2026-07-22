@@ -144,7 +144,7 @@ def debug_dist_info():
         result['db_error'] = str(e)
     return jsonify(result)
 
-@app.route('/debug/fix-columns')
+@app.route('/api/debug/fix-columns')
 def debug_fix_columns():
     results = []
     try:
@@ -216,7 +216,7 @@ if _os.path.isdir(_react_dist):
 
     @app.route('/<path:path>')
     def serve_react_static(path):
-        if path.startswith('api/') or path.startswith('auth/') or path.startswith('static/') or path.startswith('debug/'):
+        if path.startswith('api/') or path.startswith('auth/') or path.startswith('static/'):
             from flask import abort
             abort(404)
         file_path = _os.path.join(_react_dist, path)
