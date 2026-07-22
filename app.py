@@ -241,22 +241,107 @@ def auto_migrate():
             cols = [c for c in inspector.get_columns(table) if c['name'] == column]
             if cols:
                 current = str(cols[0]['type'])
-                if 'FLOAT' in current.upper() or 'DOUBLE' in current.upper() or 'NUMERIC' in current.upper():
-                    if 'VARCHAR' in new_type.upper() or 'TEXT' in new_type.upper() or 'BOOLEAN' in new_type.upper():
-                        sql = f'ALTER TABLE {table} ALTER COLUMN {column} TYPE {new_type} USING {column}::text::{new_type.lower()}'
-                        try:
-                            db.session.execute(sa.text(sql))
+                is_numeric = 'FLOAT' in current.upper() or 'DOUBLE' in current.upper() or 'NUMERIC' in current.upper() or 'INT' in current.upper()
+                needs_fix = is_numeric and ('VARCHAR' in new_type.upper() or 'TEXT' in new_type.upper() or 'TIMESTAMP' in new_type.upper() or 'BOOLEAN' in new_type.upper())
+                if needs_fix:
+                    try:
+                        if 'TIMESTAMP' in new_type.upper():
+                            db.session.execute(sa.text(f'UPDATE {table} SET {column} = NULL'))
                             db.session.commit()
-                            print(f"  ~ fixed {table}.{column} type to {new_type}")
-                        except Exception as e:
-                            db.session.rollback()
-                            if 'does not exist' not in str(e).lower():
-                                print(f"  ! fix {table}.{column}: {e}")
+                        db.session.execute(sa.text(f'ALTER TABLE {table} ALTER COLUMN {column} TYPE {new_type}'))
+                        db.session.commit()
+                        print(f"  ~ fixed {table}.{column} from {current} to {new_type}")
+                    except Exception as e:
+                        db.session.rollback()
+                        if 'does not exist' not in str(e).lower():
+                            print(f"  ! fix {table}.{column}: {e}")
         except Exception:
             pass
 
     fix_column_type('employees', 'worker_type', 'VARCHAR(20)')
     fix_column_type('employees', 'employee_type', 'VARCHAR(20)')
+    fix_column_type('employees', 'allowances_updated_at', 'TIMESTAMP')
+    fix_column_type('employees', 'region', 'VARCHAR(100)')
+    fix_column_type('employees', 'phone', 'VARCHAR(20)')
+    fix_column_type('employees', 'job_title', 'VARCHAR(100)')
+    fix_column_type('employees', 'name', 'VARCHAR(100)')
+    fix_column_type('employees', 'card_number', 'VARCHAR(20)')
+    fix_column_type('employees', 'code', 'VARCHAR(20)')
+
+    def fix_all_numeric_string_columns(table, columns_and_types):
+        for col_name, col_type in columns_and_types:
+            fix_column_type(table, col_name, col_type)
+
+    try:
+        table_columns = {
+            'financial_transactions': [
+                ('description', 'VARCHAR(200)'), ('reference', 'VARCHAR(50)'),
+                ('payment_method', 'VARCHAR(20)'), ('settled_amount', 'FLOAT'),
+            ],
+            'accounts': [
+                ('code', 'VARCHAR(20)'), ('name_ar', 'VARCHAR(100)'),
+                ('name_en', 'VARCHAR(100)'), ('nature', 'VARCHAR(10)'),
+                ('account_type', 'VARCHAR(20)'),
+            ],
+            'journal_entries': [
+                ('description', 'VARCHAR(200)'), ('reference_type', 'VARCHAR(50)'),
+                ('reference_id', 'INTEGER'),
+            ],
+            'suppliers': [
+                ('name', 'VARCHAR(100)'), ('phone', 'VARCHAR(20)'),
+                ('email', 'VARCHAR(100)'), ('address', 'VARCHAR(200)'),
+                ('contact_person', 'VARCHAR(100)'), ('supplier_type', 'VARCHAR(20)'),
+                ('code', 'VARCHAR(20)'),
+            ],
+            'companies': [
+                ('name', 'VARCHAR(100)'), ('phone', 'VARCHAR(20)'),
+                ('email', 'VARCHAR(100)'), ('address', 'VARCHAR(200)'),
+                ('contact_person', 'VARCHAR(100)'), ('code', 'VARCHAR(20)'),
+            ],
+            'users': [
+                ('username', 'VARCHAR(50)'), ('role', 'VARCHAR(20)'),
+                ('allowed_pages', 'TEXT'),
+            ],
+            'salaries': [
+                ('month', 'VARCHAR(10)'), ('status', 'VARCHAR(20)'),
+                ('notes', 'TEXT'),
+            ],
+            'evaluations': [
+                ('evaluation_type', 'VARCHAR(20)'), ('notes', 'TEXT'),
+                ('period', 'VARCHAR(10)'),
+            ],
+            'attendance': [
+                ('status', 'VARCHAR(20)'), ('notes', 'TEXT'),
+            ],
+            'leave_requests': [
+                ('status', 'VARCHAR(20)'), ('reason', 'TEXT'),
+                ('response_note', 'TEXT'), ('leave_type', 'VARCHAR(20)'),
+            ],
+            'work_plans': [
+                ('title', 'VARCHAR(100)'), ('description', 'TEXT'),
+                ('status', 'VARCHAR(20)'), ('period', 'VARCHAR(20)'),
+            ],
+            'work_plan_tasks': [
+                ('title', 'VARCHAR(100)'), ('description', 'TEXT'),
+                ('status', 'VARCHAR(20)'), ('assigned_to', 'VARCHAR(50)'),
+            ],
+            'bank_info': [
+                ('bank_name', 'VARCHAR(100)'), ('account_number', 'VARCHAR(30)'),
+                ('iban', 'VARCHAR(30)'), ('swift_code', 'VARCHAR(20)'),
+                ('branch_name', 'VARCHAR(100)'), ('account_type', 'VARCHAR(20)'),
+                ('currency', 'VARCHAR(10)'), ('notes', 'TEXT'),
+            ],
+            'supplier_invoices': [
+                ('invoice_number', 'VARCHAR(50)'), ('description', 'TEXT'),
+                ('status', 'VARCHAR(20)'), ('invoice_type', 'VARCHAR(20)'),
+            ],
+        }
+        existing = set(inspector.get_table_names())
+        for tname, cols in table_columns.items():
+            if tname in existing:
+                fix_all_numeric_string_columns(tname, cols)
+    except Exception as e:
+        print(f"  ! fix all columns error: {e}")
 
     add_column('financial_transactions', 'payment_method', "VARCHAR(20)", "'cash'")
     add_column('financial_transactions', 'supplier_id', 'INTEGER')
