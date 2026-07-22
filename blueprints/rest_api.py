@@ -2319,17 +2319,69 @@ def api_salary_voucher(sid):
 @rest_api.route('/reports/dashboard')
 @login_required
 def api_reports_dashboard():
-    total_employees = Employee.query.filter_by(is_active=True).count()
     today = datetime.now().date()
+    total_employees = Employee.query.filter_by(is_active=True).count()
     today_attendance = Attendance.query.filter_by(date=today, attendance_status='present').count()
     pending_transactions = FinancialTransaction.query.filter_by(is_settled=False).count()
     pending_salaries = Salary.query.filter_by(is_paid=False).count()
-    return ok({
+
+    data = {
         'total_employees': total_employees,
         'today_attendance': today_attendance,
         'pending_transactions': pending_transactions,
         'pending_salaries': pending_salaries,
-    })
+        'employee': None,
+        'attendance': None,
+        'evaluations': None,
+        'salary': None,
+    }
+
+    user = current_user
+    if hasattr(user, 'employee_id') and user.employee_id:
+        emp = Employee.query.get(user.employee_id)
+        if emp:
+            data['employee'] = {
+                'code': emp.code,
+                'job_title': emp.job_title,
+                'company_name': Company.query.get(emp.company_id).name if emp.company_id else '—',
+                'salary': emp.salary,
+                'total_salary': emp.total_salary,
+                'daily_allowance': emp.daily_allowance,
+                'worker_type': emp.worker_type,
+                'is_resident': emp.is_resident,
+            }
+
+            month_start = today.replace(day=1)
+            atts = Attendance.query.filter(
+                Attendance.employee_id == emp.id,
+                Attendance.date >= month_start, Attendance.date <= today
+            ).all()
+            data['attendance'] = {
+                'total_days': len(atts),
+                'present_days': len([a for a in atts if a.attendance_status == 'present']),
+                'late_days': len([a for a in atts if a.attendance_status == 'late']),
+                'absent_days': len([a for a in atts if a.attendance_status == 'absent']),
+                'sick_days': len([a for a in atts if a.attendance_status == 'sick']),
+                'leave_days': len([a for a in atts if a.attendance_status in ('annual_leave', 'unpaid_leave')]),
+            }
+
+            evals = Evaluation.query.filter_by(employee_id=emp.id).order_by(Evaluation.created_at.desc()).all()
+            scores = [e.score for e in evals if e.score is not None]
+            data['evaluations'] = {
+                'latest_score': evals[0].score if evals else None,
+                'latest_date': evals[0].created_at.strftime('%Y-%m-%d') if evals and evals[0].created_at else None,
+                'average_score': round(sum(scores) / len(scores), 1) if scores else 0,
+                'total_evaluations': len(evals),
+            }
+
+            salary = Salary.query.filter_by(employee_id=emp.id, is_paid=True).order_by(Salary.id.desc()).first()
+            data['salary'] = {
+                'total_paid': salary.total_salary if salary else 0,
+                'base_salary': salary.basic_salary if salary else emp.basic_salary,
+                'total_salary': emp.total_salary,
+            }
+
+    return ok(data)
 
 
 @rest_api.route('/reports/attendance')
@@ -2423,6 +2475,170 @@ def api_reports_attendance():
         'start_date': start_date.strftime('%Y-%m-%d'),
         'end_date': end_date.strftime('%Y-%m-%d'),
         'companies': companies_result,
+    })
+
+
+@rest_api.route('/reports/attendance-grid')
+@login_required
+def api_reports_attendance_grid():
+    import calendar as cal
+    year = int(request.args.get('year', datetime.now().year))
+    month = int(request.args.get('month', datetime.now().month))
+    company_id = request.args.get('company_id')
+    days_in_month = cal.monthrange(year, month)[1]
+    start_date = datetime(year, month, 1).date()
+    end_date = datetime(year, month, days_in_month).date()
+
+    q = Employee.query.filter_by(is_active=True)
+    if company_id:
+        q = q.filter_by(company_id=int(company_id))
+    employees = q.all()
+
+    attendances = Attendance.query.filter(
+        Attendance.date >= start_date, Attendance.date <= end_date
+    ).all()
+    att_map = {}
+    for a in attendances:
+        if a.employee_id not in att_map:
+            att_map[a.employee_id] = {}
+        att_map[a.employee_id][a.date.day] = a.attendance_status
+
+    company_cache = {}
+    result = []
+    for emp in employees:
+        if emp.company_id not in company_cache:
+            comp = Company.query.get(emp.company_id)
+            company_cache[emp.company_id] = comp.name if comp else 'بدون شركة'
+        days = {}
+        present_count = 0
+        absent_count = 0
+        late_count = 0
+        leave_count = 0
+        for d in range(1, days_in_month + 1):
+            status = att_map.get(emp.id, {}).get(d)
+            days[d] = status or ''
+            if status == 'present':
+                present_count += 1
+            elif status == 'late':
+                late_count += 1
+            elif status in ('annual_leave', 'unpaid_leave', 'sick'):
+                leave_count += 1
+            elif status == 'absent':
+                absent_count += 1
+            else:
+                date_obj = datetime(year, month, d).date()
+                if date_obj.weekday() != 4:
+                    absent_count += 1
+        result.append({
+            'employee_id': emp.id,
+            'employee_name': emp.name,
+            'employee_code': emp.code,
+            'company_name': company_cache[emp.company_id],
+            'days': days,
+            'present_count': present_count,
+            'absent_count': absent_count,
+            'late_count': late_count,
+            'leave_count': leave_count,
+        })
+
+    return ok({'employees': result, 'days_in_month': days_in_month, 'year': year, 'month': month})
+
+
+@rest_api.route('/reports/attendance-detail')
+@login_required
+def api_reports_attendance_detail():
+    from datetime import timedelta
+    date_from = request.args.get('date_from')
+    date_to = request.args.get('date_to')
+    company_id = request.args.get('company_id')
+    employee_id = request.args.get('employee_id')
+
+    today = datetime.now().date()
+    start_date = datetime.strptime(date_from, '%Y-%m-%d').date() if date_from else today - timedelta(days=30)
+    end_date = datetime.strptime(date_to, '%Y-%m-%d').date() if date_to else today
+
+    q = Attendance.query.filter(Attendance.date >= start_date, Attendance.date <= end_date)
+    if employee_id:
+        q = q.filter_by(employee_id=int(employee_id))
+
+    if company_id:
+        emp_ids = [e.id for e in Employee.query.filter_by(company_id=int(company_id)).all()]
+        q = q.filter(Attendance.employee_id.in_(emp_ids))
+
+    records = q.order_by(Attendance.date.desc()).all()
+
+    emp_map = {}
+    comp_map = {}
+    for emp in Employee.query.all():
+        emp_map[emp.id] = emp
+        if emp.company_id not in comp_map:
+            comp = Company.query.get(emp.company_id)
+            comp_map[emp.company_id] = comp.name if comp else 'بدون شركة'
+
+    records_data = []
+    for r in records:
+        emp = emp_map.get(r.employee_id)
+        records_data.append({
+            'id': r.id,
+            'employee_id': r.employee_id,
+            'employee_name': emp.name if emp else '—',
+            'employee_code': emp.code if emp else '—',
+            'company_name': comp_map.get(emp.company_id, 'بدون شركة') if emp else '—',
+            'company_id': emp.company_id if emp else None,
+            'date': r.date.strftime('%Y-%m-%d'),
+            'status': r.attendance_status,
+            'shift_type': getattr(r, 'shift_type', None) or 'morning',
+            'check_in': r.check_in_time.strftime('%H:%M') if r.check_in_time else None,
+            'check_out': r.check_out_time.strftime('%H:%M') if r.check_out_time else None,
+            'notes': r.notes or '',
+        })
+
+    all_emps = Employee.query.filter_by(is_active=True)
+    if company_id:
+        all_emps = all_emps.filter_by(company_id=int(company_id))
+    all_emp_ids = [e.id for e in all_emps.all()]
+
+    emp_summary = {}
+    for eid in all_emp_ids:
+        emp = emp_map.get(eid)
+        if not emp:
+            continue
+        emp_recs = [r for r in records_data if r['employee_id'] == eid]
+        working_days = len(emp_recs)
+        present = len([r for r in emp_recs if r['status'] == 'present'])
+        late = len([r for r in emp_recs if r['status'] == 'late'])
+        absent = len([r for r in emp_recs if r['status'] == 'absent'])
+        leave = len([r for r in emp_recs if r['status'] in ('annual_leave', 'unpaid_leave', 'sick')])
+        emp_summary[eid] = {
+            'employee_id': eid,
+            'employee_name': emp.name,
+            'employee_code': emp.code,
+            'company_name': comp_map.get(emp.company_id, 'بدون شركة'),
+            'company_id': emp.company_id,
+            'working_days': working_days,
+            'present': present,
+            'late': late,
+            'absent': absent,
+            'leave': leave,
+        }
+
+    total_present = sum(e['present'] for e in emp_summary.values())
+    total_late = sum(e['late'] for e in emp_summary.values())
+    total_absent = sum(e['absent'] for e in emp_summary.values())
+    total_leave = sum(e['leave'] for e in emp_summary.values())
+    total_all = total_present + total_late + total_absent + total_leave
+
+    return ok({
+        'records': records_data,
+        'employees_summary': list(emp_summary.values()),
+        'working_days': (end_date - start_date).days + 1,
+        'summary': {
+            'total_present': total_present,
+            'total_late': total_late,
+            'total_absent': total_absent,
+            'total_leave': total_leave,
+            'attendance_rate': round(total_present / total_all * 100, 1) if total_all > 0 else 0,
+        },
     })
 
 

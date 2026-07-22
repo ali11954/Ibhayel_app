@@ -22,6 +22,9 @@ import SupplierInvoicesPage from '@/pages/SupplierInvoicesPage';
 import PeriodsPage from '@/pages/PeriodsPage';
 import LeavesPage from '@/pages/LeavesPage';
 import EmployeePortalPage from '@/pages/EmployeePortalPage';
+import AttendanceGridPage from '@/pages/AttendanceGridPage';
+import AttendanceReportPage from '@/pages/AttendanceReportPage';
+import ProfilePage from '@/pages/ProfilePage';
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const [checking, setChecking] = useState(true);
@@ -212,6 +215,30 @@ export default function App() {
           element={
             <ProtectedRoute>
               <Layout><SettingsPage /></Layout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/attendance-grid"
+          element={
+            <ProtectedRoute>
+              <Layout><AttendanceGridPage /></Layout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/attendance-report"
+          element={
+            <ProtectedRoute>
+              <Layout><AttendanceReportPage /></Layout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/profile"
+          element={
+            <ProtectedRoute>
+              <Layout><ProfilePage /></Layout>
             </ProtectedRoute>
           }
         />

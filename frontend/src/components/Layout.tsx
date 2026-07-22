@@ -4,7 +4,7 @@ import {
   Home, Users, CalendarCheck, Building2, Star, DollarSign,
   BookOpen, Truck, BarChart3, Settings, LogOut, Menu, X,
   FileText, UserCog, FileCheck, Bell, Search, Plus, ClipboardList, Coins,
-  Calendar, Clock, User
+  Calendar, Clock, User, Grid3x3, ClipboardCheck
 } from 'lucide-react';
 import api from '@/api/client';
 
@@ -12,6 +12,8 @@ const navItems = [
   { path: '/dashboard', label: 'الرئيسية', icon: Home, roles: ['admin', 'supervisor', 'accountant', 'viewer'] },
   { path: '/employees', label: 'الموظفين', icon: Users, roles: ['admin', 'supervisor'] },
   { path: '/attendance', label: 'الحضور', icon: CalendarCheck, roles: ['admin', 'supervisor'] },
+  { path: '/attendance-grid', label: 'الحضور الشجري', icon: Grid3x3, roles: ['admin', 'supervisor'] },
+  { path: '/attendance-report', label: 'تقرير الحضور', icon: ClipboardCheck, roles: ['admin', 'supervisor'] },
   { path: '/companies', label: 'الشركات', icon: Building2, roles: ['admin', 'supervisor', 'accountant'] },
   { path: '/contracts', label: 'العقود', icon: FileCheck, roles: ['admin', 'supervisor'] },
   { path: '/invoices', label: 'الفواتير', icon: FileText, roles: ['admin', 'supervisor', 'accountant'] },
@@ -26,6 +28,7 @@ const navItems = [
   { path: '/leaves', label: 'الإجازات', icon: Clock, roles: ['admin', 'supervisor'] },
   { path: '/reports', label: 'التقارير', icon: BarChart3, roles: ['admin', 'supervisor', 'accountant'] },
   { path: '/users', label: 'المستخدمين', icon: UserCog, roles: ['admin'] },
+  { path: '/profile', label: 'الملف الشخصي', icon: User, roles: ['admin', 'supervisor', 'accountant', 'viewer', 'employee'] },
   { path: '/settings', label: 'الإعدادات', icon: Settings, roles: ['admin'] },
 ];
 
