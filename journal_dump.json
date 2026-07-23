@@ -1,0 +1,1307 @@
+[
+  {
+    "date": "2026-07-06",
+    "description": "عكس قيد خاطئ: JE-2026-00026 - خصم للموظف عبد المجيد عبد الله حمود غزالي",
+    "details": [
+      {
+        "account_code": "210001",
+        "account_id": 6,
+        "account_name": "Salaries Payable",
+        "credit": 5400.0,
+        "debit": 0.0,
+        "description": "عكس: خصم من راتب عبد المجيد عبد الله حمود غزالي",
+        "id": 93
+      },
+      {
+        "account_code": "510002",
+        "account_id": 17,
+        "account_name": "Overtime Expense",
+        "credit": 0.0,
+        "debit": 5400.0,
+        "description": "عكس: تسجيل خصم",
+        "id": 94
+      }
+    ],
+    "entry_number": "REV-JE-2026-00026",
+    "id": 47,
+    "is_balanced": true,
+    "total_credit": 5400.0,
+    "total_debit": 5400.0
+  },
+  {
+    "date": "2026-07-06",
+    "description": "عكس قيد خاطئ: JE-2026-00025 - خصم للموظف طلال رشيد عبده اسماعيل الرفيد",
+    "details": [
+      {
+        "account_code": "210001",
+        "account_id": 6,
+        "account_name": "Salaries Payable",
+        "credit": 77845.0,
+        "debit": 0.0,
+        "description": "عكس: خصم من راتب طلال رشيد عبده اسماعيل الرفيد",
+        "id": 91
+      },
+      {
+        "account_code": "510002",
+        "account_id": 17,
+        "account_name": "Overtime Expense",
+        "credit": 0.0,
+        "debit": 77845.0,
+        "description": "عكس: تسجيل خصم",
+        "id": 92
+      }
+    ],
+    "entry_number": "REV-JE-2026-00025",
+    "id": 46,
+    "is_balanced": true,
+    "total_credit": 77845.0,
+    "total_debit": 77845.0
+  },
+  {
+    "date": "2026-07-06",
+    "description": "عكس قيد خاطئ: JE-2026-00008 - عكس قيد: JE-2026-00002 - تحويل: تحصيل من شركة الغيث - من العملاء إلى البنك",
+    "details": [
+      {
+        "account_code": "110002",
+        "account_id": 2,
+        "account_name": "Bank",
+        "credit": 0.0,
+        "debit": 50000.0,
+        "description": "عكس: عكس: استلام من العملاء (قيد أصلي: JE-2026-00002)",
+        "id": 57
+      },
+      {
+        "account_code": "120001",
+        "account_id": 3,
+        "account_name": "Customers",
+        "credit": 50000.0,
+        "debit": 0.0,
+        "description": "عكس: عكس: تحويل إلى البنك (قيد أصلي: JE-2026-00002)",
+        "id": 58
+      }
+    ],
+    "entry_number": "REV-JE-2026-00008",
+    "id": 29,
+    "is_balanced": true,
+    "total_credit": 50000.0,
+    "total_debit": 50000.0
+  },
+  {
+    "date": "2026-07-06",
+    "description": "عكس قيد خاطئ: JE-2026-00024 - خصم للموظف محمد مبخوت مبارك محبوب",
+    "details": [
+      {
+        "account_code": "210001",
+        "account_id": 6,
+        "account_name": "Salaries Payable",
+        "credit": 23030.0,
+        "debit": 0.0,
+        "description": "عكس: خصم من راتب محمد مبخوت مبارك محبوب",
+        "id": 89
+      },
+      {
+        "account_code": "510002",
+        "account_id": 17,
+        "account_name": "Overtime Expense",
+        "credit": 0.0,
+        "debit": 23030.0,
+        "description": "عكس: تسجيل خصم",
+        "id": 90
+      }
+    ],
+    "entry_number": "REV-JE-2026-00024",
+    "id": 45,
+    "is_balanced": true,
+    "total_credit": 23030.0,
+    "total_debit": 23030.0
+  },
+  {
+    "date": "2026-07-06",
+    "description": "عكس قيد خاطئ: JE-2026-00023 - خصم للموظف راجح عيسى موسى يحيى",
+    "details": [
+      {
+        "account_code": "210001",
+        "account_id": 6,
+        "account_name": "Salaries Payable",
+        "credit": 13210.0,
+        "debit": 0.0,
+        "description": "عكس: خصم من راتب راجح عيسى موسى يحيى",
+        "id": 87
+      },
+      {
+        "account_code": "510002",
+        "account_id": 17,
+        "account_name": "Overtime Expense",
+        "credit": 0.0,
+        "debit": 13210.0,
+        "description": "عكس: تسجيل خصم",
+        "id": 88
+      }
+    ],
+    "entry_number": "REV-JE-2026-00023",
+    "id": 44,
+    "is_balanced": true,
+    "total_credit": 13210.0,
+    "total_debit": 13210.0
+  },
+  {
+    "date": "2026-07-06",
+    "description": "عكس قيد خاطئ: JE-2026-00022 - خصم للموظف يوسف حسين ابراهيم مهدي ",
+    "details": [
+      {
+        "account_code": "210001",
+        "account_id": 6,
+        "account_name": "Salaries Payable",
+        "credit": 18000.0,
+        "debit": 0.0,
+        "description": "عكس: خصم من راتب يوسف حسين ابراهيم مهدي ",
+        "id": 85
+      },
+      {
+        "account_code": "510002",
+        "account_id": 17,
+        "account_name": "Overtime Expense",
+        "credit": 0.0,
+        "debit": 18000.0,
+        "description": "عكس: تسجيل خصم",
+        "id": 86
+      }
+    ],
+    "entry_number": "REV-JE-2026-00022",
+    "id": 43,
+    "is_balanced": true,
+    "total_credit": 18000.0,
+    "total_debit": 18000.0
+  },
+  {
+    "date": "2026-07-06",
+    "description": "عكس قيد خاطئ: JE-2026-00021 - خصم للموظف مهدي هادي مهدي هادي ",
+    "details": [
+      {
+        "account_code": "210001",
+        "account_id": 6,
+        "account_name": "Salaries Payable",
+        "credit": 14980.0,
+        "debit": 0.0,
+        "description": "عكس: خصم من راتب مهدي هادي مهدي هادي ",
+        "id": 83
+      },
+      {
+        "account_code": "510002",
+        "account_id": 17,
+        "account_name": "Overtime Expense",
+        "credit": 0.0,
+        "debit": 14980.0,
+        "description": "عكس: تسجيل خصم",
+        "id": 84
+      }
+    ],
+    "entry_number": "REV-JE-2026-00021",
+    "id": 42,
+    "is_balanced": true,
+    "total_credit": 14980.0,
+    "total_debit": 14980.0
+  },
+  {
+    "date": "2026-07-06",
+    "description": "عكس قيد خاطئ: JE-2026-00020 - خصم للموظف ماجد عبد الله مهدي حسن",
+    "details": [
+      {
+        "account_code": "210001",
+        "account_id": 6,
+        "account_name": "Salaries Payable",
+        "credit": 24880.0,
+        "debit": 0.0,
+        "description": "عكس: خصم من راتب ماجد عبد الله مهدي حسن",
+        "id": 81
+      },
+      {
+        "account_code": "510002",
+        "account_id": 17,
+        "account_name": "Overtime Expense",
+        "credit": 0.0,
+        "debit": 24880.0,
+        "description": "عكس: تسجيل خصم",
+        "id": 82
+      }
+    ],
+    "entry_number": "REV-JE-2026-00020",
+    "id": 41,
+    "is_balanced": true,
+    "total_credit": 24880.0,
+    "total_debit": 24880.0
+  },
+  {
+    "date": "2026-07-06",
+    "description": "عكس قيد خاطئ: JE-2026-00019 - جزاء للموظف محمد احمد علي موسى نمر",
+    "details": [
+      {
+        "account_code": "210001",
+        "account_id": 6,
+        "account_name": "Salaries Payable",
+        "credit": 1000.0,
+        "debit": 0.0,
+        "description": "عكس: جزاء على محمد احمد علي موسى نمر",
+        "id": 79
+      },
+      {
+        "account_code": "510002",
+        "account_id": 17,
+        "account_name": "Overtime Expense",
+        "credit": 0.0,
+        "debit": 1000.0,
+        "description": "عكس: تسجيل جزاء",
+        "id": 80
+      }
+    ],
+    "entry_number": "REV-JE-2026-00019",
+    "id": 40,
+    "is_balanced": true,
+    "total_credit": 1000.0,
+    "total_debit": 1000.0
+  },
+  {
+    "date": "2026-07-06",
+    "description": "عكس قيد خاطئ: JE-2026-00018 - جزاء للموظف رضوان قاسم محمد شعبين",
+    "details": [
+      {
+        "account_code": "210001",
+        "account_id": 6,
+        "account_name": "Salaries Payable",
+        "credit": 1000.0,
+        "debit": 0.0,
+        "description": "عكس: جزاء على رضوان قاسم محمد شعبين",
+        "id": 77
+      },
+      {
+        "account_code": "510002",
+        "account_id": 17,
+        "account_name": "Overtime Expense",
+        "credit": 0.0,
+        "debit": 1000.0,
+        "description": "عكس: تسجيل جزاء",
+        "id": 78
+      }
+    ],
+    "entry_number": "REV-JE-2026-00018",
+    "id": 39,
+    "is_balanced": true,
+    "total_credit": 1000.0,
+    "total_debit": 1000.0
+  },
+  {
+    "date": "2026-07-06",
+    "description": "عكس قيد خاطئ: JE-2026-00017 - جزاء للموظف حمزة يحيى حسين ابراهيم",
+    "details": [
+      {
+        "account_code": "210001",
+        "account_id": 6,
+        "account_name": "Salaries Payable",
+        "credit": 1000.0,
+        "debit": 0.0,
+        "description": "عكس: جزاء على حمزة يحيى حسين ابراهيم",
+        "id": 75
+      },
+      {
+        "account_code": "510002",
+        "account_id": 17,
+        "account_name": "Overtime Expense",
+        "credit": 0.0,
+        "debit": 1000.0,
+        "description": "عكس: تسجيل جزاء",
+        "id": 76
+      }
+    ],
+    "entry_number": "REV-JE-2026-00017",
+    "id": 38,
+    "is_balanced": true,
+    "total_credit": 1000.0,
+    "total_debit": 1000.0
+  },
+  {
+    "date": "2026-07-06",
+    "description": "عكس قيد خاطئ: JE-2026-00016 - سلفة للموظف صالح عبده قايد الحرازي",
+    "details": [
+      {
+        "account_code": "130001",
+        "account_id": 4,
+        "account_name": "Advances",
+        "credit": 10000.0,
+        "debit": 0.0,
+        "description": "عكس: سلفة صالح عبده قايد الحرازي",
+        "id": 73
+      },
+      {
+        "account_code": "110001",
+        "account_id": 1,
+        "account_name": "Cash",
+        "credit": 0.0,
+        "debit": 10000.0,
+        "description": "عكس: صرف سلفة",
+        "id": 74
+      }
+    ],
+    "entry_number": "REV-JE-2026-00016",
+    "id": 37,
+    "is_balanced": true,
+    "total_credit": 10000.0,
+    "total_debit": 10000.0
+  },
+  {
+    "date": "2026-07-06",
+    "description": "عكس قيد خاطئ: JE-2026-00015 - جزاء للموظف ماجد عبد الله مهدي حسن",
+    "details": [
+      {
+        "account_code": "210001",
+        "account_id": 6,
+        "account_name": "Salaries Payable",
+        "credit": 1000.0,
+        "debit": 0.0,
+        "description": "عكس: جزاء على ماجد عبد الله مهدي حسن",
+        "id": 71
+      },
+      {
+        "account_code": "510002",
+        "account_id": 17,
+        "account_name": "Overtime Expense",
+        "credit": 0.0,
+        "debit": 1000.0,
+        "description": "عكس: تسجيل جزاء",
+        "id": 72
+      }
+    ],
+    "entry_number": "REV-JE-2026-00015",
+    "id": 36,
+    "is_balanced": true,
+    "total_credit": 1000.0,
+    "total_debit": 1000.0
+  },
+  {
+    "date": "2026-07-06",
+    "description": "عكس قيد خاطئ: JE-2026-00014 - سلفة للموظف ماجد عبد الله مهدي حسن",
+    "details": [
+      {
+        "account_code": "130001",
+        "account_id": 4,
+        "account_name": "Advances",
+        "credit": 10000.0,
+        "debit": 0.0,
+        "description": "عكس: سلفة ماجد عبد الله مهدي حسن",
+        "id": 69
+      },
+      {
+        "account_code": "110001",
+        "account_id": 1,
+        "account_name": "Cash",
+        "credit": 0.0,
+        "debit": 10000.0,
+        "description": "عكس: صرف سلفة",
+        "id": 70
+      }
+    ],
+    "entry_number": "REV-JE-2026-00014",
+    "id": 35,
+    "is_balanced": true,
+    "total_credit": 10000.0,
+    "total_debit": 10000.0
+  },
+  {
+    "date": "2026-07-06",
+    "description": "عكس قيد خاطئ: JE-2026-00013 - جزاء للموظف مهدي هادي مهدي هادي ",
+    "details": [
+      {
+        "account_code": "210001",
+        "account_id": 6,
+        "account_name": "Salaries Payable",
+        "credit": 1000.0,
+        "debit": 0.0,
+        "description": "عكس: جزاء على مهدي هادي مهدي هادي ",
+        "id": 67
+      },
+      {
+        "account_code": "510002",
+        "account_id": 17,
+        "account_name": "Overtime Expense",
+        "credit": 0.0,
+        "debit": 1000.0,
+        "description": "عكس: تسجيل جزاء",
+        "id": 68
+      }
+    ],
+    "entry_number": "REV-JE-2026-00013",
+    "id": 34,
+    "is_balanced": true,
+    "total_credit": 1000.0,
+    "total_debit": 1000.0
+  },
+  {
+    "date": "2026-07-06",
+    "description": "عكس قيد خاطئ: JE-2026-00012 - جزاء للموظف راجح عيسى موسى يحيى",
+    "details": [
+      {
+        "account_code": "210001",
+        "account_id": 6,
+        "account_name": "Salaries Payable",
+        "credit": 20000.0,
+        "debit": 0.0,
+        "description": "عكس: جزاء على راجح عيسى موسى يحيى",
+        "id": 65
+      },
+      {
+        "account_code": "510002",
+        "account_id": 17,
+        "account_name": "Overtime Expense",
+        "credit": 0.0,
+        "debit": 20000.0,
+        "description": "عكس: تسجيل جزاء",
+        "id": 66
+      }
+    ],
+    "entry_number": "REV-JE-2026-00012",
+    "id": 33,
+    "is_balanced": true,
+    "total_credit": 20000.0,
+    "total_debit": 20000.0
+  },
+  {
+    "date": "2026-07-06",
+    "description": "عكس قيد خاطئ: JE-2026-00011 - جزاء للموظف مهدي هادي مهدي هادي ",
+    "details": [
+      {
+        "account_code": "210001",
+        "account_id": 6,
+        "account_name": "Salaries Payable",
+        "credit": 1000.0,
+        "debit": 0.0,
+        "description": "عكس: جزاء على مهدي هادي مهدي هادي ",
+        "id": 63
+      },
+      {
+        "account_code": "510002",
+        "account_id": 17,
+        "account_name": "Overtime Expense",
+        "credit": 0.0,
+        "debit": 1000.0,
+        "description": "عكس: تسجيل جزاء",
+        "id": 64
+      }
+    ],
+    "entry_number": "REV-JE-2026-00011",
+    "id": 32,
+    "is_balanced": true,
+    "total_credit": 1000.0,
+    "total_debit": 1000.0
+  },
+  {
+    "date": "2026-07-06",
+    "description": "عكس قيد خاطئ: JE-2026-00010 - جزاء للموظف يوسف حسين ابراهيم مهدي ",
+    "details": [
+      {
+        "account_code": "210001",
+        "account_id": 6,
+        "account_name": "Salaries Payable",
+        "credit": 30000.0,
+        "debit": 0.0,
+        "description": "عكس: جزاء على يوسف حسين ابراهيم مهدي ",
+        "id": 61
+      },
+      {
+        "account_code": "510002",
+        "account_id": 17,
+        "account_name": "Overtime Expense",
+        "credit": 0.0,
+        "debit": 30000.0,
+        "description": "عكس: تسجيل جزاء",
+        "id": 62
+      }
+    ],
+    "entry_number": "REV-JE-2026-00010",
+    "id": 31,
+    "is_balanced": true,
+    "total_credit": 30000.0,
+    "total_debit": 30000.0
+  },
+  {
+    "date": "2026-07-06",
+    "description": "عكس قيد خاطئ: JE-2026-00009 - جزاء للموظف حمزة يحيى حسين ابراهيم",
+    "details": [
+      {
+        "account_code": "210001",
+        "account_id": 6,
+        "account_name": "Salaries Payable",
+        "credit": 1000.0,
+        "debit": 0.0,
+        "description": "عكس: جزاء على حمزة يحيى حسين ابراهيم",
+        "id": 59
+      },
+      {
+        "account_code": "510002",
+        "account_id": 17,
+        "account_name": "Overtime Expense",
+        "credit": 0.0,
+        "debit": 1000.0,
+        "description": "عكس: تسجيل جزاء",
+        "id": 60
+      }
+    ],
+    "entry_number": "REV-JE-2026-00009",
+    "id": 30,
+    "is_balanced": true,
+    "total_credit": 1000.0,
+    "total_debit": 1000.0
+  },
+  {
+    "date": "2026-04-28",
+    "description": "خصم للموظف ماجد عبد الله مهدي حسن",
+    "details": [
+      {
+        "account_code": "210001",
+        "account_id": 6,
+        "account_name": "Salaries Payable",
+        "credit": 0.0,
+        "debit": 24880.0,
+        "description": "خصم من راتب ماجد عبد الله مهدي حسن",
+        "id": 43
+      },
+      {
+        "account_code": "510002",
+        "account_id": 17,
+        "account_name": "Overtime Expense",
+        "credit": 24880.0,
+        "debit": 0.0,
+        "description": "تسجيل خصم",
+        "id": 44
+      }
+    ],
+    "entry_number": "JE-2026-00020",
+    "id": 22,
+    "is_balanced": true,
+    "total_credit": 24880.0,
+    "total_debit": 24880.0
+  },
+  {
+    "date": "2026-04-25",
+    "description": "خصم للموظف راجح عيسى موسى يحيى",
+    "details": [
+      {
+        "account_code": "210001",
+        "account_id": 6,
+        "account_name": "Salaries Payable",
+        "credit": 0.0,
+        "debit": 13210.0,
+        "description": "خصم من راتب راجح عيسى موسى يحيى",
+        "id": 49
+      },
+      {
+        "account_code": "510002",
+        "account_id": 17,
+        "account_name": "Overtime Expense",
+        "credit": 13210.0,
+        "debit": 0.0,
+        "description": "تسجيل خصم",
+        "id": 50
+      }
+    ],
+    "entry_number": "JE-2026-00023",
+    "id": 25,
+    "is_balanced": true,
+    "total_credit": 13210.0,
+    "total_debit": 13210.0
+  },
+  {
+    "date": "2026-04-25",
+    "description": "خصم للموظف مهدي هادي مهدي هادي ",
+    "details": [
+      {
+        "account_code": "210001",
+        "account_id": 6,
+        "account_name": "Salaries Payable",
+        "credit": 0.0,
+        "debit": 14980.0,
+        "description": "خصم من راتب مهدي هادي مهدي هادي ",
+        "id": 45
+      },
+      {
+        "account_code": "510002",
+        "account_id": 17,
+        "account_name": "Overtime Expense",
+        "credit": 14980.0,
+        "debit": 0.0,
+        "description": "تسجيل خصم",
+        "id": 46
+      }
+    ],
+    "entry_number": "JE-2026-00021",
+    "id": 23,
+    "is_balanced": true,
+    "total_credit": 14980.0,
+    "total_debit": 14980.0
+  },
+  {
+    "date": "2026-04-25",
+    "description": "خصم للموظف يوسف حسين ابراهيم مهدي ",
+    "details": [
+      {
+        "account_code": "210001",
+        "account_id": 6,
+        "account_name": "Salaries Payable",
+        "credit": 0.0,
+        "debit": 18000.0,
+        "description": "خصم من راتب يوسف حسين ابراهيم مهدي ",
+        "id": 47
+      },
+      {
+        "account_code": "510002",
+        "account_id": 17,
+        "account_name": "Overtime Expense",
+        "credit": 18000.0,
+        "debit": 0.0,
+        "description": "تسجيل خصم",
+        "id": 48
+      }
+    ],
+    "entry_number": "JE-2026-00022",
+    "id": 24,
+    "is_balanced": true,
+    "total_credit": 18000.0,
+    "total_debit": 18000.0
+  },
+  {
+    "date": "2026-04-25",
+    "description": "خصم للموظف محمد مبخوت مبارك محبوب",
+    "details": [
+      {
+        "account_code": "210001",
+        "account_id": 6,
+        "account_name": "Salaries Payable",
+        "credit": 0.0,
+        "debit": 23030.0,
+        "description": "خصم من راتب محمد مبخوت مبارك محبوب",
+        "id": 51
+      },
+      {
+        "account_code": "510002",
+        "account_id": 17,
+        "account_name": "Overtime Expense",
+        "credit": 23030.0,
+        "debit": 0.0,
+        "description": "تسجيل خصم",
+        "id": 52
+      }
+    ],
+    "entry_number": "JE-2026-00024",
+    "id": 26,
+    "is_balanced": true,
+    "total_credit": 23030.0,
+    "total_debit": 23030.0
+  },
+  {
+    "date": "2026-04-25",
+    "description": "خصم للموظف طلال رشيد عبده اسماعيل الرفيد",
+    "details": [
+      {
+        "account_code": "210001",
+        "account_id": 6,
+        "account_name": "Salaries Payable",
+        "credit": 0.0,
+        "debit": 77845.0,
+        "description": "خصم من راتب طلال رشيد عبده اسماعيل الرفيد",
+        "id": 53
+      },
+      {
+        "account_code": "510002",
+        "account_id": 17,
+        "account_name": "Overtime Expense",
+        "credit": 77845.0,
+        "debit": 0.0,
+        "description": "تسجيل خصم",
+        "id": 54
+      }
+    ],
+    "entry_number": "JE-2026-00025",
+    "id": 27,
+    "is_balanced": true,
+    "total_credit": 77845.0,
+    "total_debit": 77845.0
+  },
+  {
+    "date": "2026-04-25",
+    "description": "خصم للموظف عبد المجيد عبد الله حمود غزالي",
+    "details": [
+      {
+        "account_code": "210001",
+        "account_id": 6,
+        "account_name": "Salaries Payable",
+        "credit": 0.0,
+        "debit": 5400.0,
+        "description": "خصم من راتب عبد المجيد عبد الله حمود غزالي",
+        "id": 55
+      },
+      {
+        "account_code": "510002",
+        "account_id": 17,
+        "account_name": "Overtime Expense",
+        "credit": 5400.0,
+        "debit": 0.0,
+        "description": "تسجيل خصم",
+        "id": 56
+      }
+    ],
+    "entry_number": "JE-2026-00026",
+    "id": 28,
+    "is_balanced": true,
+    "total_credit": 5400.0,
+    "total_debit": 5400.0
+  },
+  {
+    "date": "2026-04-21",
+    "description": "جزاء للموظف حمزة يحيى حسين ابراهيم",
+    "details": [
+      {
+        "account_code": "210001",
+        "account_id": 6,
+        "account_name": "Salaries Payable",
+        "credit": 0.0,
+        "debit": 1000.0,
+        "description": "جزاء على حمزة يحيى حسين ابراهيم",
+        "id": 21
+      },
+      {
+        "account_code": "510002",
+        "account_id": 17,
+        "account_name": "Overtime Expense",
+        "credit": 1000.0,
+        "debit": 0.0,
+        "description": "تسجيل جزاء",
+        "id": 22
+      }
+    ],
+    "entry_number": "JE-2026-00009",
+    "id": 11,
+    "is_balanced": true,
+    "total_credit": 1000.0,
+    "total_debit": 1000.0
+  },
+  {
+    "date": "2026-04-21",
+    "description": "جزاء للموظف يوسف حسين ابراهيم مهدي ",
+    "details": [
+      {
+        "account_code": "210001",
+        "account_id": 6,
+        "account_name": "Salaries Payable",
+        "credit": 0.0,
+        "debit": 30000.0,
+        "description": "جزاء على يوسف حسين ابراهيم مهدي ",
+        "id": 23
+      },
+      {
+        "account_code": "510002",
+        "account_id": 17,
+        "account_name": "Overtime Expense",
+        "credit": 30000.0,
+        "debit": 0.0,
+        "description": "تسجيل جزاء",
+        "id": 24
+      }
+    ],
+    "entry_number": "JE-2026-00010",
+    "id": 12,
+    "is_balanced": true,
+    "total_credit": 30000.0,
+    "total_debit": 30000.0
+  },
+  {
+    "date": "2026-04-21",
+    "description": "جزاء للموظف رضوان قاسم محمد شعبين",
+    "details": [
+      {
+        "account_code": "210001",
+        "account_id": 6,
+        "account_name": "Salaries Payable",
+        "credit": 0.0,
+        "debit": 1000.0,
+        "description": "جزاء على رضوان قاسم محمد شعبين",
+        "id": 39
+      },
+      {
+        "account_code": "510002",
+        "account_id": 17,
+        "account_name": "Overtime Expense",
+        "credit": 1000.0,
+        "debit": 0.0,
+        "description": "تسجيل جزاء",
+        "id": 40
+      }
+    ],
+    "entry_number": "JE-2026-00018",
+    "id": 20,
+    "is_balanced": true,
+    "total_credit": 1000.0,
+    "total_debit": 1000.0
+  },
+  {
+    "date": "2026-04-21",
+    "description": "جزاء للموظف مهدي هادي مهدي هادي ",
+    "details": [
+      {
+        "account_code": "210001",
+        "account_id": 6,
+        "account_name": "Salaries Payable",
+        "credit": 0.0,
+        "debit": 1000.0,
+        "description": "جزاء على مهدي هادي مهدي هادي ",
+        "id": 25
+      },
+      {
+        "account_code": "510002",
+        "account_id": 17,
+        "account_name": "Overtime Expense",
+        "credit": 1000.0,
+        "debit": 0.0,
+        "description": "تسجيل جزاء",
+        "id": 26
+      }
+    ],
+    "entry_number": "JE-2026-00011",
+    "id": 13,
+    "is_balanced": true,
+    "total_credit": 1000.0,
+    "total_debit": 1000.0
+  },
+  {
+    "date": "2026-04-21",
+    "description": "جزاء للموظف راجح عيسى موسى يحيى",
+    "details": [
+      {
+        "account_code": "210001",
+        "account_id": 6,
+        "account_name": "Salaries Payable",
+        "credit": 0.0,
+        "debit": 20000.0,
+        "description": "جزاء على راجح عيسى موسى يحيى",
+        "id": 27
+      },
+      {
+        "account_code": "510002",
+        "account_id": 17,
+        "account_name": "Overtime Expense",
+        "credit": 20000.0,
+        "debit": 0.0,
+        "description": "تسجيل جزاء",
+        "id": 28
+      }
+    ],
+    "entry_number": "JE-2026-00012",
+    "id": 14,
+    "is_balanced": true,
+    "total_credit": 20000.0,
+    "total_debit": 20000.0
+  },
+  {
+    "date": "2026-04-20",
+    "description": "جزاء للموظف حمزة يحيى حسين ابراهيم",
+    "details": [
+      {
+        "account_code": "210001",
+        "account_id": 6,
+        "account_name": "Salaries Payable",
+        "credit": 0.0,
+        "debit": 1000.0,
+        "description": "جزاء على حمزة يحيى حسين ابراهيم",
+        "id": 37
+      },
+      {
+        "account_code": "510002",
+        "account_id": 17,
+        "account_name": "Overtime Expense",
+        "credit": 1000.0,
+        "debit": 0.0,
+        "description": "تسجيل جزاء",
+        "id": 38
+      }
+    ],
+    "entry_number": "JE-2026-00017",
+    "id": 19,
+    "is_balanced": true,
+    "total_credit": 1000.0,
+    "total_debit": 1000.0
+  },
+  {
+    "date": "2026-04-20",
+    "description": "جزاء للموظف محمد احمد علي موسى نمر",
+    "details": [
+      {
+        "account_code": "210001",
+        "account_id": 6,
+        "account_name": "Salaries Payable",
+        "credit": 0.0,
+        "debit": 1000.0,
+        "description": "جزاء على محمد احمد علي موسى نمر",
+        "id": 41
+      },
+      {
+        "account_code": "510002",
+        "account_id": 17,
+        "account_name": "Overtime Expense",
+        "credit": 1000.0,
+        "debit": 0.0,
+        "description": "تسجيل جزاء",
+        "id": 42
+      }
+    ],
+    "entry_number": "JE-2026-00019",
+    "id": 21,
+    "is_balanced": true,
+    "total_credit": 1000.0,
+    "total_debit": 1000.0
+  },
+  {
+    "date": "2026-04-19",
+    "description": "تحويل: تحصيل من شركة الغيث - من العملاء إلى البنك",
+    "details": [
+      {
+        "account_code": "110002",
+        "account_id": 2,
+        "account_name": "Bank",
+        "credit": 0.0,
+        "debit": 50000.0,
+        "description": "استلام من العملاء",
+        "id": 3
+      },
+      {
+        "account_code": "120001",
+        "account_id": 3,
+        "account_name": "Customers",
+        "credit": 50000.0,
+        "debit": 0.0,
+        "description": "تحويل إلى البنك",
+        "id": 4
+      }
+    ],
+    "entry_number": "JE-2026-00002",
+    "id": 2,
+    "is_balanced": true,
+    "total_credit": 50000.0,
+    "total_debit": 50000.0
+  },
+  {
+    "date": "2026-04-19",
+    "description": "سلفة للموظف صالح عبده قايد الحرازي",
+    "details": [
+      {
+        "account_code": "130001",
+        "account_id": 4,
+        "account_name": "Advances",
+        "credit": 0.0,
+        "debit": 10000.0,
+        "description": "سلفة صالح عبده قايد الحرازي",
+        "id": 35
+      },
+      {
+        "account_code": "110001",
+        "account_id": 1,
+        "account_name": "Cash",
+        "credit": 10000.0,
+        "debit": 0.0,
+        "description": "صرف سلفة",
+        "id": 36
+      }
+    ],
+    "entry_number": "JE-2026-00016",
+    "id": 18,
+    "is_balanced": true,
+    "total_credit": 10000.0,
+    "total_debit": 10000.0
+  },
+  {
+    "date": "2026-04-19",
+    "description": "تسديد فاتورة مورد رقم 2 - الغيث للتصميم",
+    "details": [
+      {
+        "account_code": "220001",
+        "account_id": 8,
+        "account_name": "Suppliers",
+        "credit": 0.0,
+        "debit": 20000.0,
+        "description": "تسديد فاتورة 2",
+        "id": 15
+      },
+      {
+        "account_code": "110002",
+        "account_id": 2,
+        "account_name": "Bank",
+        "credit": 20000.0,
+        "debit": 0.0,
+        "description": "دفع مستحقات الغيث للتصميم",
+        "id": 16
+      }
+    ],
+    "entry_number": "JE-2026-00006",
+    "id": 8,
+    "is_balanced": true,
+    "total_credit": 20000.0,
+    "total_debit": 20000.0
+  },
+  {
+    "date": "2026-04-19",
+    "description": "فاتورة واردة من الغيث للتصميم - مصروفات عامة",
+    "details": [
+      {
+        "account_code": "590001",
+        "account_id": 24,
+        "account_name": "General Expense",
+        "credit": 0.0,
+        "debit": 20000.0,
+        "description": "فاتورة 2",
+        "id": 13
+      },
+      {
+        "account_code": "220001",
+        "account_id": 8,
+        "account_name": "Suppliers",
+        "credit": 20000.0,
+        "debit": 0.0,
+        "description": "استحقاق فاتورة 2",
+        "id": 14
+      }
+    ],
+    "entry_number": "JE-2026-00005",
+    "id": 7,
+    "is_balanced": true,
+    "total_credit": 20000.0,
+    "total_debit": 20000.0
+  },
+  {
+    "date": "2026-04-19",
+    "description": "تسديد فاتورة مورد رقم 1 - الغيث للتصميم",
+    "details": [
+      {
+        "account_code": "220001",
+        "account_id": 8,
+        "account_name": "Suppliers",
+        "credit": 0.0,
+        "debit": 30000.0,
+        "description": "تسديد فاتورة 1",
+        "id": 11
+      },
+      {
+        "account_code": "110002",
+        "account_id": 2,
+        "account_name": "Bank",
+        "credit": 30000.0,
+        "debit": 0.0,
+        "description": "دفع مستحقات الغيث للتصميم",
+        "id": 12
+      }
+    ],
+    "entry_number": "JE-2026-00004",
+    "id": 6,
+    "is_balanced": true,
+    "total_credit": 30000.0,
+    "total_debit": 30000.0
+  },
+  {
+    "date": "2026-04-19",
+    "description": "فاتورة واردة من الغيث للتصميم - مصروفات عامة",
+    "details": [
+      {
+        "account_code": "590001",
+        "account_id": 24,
+        "account_name": "General Expense",
+        "credit": 0.0,
+        "debit": 30000.0,
+        "description": "فاتورة 1",
+        "id": 9
+      },
+      {
+        "account_code": "220001",
+        "account_id": 8,
+        "account_name": "Suppliers",
+        "credit": 30000.0,
+        "debit": 0.0,
+        "description": "استحقاق فاتورة 1",
+        "id": 10
+      }
+    ],
+    "entry_number": "JE-2026-00003",
+    "id": 5,
+    "is_balanced": true,
+    "total_credit": 30000.0,
+    "total_debit": 30000.0
+  },
+  {
+    "date": "2026-04-19",
+    "description": "عكس قيد: JE-2026-00002 - تحويل: تحصيل من شركة الغيث - من العملاء إلى البنك",
+    "details": [
+      {
+        "account_code": "110002",
+        "account_id": 2,
+        "account_name": "Bank",
+        "credit": 50000.0,
+        "debit": 0.0,
+        "description": "عكس: استلام من العملاء (قيد أصلي: JE-2026-00002)",
+        "id": 19
+      },
+      {
+        "account_code": "120001",
+        "account_id": 3,
+        "account_name": "Customers",
+        "credit": 0.0,
+        "debit": 50000.0,
+        "description": "عكس: تحويل إلى البنك (قيد أصلي: JE-2026-00002)",
+        "id": 20
+      }
+    ],
+    "entry_number": "JE-2026-00008",
+    "id": 10,
+    "is_balanced": true,
+    "total_credit": 50000.0,
+    "total_debit": 50000.0
+  },
+  {
+    "date": "2026-04-19",
+    "description": "تسديد فاتورة رقم 86444 - طريقة الدفع: bank_transfer",
+    "details": [
+      {
+        "account_code": "110002",
+        "account_id": 2,
+        "account_name": "Bank",
+        "credit": 0.0,
+        "debit": 50000.0,
+        "description": "تسديد فاتورة 86444",
+        "id": 17
+      },
+      {
+        "account_code": "120001",
+        "account_id": 3,
+        "account_name": "Customers",
+        "credit": 50000.0,
+        "debit": 0.0,
+        "description": "تحصيل قيمة فاتورة 86444",
+        "id": 18
+      }
+    ],
+    "entry_number": "JE-2026-00007",
+    "id": 9,
+    "is_balanced": true,
+    "total_credit": 50000.0,
+    "total_debit": 50000.0
+  },
+  {
+    "date": "2026-04-18",
+    "description": "فاتورة رقم 86444 - الغيث لتصميم التطبيقات والانظمة",
+    "details": [
+      {
+        "account_code": "120001",
+        "account_id": 3,
+        "account_name": "Customers",
+        "credit": 0.0,
+        "debit": 50000.0,
+        "description": "فاتورة رقم 86444",
+        "id": 1
+      },
+      {
+        "account_code": "410003",
+        "account_id": 14,
+        "account_name": "Additional Invoices Revenue",
+        "credit": 50000.0,
+        "debit": 0.0,
+        "description": "إيرادات فاتورة 86444",
+        "id": 2
+      }
+    ],
+    "entry_number": "JE-2026-00001",
+    "id": 1,
+    "is_balanced": true,
+    "total_credit": 50000.0,
+    "total_debit": 50000.0
+  },
+  {
+    "date": "2026-04-15",
+    "description": "سلفة للموظف ماجد عبد الله مهدي حسن",
+    "details": [
+      {
+        "account_code": "130001",
+        "account_id": 4,
+        "account_name": "Advances",
+        "credit": 0.0,
+        "debit": 10000.0,
+        "description": "سلفة ماجد عبد الله مهدي حسن",
+        "id": 31
+      },
+      {
+        "account_code": "110001",
+        "account_id": 1,
+        "account_name": "Cash",
+        "credit": 10000.0,
+        "debit": 0.0,
+        "description": "صرف سلفة",
+        "id": 32
+      }
+    ],
+    "entry_number": "JE-2026-00014",
+    "id": 16,
+    "is_balanced": true,
+    "total_credit": 10000.0,
+    "total_debit": 10000.0
+  },
+  {
+    "date": "2026-04-15",
+    "description": "جزاء للموظف ماجد عبد الله مهدي حسن",
+    "details": [
+      {
+        "account_code": "210001",
+        "account_id": 6,
+        "account_name": "Salaries Payable",
+        "credit": 0.0,
+        "debit": 1000.0,
+        "description": "جزاء على ماجد عبد الله مهدي حسن",
+        "id": 33
+      },
+      {
+        "account_code": "510002",
+        "account_id": 17,
+        "account_name": "Overtime Expense",
+        "credit": 1000.0,
+        "debit": 0.0,
+        "description": "تسجيل جزاء",
+        "id": 34
+      }
+    ],
+    "entry_number": "JE-2026-00015",
+    "id": 17,
+    "is_balanced": true,
+    "total_credit": 1000.0,
+    "total_debit": 1000.0
+  },
+  {
+    "date": "2026-04-12",
+    "description": "جزاء للموظف مهدي هادي مهدي هادي ",
+    "details": [
+      {
+        "account_code": "210001",
+        "account_id": 6,
+        "account_name": "Salaries Payable",
+        "credit": 0.0,
+        "debit": 1000.0,
+        "description": "جزاء على مهدي هادي مهدي هادي ",
+        "id": 29
+      },
+      {
+        "account_code": "510002",
+        "account_id": 17,
+        "account_name": "Overtime Expense",
+        "credit": 1000.0,
+        "debit": 0.0,
+        "description": "تسجيل جزاء",
+        "id": 30
+      }
+    ],
+    "entry_number": "JE-2026-00013",
+    "id": 15,
+    "is_balanced": true,
+    "total_credit": 1000.0,
+    "total_debit": 1000.0
+  }
+]

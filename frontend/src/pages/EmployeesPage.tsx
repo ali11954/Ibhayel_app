@@ -268,7 +268,7 @@ export default function EmployeesPage() {
   };
 
   const filtered = employees.filter((e) => {
-    const matchSearch = e.name?.includes(search) || e.card_number?.includes(search) || e.code?.includes(search);
+    const matchSearch = !search || e.name?.includes(search) || e.card_number?.includes(search) || e.code?.includes(search);
     const matchFilter = filter === 'all' || (filter === 'active' && e.is_active) || (filter === 'inactive' && !e.is_active);
     return matchSearch && matchFilter;
   });

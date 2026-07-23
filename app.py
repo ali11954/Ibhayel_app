@@ -152,6 +152,27 @@ def debug_dist_info():
         result['db_error'] = str(e)
     return jsonify(result)
 
+@app.route('/api/debug/emp-raw')
+def debug_emp_raw():
+    import sys
+    sys.stdout.reconfigure(encoding='utf-8') if hasattr(sys.stdout, 'reconfigure') else None
+    try:
+        from models import db as _db
+        from sqlalchemy import text as _text
+        rows = _db.session.execute(_text(
+            "SELECT id, name, card_number, code, job_title, worker_type, employee_type, phone "
+            "FROM employees ORDER BY id LIMIT 50"
+        )).fetchall()
+        result = []
+        for r in rows:
+            result.append({
+                'id': r[0], 'name': r[1], 'card_number': r[2], 'code': r[3],
+                'job_title': r[4], 'worker_type': r[5], 'employee_type': r[6], 'phone': r[7]
+            })
+        return jsonify(data=result, total=len(result))
+    except Exception as e:
+        return jsonify(error=str(e)), 500
+
 @app.route('/api/debug/fix-columns')
 def debug_fix_columns():
     results = []
