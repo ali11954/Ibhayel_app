@@ -254,15 +254,24 @@ def auto_migrate():
             target_base = target_type.lower().split('(')[0].strip()
             if current == target_base:
                 return
-            if 'timestamp' in target_base:
-                db.session.execute(sa.text(f'ALTER TABLE {table} ALTER COLUMN {column} DROP DEFAULT'))
-                db.session.execute(sa.text(f'UPDATE {table} SET {column} = NULL'))
-            db.session.execute(sa.text(f'ALTER TABLE {table} ALTER COLUMN {column} TYPE {target_type}'))
-            db.session.commit()
-            print(f"  ~ fixed {table}.{column}: {current} -> {target_type}")
+            print(f"  fix: {table}.{column} is {current}, target {target_type}")
+            try:
+                db.session.execute(sa.text(f'ALTER TABLE {table} DROP COLUMN {column}'))
+                db.session.commit()
+                print(f"  dropped {table}.{column}")
+            except Exception as e2:
+                db.session.rollback()
+                print(f"  drop failed: {e2}")
+            try:
+                db.session.execute(sa.text(f'ALTER TABLE {table} ADD COLUMN {column} {target_type}'))
+                db.session.commit()
+                print(f"  added {table}.{column} as {target_type}")
+            except Exception as e3:
+                db.session.rollback()
+                print(f"  add failed: {e3}")
         except Exception as e:
             db.session.rollback()
-            print(f"  ! fix {table}.{column}: {e}")
+            print(f"  FAIL: {table}.{column}: {e}")
 
     force_alter('employees', 'allowances_updated_at', 'TIMESTAMP')
     force_alter('employees', 'worker_type', 'VARCHAR(20)')

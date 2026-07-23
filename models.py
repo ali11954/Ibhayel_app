@@ -229,7 +229,7 @@ class Employee(db.Model):
     monthly_insurance = db.Column(db.Float, default=10800)
     contractor_tax = db.Column(db.Float, default=500000)
     contractor_zakat = db.Column(db.Float, default=75000)
-    allowances_updated_at = db.Column(db.DateTime, default=datetime.utcnow)
+    allowances_updated_at = db.Column(db.DateTime, nullable=True)
 
     company = db.relationship('Company', foreign_keys=[company_id], backref='employees')
 
