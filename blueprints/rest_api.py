@@ -153,6 +153,34 @@ def api_employee_create():
     return ok(emp.to_dict(), 'تم إضافة الموظف بنجاح')
 
 
+@rest_api.route('/employees/bulk-update', methods=['POST'])
+@login_required
+def api_employees_bulk_update():
+    data = request.get_json(force=True, silent=True) or {}
+    updates = data.get('employees', [])
+    if not updates:
+        return fail('لا توجد بيانات للتحديث')
+    updated = 0
+    for item in updates:
+        emp_id = item.get('id')
+        if not emp_id:
+            continue
+        emp = Employee.query.get(emp_id)
+        if not emp:
+            continue
+        for field in ['name', 'card_number', 'code', 'job_title', 'phone',
+                      'company_id', 'region', 'region_id', 'salary', 'total_salary',
+                      'basic_salary', 'daily_allowance', 'clothing_allowance',
+                      'health_card_allowance', 'monthly_insurance',
+                      'is_active', 'is_resident', 'employee_type', 'worker_type',
+                      'supervisor_id']:
+            if field in item and item[field] is not None:
+                setattr(emp, field, item[field])
+        updated += 1
+    db.session.commit()
+    return ok({'updated': updated}, f'تم تحديث {updated} موظف')
+
+
 @rest_api.route('/employees/<int:emp_id>', methods=['PUT'])
 @login_required
 def api_employee_update(emp_id):
