@@ -264,19 +264,15 @@ def auto_migrate():
                 return
             print(f"  fix: {table}.{column} is {current}, target {target_type}")
             try:
-                db.session.execute(sa.text(f'ALTER TABLE {table} DROP COLUMN {column}'))
+                if 'TIMESTAMP' in target_type.upper():
+                    db.session.execute(sa.text(f'ALTER TABLE {table} ALTER COLUMN {column} TYPE {target_type}'))
+                else:
+                    db.session.execute(sa.text(f"ALTER TABLE {table} ALTER COLUMN {column} TYPE {target_type} USING {column}::text::{target_type.lower()}"))
                 db.session.commit()
-                print(f"  dropped {table}.{column}")
+                print(f"  fixed {table}.{column}: {current} -> {target_type}")
             except Exception as e2:
                 db.session.rollback()
-                print(f"  drop failed: {e2}")
-            try:
-                db.session.execute(sa.text(f'ALTER TABLE {table} ADD COLUMN {column} {target_type}'))
-                db.session.commit()
-                print(f"  added {table}.{column} as {target_type}")
-            except Exception as e3:
-                db.session.rollback()
-                print(f"  add failed: {e3}")
+                print(f"  fix failed: {e2}")
         except Exception as e:
             db.session.rollback()
             print(f"  FAIL: {table}.{column}: {e}")
