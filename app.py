@@ -139,6 +139,14 @@ def debug_dist_info():
             result['employee_columns'] = {c[0]: c[1] for c in cols}
         except Exception as e:
             result['schema_error'] = str(e)
+        try:
+            cols = _db.session.execute(_text(
+                "SELECT column_name, data_type FROM information_schema.columns "
+                "WHERE table_name='salaries' ORDER BY ordinal_position"
+            )).fetchall()
+            result['salary_columns'] = {c[0]: c[1] for c in cols}
+        except Exception as e:
+            result['salary_schema_error'] = str(e)
     except Exception as e:
         result['db_ok'] = False
         result['db_error'] = str(e)
