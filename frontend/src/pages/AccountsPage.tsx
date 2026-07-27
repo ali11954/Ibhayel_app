@@ -166,7 +166,7 @@ function ChartOfAccounts() {
             <label className="block text-sm font-medium text-gray-700 mb-1">اسم الحساب (عربي) *</label>
             <Input value={form.name_ar} onChange={(e) => setForm({ ...form, name_ar: e.target.value })} placeholder="اسم الحساب" />
           </div>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">نوع الحساب *</label>
               <select value={form.account_type} onChange={(e) => setForm({ ...form, account_type: e.target.value })} className="w-full h-10 px-3 rounded-lg border-2 border-gray-200 text-sm">
@@ -334,7 +334,7 @@ function JournalEntries() {
 
       <Modal open={modalOpen} onClose={() => setModalOpen(false)} title="قيد يومي جديد" size="lg">
         <div className="space-y-4">
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">التاريخ *</label>
               <Input type="date" value={form.date} onChange={(e) => setForm({ ...form, date: e.target.value })} />
@@ -352,7 +352,7 @@ function JournalEntries() {
             </div>
             <div className="space-y-2">
               {form.details.map((d, idx) => (
-                <div key={idx} className="grid grid-cols-12 gap-2 items-end">
+                <div key={idx} className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2 items-end">
                   <div className="col-span-4">
                     {idx === 0 && <label className="block text-xs text-gray-500 mb-1">الحساب</label>}
                     <select value={d.account_id} onChange={(e) => updateRow(idx, 'account_id', e.target.value)} className="w-full h-9 px-2 rounded-lg border-2 border-gray-200 text-xs">

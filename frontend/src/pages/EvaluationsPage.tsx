@@ -252,7 +252,7 @@ export default function EvaluationsPage() {
               {employees.map((e: any) => <option key={e.id} value={e.id}>{e.name} — {e.job_title || 'بدون وظيفة'}</option>)}
             </select>
           </div>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">نوع التقييم *</label>
               <select value={form.evaluation_type} onChange={(e) => setForm({ ...form, evaluation_type: e.target.value })} className="w-full h-10 px-3 rounded-lg border-2 border-gray-200 text-sm">

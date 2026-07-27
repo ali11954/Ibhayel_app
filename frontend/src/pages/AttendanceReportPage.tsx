@@ -185,7 +185,7 @@ export default function AttendanceReportPage() {
           <h1 className="text-2xl font-bold text-gray-900">تقرير سحب الحضور</h1>
           <p className="text-gray-500 text-sm mt-1">تقرير تفصيلي للحضور والغياب حسب الشركة والفترة والموظف</p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           <Button variant="outline" onClick={exportExcel}><Download className="w-4 h-4" /> تصدير Excel</Button>
           <Button variant="outline" onClick={exportPDF}><FileText className="w-4 h-4" /> تصدير PDF</Button>
         </div>

@@ -365,7 +365,7 @@ export default function WorkPlansPage() {
       {/* Add/Edit Plan Modal */}
       <Modal open={modalOpen} onClose={() => setModalOpen(false)} title={editItem ? 'تعديل خطة العمل' : 'خطة عمل جديدة'} size="lg">
         <div className="space-y-4">
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div className="col-span-2">
               <label className="block text-sm font-medium text-gray-700 mb-1">عنوان الخطة *</label>
               <Input value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} placeholder="عنوان خطة العمل" />
@@ -468,7 +468,7 @@ export default function WorkPlansPage() {
             <label className="block text-sm font-medium text-gray-700 mb-1">الوصف</label>
             <textarea value={taskForm.description} onChange={(e) => setTaskForm({ ...taskForm, description: e.target.value })} className="w-full h-20 px-3 py-2 rounded-lg border-2 border-gray-200 text-sm focus:border-primary-500 outline-none resize-none" placeholder="وصف المهمة" />
           </div>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">المسؤول</label>
               <select value={taskForm.assigned_to} onChange={(e) => setTaskForm({ ...taskForm, assigned_to: e.target.value })} className="w-full h-10 px-3 rounded-lg border-2 border-gray-200 text-sm">
@@ -504,7 +504,7 @@ export default function WorkPlansPage() {
             <label className="block text-sm font-medium text-gray-700 mb-1">الوصف</label>
             <textarea value={editTaskModal?.description || ''} onChange={(e) => setEditTaskModal({ ...editTaskModal, description: e.target.value })} className="w-full h-20 px-3 py-2 rounded-lg border-2 border-gray-200 text-sm focus:border-primary-500 outline-none resize-none" placeholder="وصف المهمة" />
           </div>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">المسؤول</label>
               <select value={editTaskModal?.assigned_to || ''} onChange={(e) => setEditTaskModal({ ...editTaskModal, assigned_to: e.target.value })} className="w-full h-10 px-3 rounded-lg border-2 border-gray-200 text-sm">

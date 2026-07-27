@@ -115,7 +115,7 @@ export default function SuppliersPage() {
               <option value="equipment">معدات وأدوات</option>
             </select>
           </div>
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div><label className="block text-sm font-medium text-gray-700 mb-1">الهاتف</label><Input value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} placeholder="رقم الهاتف" /></div>
             <div><label className="block text-sm font-medium text-gray-700 mb-1">جهة الاتصال</label><Input value={form.contact_person} onChange={(e) => setForm({ ...form, contact_person: e.target.value })} placeholder="اسم جهة الاتصال" /></div>
           </div>

@@ -356,31 +356,35 @@ export default function EmployeesPage() {
         <div className="space-y-4">
           <Card>
             <CardContent className="p-5">
-              <div className="flex items-center gap-4">
-                <div className="w-16 h-16 rounded-2xl bg-primary-100 flex items-center justify-center text-primary-700 text-2xl font-bold">
-                  {selectedEmployee.name?.[0]}
-                </div>
-                <div className="flex-1">
-                  <h2 className="text-xl font-bold text-gray-900">{selectedEmployee.name}</h2>
-                  <div className="flex flex-wrap gap-2 mt-1">
-                    <Badge variant="info">{selectedEmployee.code}</Badge>
-                    <Badge variant={selectedEmployee.is_active ? 'success' : 'danger'}>{selectedEmployee.is_active ? 'نشط' : 'غير نشط'}</Badge>
-                    <Badge variant={selectedEmployee.is_resident ? 'success' : 'warning'}>{selectedEmployee.is_resident ? 'ساكن' : 'غير ساكن'}</Badge>
-                    {selectedEmployee.job_title && <Badge>{selectedEmployee.job_title}</Badge>}
+              <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4">
+                <div className="flex items-center gap-3">
+                  <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-primary-100 flex items-center justify-center text-primary-700 text-2xl font-bold flex-shrink-0">
+                    {selectedEmployee.name?.[0]}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <h2 className="text-lg sm:text-xl font-bold text-gray-900 truncate">{selectedEmployee.name}</h2>
+                    <div className="flex flex-wrap gap-1.5 mt-1">
+                      <Badge variant="info">{selectedEmployee.code}</Badge>
+                      <Badge variant={selectedEmployee.is_active ? 'success' : 'danger'}>{selectedEmployee.is_active ? 'نشط' : 'غير نشط'}</Badge>
+                      <Badge variant={selectedEmployee.is_resident ? 'success' : 'warning'}>{selectedEmployee.is_resident ? 'ساكن' : 'غير ساكن'}</Badge>
+                      {selectedEmployee.job_title && <Badge>{selectedEmployee.job_title}</Badge>}
+                    </div>
                   </div>
                 </div>
-                <div className="text-left">
-                  <p className="text-lg font-bold text-primary-600">{formatNum(selectedEmployee.total_salary || selectedEmployee.salary || 0)} ر.ي</p>
-                  <p className="text-xs text-gray-400">الراتب الشامل</p>
+                <div className="flex items-center gap-3 sm:flex-col sm:items-end">
+                  <div>
+                    <p className="text-lg font-bold text-primary-600">{formatNum(selectedEmployee.total_salary || selectedEmployee.salary || 0)} ر.ي</p>
+                    <p className="text-xs text-gray-400">الراتب الشامل</p>
+                  </div>
+                  <button
+                    onClick={() => openEmployeeProfilePDF(selectedEmployee, detailData, bankItems)}
+                    className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium bg-green-50 text-green-700 hover:bg-green-100 border border-green-200 transition"
+                    title="تصدير ملف الموظف كـ PDF"
+                  >
+                    <Download className="w-4 h-4" />
+                    <span className="hidden sm:inline">تصدير PDF</span>
+                  </button>
                 </div>
-                <button
-                  onClick={() => openEmployeeProfilePDF(selectedEmployee, detailData, bankItems)}
-                  className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium bg-green-50 text-green-700 hover:bg-green-100 border border-green-200 transition"
-                  title="تصدير ملف الموظف كـ PDF"
-                >
-                  <Download className="w-4 h-4" />
-                  <span className="hidden sm:inline">تصدير PDF</span>
-                </button>
               </div>
             </CardContent>
           </Card>

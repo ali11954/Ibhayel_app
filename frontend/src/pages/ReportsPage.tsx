@@ -631,7 +631,7 @@ export default function ReportsPage() {
           <Card>
             <CardContent className="p-6">
               <h3 className="font-bold text-gray-900 mb-4">تقدم المهام الإجمالي</h3>
-              <div className="grid grid-cols-3 gap-4 mb-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-4">
                 <div className="text-center">
                   <p className="text-3xl font-bold text-gray-900">{stats?.work_plan_tasks_total || 0}</p>
                   <p className="text-xs text-gray-500">إجمالي المهام</p>

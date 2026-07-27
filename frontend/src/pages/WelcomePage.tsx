@@ -83,7 +83,7 @@ export default function WelcomePage() {
           </div>
 
           {/* CTA Buttons */}
-          <div className="flex gap-4 mb-10">
+          <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 mb-10">
             <button
               onClick={() => navigate('/login')}
               className="px-8 py-3 bg-gradient-to-r from-green-500 to-emerald-600 text-white font-bold rounded-xl shadow-lg shadow-green-500/30 hover:shadow-green-500/50 hover:scale-105 transition-all duration-300 text-sm"
@@ -133,7 +133,7 @@ export default function WelcomePage() {
         </div>
 
         {/* Stats */}
-        <div className="flex gap-8 mb-6">
+        <div className="flex justify-center gap-6 sm:gap-8 mb-6">
           {stats.map((s, i) => (
             <div key={i} className="text-center">
               <div className="text-2xl md:text-3xl font-black text-green-400">{s.num}</div>

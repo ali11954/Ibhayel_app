@@ -114,7 +114,7 @@ export default function LeavesPage() {
       </div>
 
       {/* Tabs */}
-      <div className="flex gap-1 bg-gray-100 p-1 rounded-lg mb-6 w-fit">
+      <div className="flex gap-1 bg-gray-100 p-1 rounded-lg mb-6 w-full sm:w-fit overflow-x-auto">
         <button onClick={() => setTab('requests')} className={`px-4 py-2 rounded-md text-sm font-medium transition ${tab === 'requests' ? 'bg-white shadow text-blue-600' : 'text-gray-600 hover:text-gray-800'}`}>
           طلبات الإجازة ({leaves.length})
         </button>
@@ -126,7 +126,7 @@ export default function LeavesPage() {
       {/* Requests Tab */}
       {tab === 'requests' && (
         <>
-          <div className="flex gap-2 mb-4">
+          <div className="flex flex-wrap gap-2 mb-4">
             <select value={filterStatus} onChange={e => setFilterStatus(e.target.value)} className="h-9 px-3 rounded-lg border border-gray-200 text-sm">
               <option value="">جميع الحالات</option>
               <option value="pending">قيد المراجعة</option>
@@ -254,7 +254,7 @@ export default function LeavesPage() {
                   {leaveTypes.filter((t: any) => !t.name_ar?.includes('أمومة') && !t.name_ar?.includes('مرضية')).map((t: any) => <option key={t.id} value={t.id}>{t.name_ar} ({t.days_per_year > 0 ? `${t.days_per_year} يوم` : 'بدون حد'})</option>)}
                 </select>
               </div>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">من تاريخ *</label>
                   <input type="date" value={form.start_date} onChange={e => setForm({...form, start_date: e.target.value})} className="w-full h-10 px-3 rounded-lg border-2 border-gray-200 text-sm" />

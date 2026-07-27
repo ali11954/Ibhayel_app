@@ -166,7 +166,7 @@ export default function PeriodsPage() {
                 <label className="block text-sm font-medium text-gray-700 mb-1">اسم الفترة *</label>
                 <input type="text" value={form.name} onChange={e => setForm({...form, name: e.target.value})} className="w-full h-10 px-3 rounded-lg border-2 border-gray-200 text-sm" placeholder="مثال: يوليو 2026" />
               </div>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">تاريخ البداية *</label>
                   <input type="date" value={form.start_date} onChange={e => setForm({...form, start_date: e.target.value})} className="w-full h-10 px-3 rounded-lg border-2 border-gray-200 text-sm" />

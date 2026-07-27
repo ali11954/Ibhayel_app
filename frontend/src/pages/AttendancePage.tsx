@@ -246,7 +246,7 @@ export default function AttendancePage() {
                     حدد حالة كل موظف ثم اضغط حفظ على كل شركة
                   </p>
                 </div>
-                <div className="flex gap-4 text-xs">
+                <div className="flex flex-wrap gap-2 sm:gap-4 text-xs">
                   {STATUS_OPTIONS.map(opt => (
                     <span key={opt.value} className="flex items-center gap-1">
                       <span className={`w-2.5 h-2.5 rounded-full ${opt.color}`} />
@@ -405,7 +405,7 @@ export default function AttendancePage() {
               {STATUS_OPTIONS.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
             </select>
           </div>
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div><label className="block text-sm font-medium text-gray-700 mb-1">وقت الدخول</label><Input type="time" value={form.time_in} onChange={(e) => setForm({ ...form, time_in: e.target.value })} /></div>
             <div><label className="block text-sm font-medium text-gray-700 mb-1">وقت الخروج</label><Input type="time" value={form.time_out} onChange={(e) => setForm({ ...form, time_out: e.target.value })} /></div>
           </div>

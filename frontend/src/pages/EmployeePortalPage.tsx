@@ -209,30 +209,32 @@ export default function EmployeePortalPage() {
             </select>
           </div>
           <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-            <table className="w-full">
-              <thead>
-                <tr className="bg-gray-50 border-b border-gray-100">
-                  <th className="text-right px-4 py-3 text-xs font-semibold text-gray-500">التاريخ</th>
-                  <th className="text-right px-4 py-3 text-xs font-semibold text-gray-500">الحالة</th>
-                  <th className="text-right px-4 py-3 text-xs font-semibold text-gray-500">ملاحظات</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-100">
-                {attendance.length === 0 ? (
-                  <tr><td colSpan={3} className="text-center py-8 text-gray-400">لا توجد سجلات</td></tr>
-                ) : attendance.map(a => (
-                  <tr key={a.id} className="hover:bg-gray-50">
-                    <td className="px-4 py-3 text-sm">{a.date}</td>
-                    <td className="px-4 py-3">
-                      <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium ${statusColors[a.status] || ''}`}>
-                        {a.status_name}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3 text-sm text-gray-500">{a.notes || '-'}</td>
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead>
+                  <tr className="bg-gray-50 border-b border-gray-100">
+                    <th className="text-right px-4 py-3 text-xs font-semibold text-gray-500">التاريخ</th>
+                    <th className="text-right px-4 py-3 text-xs font-semibold text-gray-500">الحالة</th>
+                    <th className="text-right px-4 py-3 text-xs font-semibold text-gray-500">ملاحظات</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody className="divide-y divide-gray-100">
+                  {attendance.length === 0 ? (
+                    <tr><td colSpan={3} className="text-center py-8 text-gray-400">لا توجد سجلات</td></tr>
+                  ) : attendance.map(a => (
+                    <tr key={a.id} className="hover:bg-gray-50">
+                      <td className="px-4 py-3 text-sm">{a.date}</td>
+                      <td className="px-4 py-3">
+                        <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium ${statusColors[a.status] || ''}`}>
+                          {a.status_name}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 text-sm text-gray-500">{a.notes || '-'}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </div>
         </div>
       )}
@@ -240,38 +242,40 @@ export default function EmployeePortalPage() {
       {/* Salaries Tab */}
       {tab === 'salaries' && (
         <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-          <table className="w-full">
-            <thead>
-              <tr className="bg-gray-50 border-b border-gray-100">
-                <th className="text-right px-4 py-3 text-xs font-semibold text-gray-500">الشهر</th>
-                <th className="text-right px-4 py-3 text-xs font-semibold text-gray-500">الأساسي</th>
-                <th className="text-right px-4 py-3 text-xs font-semibold text-gray-500">الإضافي</th>
-                <th className="text-right px-4 py-3 text-xs font-semibold text-gray-500">الخصومات</th>
-                <th className="text-right px-4 py-3 text-xs font-semibold text-gray-500">السلف</th>
-                <th className="text-right px-4 py-3 text-xs font-semibold text-gray-500">الصافي</th>
-                <th className="text-right px-4 py-3 text-xs font-semibold text-gray-500">الحالة</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-100">
-              {salaries.length === 0 ? (
-                <tr><td colSpan={7} className="text-center py-8 text-gray-400">لا توجد رواتب</td></tr>
-              ) : salaries.map(s => (
-                <tr key={s.id} className="hover:bg-gray-50">
-                  <td className="px-4 py-3 text-sm font-medium">{s.month_year}</td>
-                  <td className="px-4 py-3 text-sm">{s.basic_salary_amount?.toLocaleString()}</td>
-                  <td className="px-4 py-3 text-sm text-green-600">+{s.overtime_amount?.toLocaleString()}</td>
-                  <td className="px-4 py-3 text-sm text-red-600">-{(s.deduction_amount + s.penalty_amount)?.toLocaleString()}</td>
-                  <td className="px-4 py-3 text-sm text-red-600">-{s.advance_amount?.toLocaleString()}</td>
-                  <td className="px-4 py-3 text-sm font-bold">{s.total_salary?.toLocaleString()}</td>
-                  <td className="px-4 py-3">
-                    <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium ${s.is_paid ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'}`}>
-                      {s.is_paid ? 'مدفوع' : 'غير مدفوع'}
-                    </span>
-                  </td>
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead>
+                <tr className="bg-gray-50 border-b border-gray-100">
+                  <th className="text-right px-4 py-3 text-xs font-semibold text-gray-500">الشهر</th>
+                  <th className="text-right px-4 py-3 text-xs font-semibold text-gray-500">الأساسي</th>
+                  <th className="text-right px-4 py-3 text-xs font-semibold text-gray-500">الإضافي</th>
+                  <th className="text-right px-4 py-3 text-xs font-semibold text-gray-500">الخصومات</th>
+                  <th className="text-right px-4 py-3 text-xs font-semibold text-gray-500">السلف</th>
+                  <th className="text-right px-4 py-3 text-xs font-semibold text-gray-500">الصافي</th>
+                  <th className="text-right px-4 py-3 text-xs font-semibold text-gray-500">الحالة</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody className="divide-y divide-gray-100">
+                {salaries.length === 0 ? (
+                  <tr><td colSpan={7} className="text-center py-8 text-gray-400">لا توجد رواتب</td></tr>
+                ) : salaries.map(s => (
+                  <tr key={s.id} className="hover:bg-gray-50">
+                    <td className="px-4 py-3 text-sm font-medium">{s.month_year}</td>
+                    <td className="px-4 py-3 text-sm">{s.basic_salary_amount?.toLocaleString()}</td>
+                    <td className="px-4 py-3 text-sm text-green-600">+{s.overtime_amount?.toLocaleString()}</td>
+                    <td className="px-4 py-3 text-sm text-red-600">-{(s.deduction_amount + s.penalty_amount)?.toLocaleString()}</td>
+                    <td className="px-4 py-3 text-sm text-red-600">-{s.advance_amount?.toLocaleString()}</td>
+                    <td className="px-4 py-3 text-sm font-bold">{s.total_salary?.toLocaleString()}</td>
+                    <td className="px-4 py-3">
+                      <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium ${s.is_paid ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'}`}>
+                        {s.is_paid ? 'مدفوع' : 'غير مدفوع'}
+                      </span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
       )}
 
@@ -311,37 +315,39 @@ export default function EmployeePortalPage() {
           {/* Requests */}
           <h3 className="font-bold text-gray-900 mb-3">طلباتي</h3>
           <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-            <table className="w-full">
-              <thead>
-                <tr className="bg-gray-50 border-b border-gray-100">
-                  <th className="text-right px-4 py-3 text-xs font-semibold text-gray-500">النوع</th>
-                  <th className="text-right px-4 py-3 text-xs font-semibold text-gray-500">من</th>
-                  <th className="text-right px-4 py-3 text-xs font-semibold text-gray-500">إلى</th>
-                  <th className="text-right px-4 py-3 text-xs font-semibold text-gray-500">الأيام</th>
-                  <th className="text-right px-4 py-3 text-xs font-semibold text-gray-500">الحالة</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-100">
-                {leaves.requests.length === 0 ? (
-                  <tr><td colSpan={5} className="text-center py-8 text-gray-400">لا توجد طلبات</td></tr>
-                ) : leaves.requests.map((r: any) => (
-                  <tr key={r.id} className="hover:bg-gray-50">
-                    <td className="px-4 py-3 text-sm">{r.leave_type_name}</td>
-                    <td className="px-4 py-3 text-sm">{r.start_date}</td>
-                    <td className="px-4 py-3 text-sm">{r.end_date}</td>
-                    <td className="px-4 py-3 text-sm font-medium">{r.total_days}</td>
-                    <td className="px-4 py-3">
-                      <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium ${statusColors[r.status] || ''}`}>
-                        {r.status === 'pending' && <Clock size={12} />}
-                        {r.status === 'approved' && <Check size={12} />}
-                        {r.status === 'rejected' && <X size={12} />}
-                        {r.status_name}
-                      </span>
-                    </td>
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead>
+                  <tr className="bg-gray-50 border-b border-gray-100">
+                    <th className="text-right px-4 py-3 text-xs font-semibold text-gray-500">النوع</th>
+                    <th className="text-right px-4 py-3 text-xs font-semibold text-gray-500">من</th>
+                    <th className="text-right px-4 py-3 text-xs font-semibold text-gray-500">إلى</th>
+                    <th className="text-right px-4 py-3 text-xs font-semibold text-gray-500">الأيام</th>
+                    <th className="text-right px-4 py-3 text-xs font-semibold text-gray-500">الحالة</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody className="divide-y divide-gray-100">
+                  {leaves.requests.length === 0 ? (
+                    <tr><td colSpan={5} className="text-center py-8 text-gray-400">لا توجد طلبات</td></tr>
+                  ) : leaves.requests.map((r: any) => (
+                    <tr key={r.id} className="hover:bg-gray-50">
+                      <td className="px-4 py-3 text-sm">{r.leave_type_name}</td>
+                      <td className="px-4 py-3 text-sm">{r.start_date}</td>
+                      <td className="px-4 py-3 text-sm">{r.end_date}</td>
+                      <td className="px-4 py-3 text-sm font-medium">{r.total_days}</td>
+                      <td className="px-4 py-3">
+                        <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium ${statusColors[r.status] || ''}`}>
+                          {r.status === 'pending' && <Clock size={12} />}
+                          {r.status === 'approved' && <Check size={12} />}
+                          {r.status === 'rejected' && <X size={12} />}
+                          {r.status_name}
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </div>
         </div>
       )}
@@ -349,7 +355,7 @@ export default function EmployeePortalPage() {
       {/* Transactions Tab */}
       {tab === 'transactions' && (
         <div>
-          <div className="flex gap-2 mb-4">
+          <div className="flex flex-wrap gap-2 mb-4">
             <button onClick={() => setTxFilter('')} className={`px-3 py-1.5 rounded-lg text-xs font-medium ${!txFilter ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-600'}`}>الكل</button>
             <button onClick={() => setTxFilter('advance')} className={`px-3 py-1.5 rounded-lg text-xs font-medium ${txFilter === 'advance' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-600'}`}>سلف</button>
             <button onClick={() => setTxFilter('deduction')} className={`px-3 py-1.5 rounded-lg text-xs font-medium ${txFilter === 'deduction' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-600'}`}>خصومات</button>
@@ -357,34 +363,36 @@ export default function EmployeePortalPage() {
             <button onClick={() => setTxFilter('penalty')} className={`px-3 py-1.5 rounded-lg text-xs font-medium ${txFilter === 'penalty' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-600'}`}>غرامات</button>
           </div>
           <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-            <table className="w-full">
-              <thead>
-                <tr className="bg-gray-50 border-b border-gray-100">
-                  <th className="text-right px-4 py-3 text-xs font-semibold text-gray-500">التاريخ</th>
-                  <th className="text-right px-4 py-3 text-xs font-semibold text-gray-500">النوع</th>
-                  <th className="text-right px-4 py-3 text-xs font-semibold text-gray-500">المبلغ</th>
-                  <th className="text-right px-4 py-3 text-xs font-semibold text-gray-500">القسط الشهري</th>
-                  <th className="text-right px-4 py-3 text-xs font-semibold text-gray-500">البيان</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-100">
-                {transactions.filter((t: any) => !txFilter || t.transaction_type === txFilter).length === 0 ? (
-                  <tr><td colSpan={5} className="text-center py-8 text-gray-400">لا توجد معاملات</td></tr>
-                ) : transactions.filter((t: any) => !txFilter || t.transaction_type === txFilter).map((t: any) => {
-                  const typeLabels: Record<string, string> = { advance: 'سلفة', deduction: 'خصم', overtime: 'إضافي', penalty: 'غرامة', restaurant: 'مطعم', cafeteria: 'كافتيريا' };
-                  const typeColors: Record<string, string> = { advance: 'text-blue-600', deduction: 'text-red-600', overtime: 'text-green-600', penalty: 'text-red-700', restaurant: 'text-orange-600', cafeteria: 'text-orange-600' };
-                  return (
-                    <tr key={t.id} className="hover:bg-gray-50">
-                      <td className="px-4 py-3 text-sm">{t.date}</td>
-                      <td className="px-4 py-3"><span className={`text-sm font-medium ${typeColors[t.transaction_type] || ''}`}>{typeLabels[t.transaction_type] || t.transaction_type}</span></td>
-                      <td className="px-4 py-3 text-sm font-bold">{t.amount?.toLocaleString()} ر.ي</td>
-                      <td className="px-4 py-3 text-sm text-gray-500">{t.monthly_installment ? `${t.monthly_installment.toLocaleString()} ر.ي` : '-'}</td>
-                      <td className="px-4 py-3 text-sm text-gray-500">{t.description || '-'}</td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead>
+                  <tr className="bg-gray-50 border-b border-gray-100">
+                    <th className="text-right px-4 py-3 text-xs font-semibold text-gray-500">التاريخ</th>
+                    <th className="text-right px-4 py-3 text-xs font-semibold text-gray-500">النوع</th>
+                    <th className="text-right px-4 py-3 text-xs font-semibold text-gray-500">المبلغ</th>
+                    <th className="text-right px-4 py-3 text-xs font-semibold text-gray-500">القسط الشهري</th>
+                    <th className="text-right px-4 py-3 text-xs font-semibold text-gray-500">البيان</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100">
+                  {transactions.filter((t: any) => !txFilter || t.transaction_type === txFilter).length === 0 ? (
+                    <tr><td colSpan={5} className="text-center py-8 text-gray-400">لا توجد معاملات</td></tr>
+                  ) : transactions.filter((t: any) => !txFilter || t.transaction_type === txFilter).map((t: any) => {
+                    const typeLabels: Record<string, string> = { advance: 'سلفة', deduction: 'خصم', overtime: 'إضافي', penalty: 'غرامة', restaurant: 'مطعم', cafeteria: 'كافتيريا' };
+                    const typeColors: Record<string, string> = { advance: 'text-blue-600', deduction: 'text-red-600', overtime: 'text-green-600', penalty: 'text-red-700', restaurant: 'text-orange-600', cafeteria: 'text-orange-600' };
+                    return (
+                      <tr key={t.id} className="hover:bg-gray-50">
+                        <td className="px-4 py-3 text-sm">{t.date}</td>
+                        <td className="px-4 py-3"><span className={`text-sm font-medium ${typeColors[t.transaction_type] || ''}`}>{typeLabels[t.transaction_type] || t.transaction_type}</span></td>
+                        <td className="px-4 py-3 text-sm font-bold">{t.amount?.toLocaleString()} ر.ي</td>
+                        <td className="px-4 py-3 text-sm text-gray-500">{t.monthly_installment ? `${t.monthly_installment.toLocaleString()} ر.ي` : '-'}</td>
+                        <td className="px-4 py-3 text-sm text-gray-500">{t.description || '-'}</td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
           </div>
         </div>
       )}
@@ -393,34 +401,36 @@ export default function EmployeePortalPage() {
       {tab === 'evaluations' && (
         <div>
           <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-            <table className="w-full">
-              <thead>
-                <tr className="bg-gray-50 border-b border-gray-100">
-                  <th className="text-right px-4 py-3 text-xs font-semibold text-gray-500">التاريخ</th>
-                  <th className="text-right px-4 py-3 text-xs font-semibold text-gray-500">المُقيّم</th>
-                  <th className="text-right px-4 py-3 text-xs font-semibold text-gray-500">النوع</th>
-                  <th className="text-right px-4 py-3 text-xs font-semibold text-gray-500">التقييم</th>
-                  <th className="text-right px-4 py-3 text-xs font-semibold text-gray-500">ملاحظات</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-100">
-                {evaluations.length === 0 ? (
-                  <tr><td colSpan={5} className="text-center py-8 text-gray-400">لا توجد تقييمات</td></tr>
-                ) : evaluations.map((e: any) => (
-                  <tr key={e.id} className="hover:bg-gray-50">
-                    <td className="px-4 py-3 text-sm">{e.date}</td>
-                    <td className="px-4 py-3 text-sm">{e.evaluator_name || '-'}</td>
-                    <td className="px-4 py-3 text-sm">{e.evaluation_type === 'supervisor' ? 'مشرف' : 'متعهد'}</td>
-                    <td className="px-4 py-3">
-                      <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold ${e.score >= 80 ? 'bg-green-100 text-green-700' : e.score >= 60 ? 'bg-yellow-100 text-yellow-700' : 'bg-red-100 text-red-700'}`}>
-                        {e.score}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3 text-sm text-gray-500 max-w-[200px] truncate">{e.comments || '-'}</td>
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead>
+                  <tr className="bg-gray-50 border-b border-gray-100">
+                    <th className="text-right px-4 py-3 text-xs font-semibold text-gray-500">التاريخ</th>
+                    <th className="text-right px-4 py-3 text-xs font-semibold text-gray-500">المُقيّم</th>
+                    <th className="text-right px-4 py-3 text-xs font-semibold text-gray-500">النوع</th>
+                    <th className="text-right px-4 py-3 text-xs font-semibold text-gray-500">التقييم</th>
+                    <th className="text-right px-4 py-3 text-xs font-semibold text-gray-500">ملاحظات</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody className="divide-y divide-gray-100">
+                  {evaluations.length === 0 ? (
+                    <tr><td colSpan={5} className="text-center py-8 text-gray-400">لا توجد تقييمات</td></tr>
+                  ) : evaluations.map((e: any) => (
+                    <tr key={e.id} className="hover:bg-gray-50">
+                      <td className="px-4 py-3 text-sm">{e.date}</td>
+                      <td className="px-4 py-3 text-sm">{e.evaluator_name || '-'}</td>
+                      <td className="px-4 py-3 text-sm">{e.evaluation_type === 'supervisor' ? 'مشرف' : 'متعهد'}</td>
+                      <td className="px-4 py-3">
+                        <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold ${e.score >= 80 ? 'bg-green-100 text-green-700' : e.score >= 60 ? 'bg-yellow-100 text-yellow-700' : 'bg-red-100 text-red-700'}`}>
+                          {e.score}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 text-sm text-gray-500 max-w-[200px] truncate">{e.comments || '-'}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </div>
         </div>
       )}
@@ -469,7 +479,7 @@ export default function EmployeePortalPage() {
                   {leaveTypes.filter((t: any) => !t.name_ar?.includes('أمومة')).map((t: any) => <option key={t.id} value={t.id}>{t.name_ar}{t.days_per_year < 999 ? ` (${t.days_per_year} يوم)` : ''}</option>)}
                 </select>
               </div>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">من تاريخ *</label>
                   <input type="date" value={leaveForm.start_date} onChange={e => setLeaveForm({...leaveForm, start_date: e.target.value})} className="w-full h-10 px-3 rounded-lg border-2 border-gray-200 text-sm" />

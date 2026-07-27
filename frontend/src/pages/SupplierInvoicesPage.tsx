@@ -313,7 +313,7 @@ export default function SupplierInvoicesPage() {
             </select>
           </div>
           <div><label className="block text-sm font-medium text-gray-700 mb-1">رقم الفاتورة *</label><Input value={form.invoice_number} onChange={(e) => setForm({ ...form, invoice_number: e.target.value })} placeholder="رقم الفاتورة" /></div>
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div><label className="block text-sm font-medium text-gray-700 mb-1">المبلغ (ر.ي) *</label><Input type="number" value={form.amount} onChange={(e) => setForm({ ...form, amount: e.target.value })} placeholder="0" /></div>
             <div><label className="block text-sm font-medium text-gray-700 mb-1">التاريخ</label><Input type="date" value={form.date} onChange={(e) => setForm({ ...form, date: e.target.value })} /></div>
           </div>
