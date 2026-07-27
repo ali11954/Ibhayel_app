@@ -538,6 +538,16 @@ def auto_migrate():
     add_column('attendances', 'sick_leave_days', 'INTEGER', '0')
     add_column('attendances', 'annual_leave_days', 'INTEGER', '0')
 
+    add_column('work_plans', 'is_locked', 'BOOLEAN', 'FALSE')
+    add_column('work_plans', 'closed_at', 'TIMESTAMP')
+    add_column('work_plans', 'closed_by', 'INTEGER')
+    add_column('work_plans', 'close_notes', 'TEXT')
+
+    add_column('work_plan_tasks', 'start_date', 'DATE')
+    add_column('work_plan_tasks', 'end_date', 'DATE')
+    add_column('work_plan_tasks', 'region_id', 'INTEGER')
+    add_column('work_plan_tasks', 'progress_percent', 'INTEGER', '0')
+
     print("Auto-migration: column check complete")
 
 

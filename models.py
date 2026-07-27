@@ -2354,15 +2354,20 @@ class WorkPlan(db.Model):
     due_date = db.Column(db.Date, nullable=True)
     assigned_to = db.Column(db.Integer, db.ForeignKey('employees.id'), nullable=True)
     created_by = db.Column(db.Integer, db.ForeignKey('users.id'))
-    status = db.Column(db.String(20), default='pending')  # pending, in_progress, completed, cancelled
+    status = db.Column(db.String(20), default='pending')  # pending, in_progress, completed, cancelled, closed
     progress = db.Column(db.Integer, default=0)  # 0-100
+    is_locked = db.Column(db.Boolean, default=False)
+    closed_at = db.Column(db.DateTime, nullable=True)
+    closed_by = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=True)
+    close_notes = db.Column(db.Text, nullable=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
     company = db.relationship('Company', backref='work_plans')
     region = db.relationship('Region', backref='work_plans')
     location = db.relationship('Location', backref='work_plans')
-    assignee = db.relationship('Employee', backref='assigned_plans')
-    creator = db.relationship('User', backref='created_plans')
+    assignee = db.relationship('Employee', foreign_keys=[assigned_to], backref='assigned_plans')
+    creator = db.relationship('User', foreign_keys=[created_by], backref='created_plans')
+    closer = db.relationship('User', foreign_keys=[closed_by], backref='closed_plans')
     tasks = db.relationship('WorkPlanTask', backref='plan', cascade='all, delete-orphan', order_by='WorkPlanTask.order')
 
     def to_dict(self):
@@ -2385,8 +2390,11 @@ class WorkPlan(db.Model):
             'created_by': self.created_by,
             'creator_name': self.creator.full_name if self.creator else None,
             'status': self.status,
-            'status_name': {'pending': 'قيد الانتظار', 'in_progress': 'قيد التنفيذ', 'completed': 'مكتمل', 'cancelled': 'ملغي'}.get(self.status, self.status),
+            'status_name': {'pending': 'قيد الانتظار', 'in_progress': 'قيد التنفيذ', 'completed': 'مكتمل', 'cancelled': 'ملغي', 'closed': 'مغلق'}.get(self.status, self.status),
             'progress': self.progress,
+            'is_locked': self.is_locked,
+            'closed_at': self.closed_at.strftime('%Y-%m-%d %H:%M') if self.closed_at else None,
+            'close_notes': self.close_notes or '',
             'tasks_count': len(self.tasks),
             'completed_tasks': sum(1 for t in self.tasks if t.is_completed),
             'tasks': [t.to_dict() for t in self.tasks],
@@ -2409,12 +2417,18 @@ class WorkPlanTask(db.Model):
     assigned_to = db.Column(db.Integer, db.ForeignKey('employees.id'), nullable=True)
     priority = db.Column(db.String(20), default='normal')  # low, normal, high, urgent
     estimated_hours = db.Column(db.Float, nullable=True)
+    start_date = db.Column(db.Date, nullable=True)
+    end_date = db.Column(db.Date, nullable=True)
+    region_id = db.Column(db.Integer, db.ForeignKey('regions.id'), nullable=True)
+    progress_percent = db.Column(db.Integer, default=0)  # 0-100
     evaluation_score = db.Column(db.Integer, nullable=True)  # 0-5 stars
     evaluation_notes = db.Column(db.Text)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
     completer = db.relationship('Employee', foreign_keys=[completed_by], backref='completed_tasks')
     assignee = db.relationship('Employee', foreign_keys=[assigned_to], backref='assigned_tasks')
+    task_region = db.relationship('Region', foreign_keys=[region_id], backref='tasks')
+    logs = db.relationship('WorkPlanTaskLog', backref='task', cascade='all, delete-orphan', order_by='WorkPlanTaskLog.log_date.desc(), WorkPlanTaskLog.id.desc()')
 
     def to_dict(self):
         return {
@@ -2432,8 +2446,48 @@ class WorkPlanTask(db.Model):
             'priority': self.priority,
             'priority_name': {'low': 'منخفضة', 'normal': 'عادية', 'high': 'مرتفعة', 'urgent': 'عاجلة'}.get(self.priority, self.priority),
             'estimated_hours': self.estimated_hours,
+            'start_date': self.start_date.strftime('%Y-%m-%d') if self.start_date else None,
+            'end_date': self.end_date.strftime('%Y-%m-%d') if self.end_date else None,
+            'region_id': self.region_id,
+            'region_name': self.task_region.name if self.task_region else None,
+            'progress_percent': self.progress_percent or 0,
             'evaluation_score': self.evaluation_score,
             'evaluation_notes': self.evaluation_notes or '',
+            'logs_count': len(self.logs),
+            'logs': [l.to_dict() for l in self.logs],
+        }
+
+
+class WorkPlanTaskLog(db.Model):
+    """سجل الأعمال اليومية لكل مهمة"""
+    __tablename__ = 'work_plan_task_logs'
+
+    id = db.Column(db.Integer, primary_key=True)
+    task_id = db.Column(db.Integer, db.ForeignKey('work_plan_tasks.id'), nullable=False)
+    log_date = db.Column(db.Date, nullable=False, default=datetime.utcnow().date)
+    completed_work = db.Column(db.Text, nullable=False)  # الأعمال المنجزة
+    progress_percent = db.Column(db.Integer, default=0)  # نسبة الإنجاز اليومية 0-100
+    notes = db.Column(db.Text, nullable=True)
+    employee_id = db.Column(db.Integer, db.ForeignKey('employees.id'), nullable=True)  # العامل الذي نفذ
+    created_by = db.Column(db.Integer, db.ForeignKey('users.id'))
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    employee = db.relationship('Employee', foreign_keys=[employee_id], backref='task_logs')
+    creator = db.relationship('User', foreign_keys=[created_by], backref='created_task_logs')
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'task_id': self.task_id,
+            'log_date': self.log_date.strftime('%Y-%m-%d') if self.log_date else None,
+            'completed_work': self.completed_work or '',
+            'progress_percent': self.progress_percent or 0,
+            'notes': self.notes or '',
+            'employee_id': self.employee_id,
+            'employee_name': self.employee.name if self.employee else None,
+            'created_by': self.created_by,
+            'creator_name': self.creator.full_name if self.creator else None,
+            'created_at': self.created_at.strftime('%Y-%m-%d %H:%M') if self.created_at else None,
         }
 
 

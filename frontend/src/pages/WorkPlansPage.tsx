@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Plus, Trash2, Calendar, CheckCircle, Clock, AlertCircle, ListTodo, ChevronDown, ChevronUp, Edit, Pencil } from 'lucide-react';
+import { Plus, Trash2, Calendar, CheckCircle, Clock, AlertCircle, ListTodo, ChevronDown, ChevronUp, Edit, Pencil, Lock, FileText, X, ClipboardList, BarChart3 } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -44,12 +44,21 @@ export default function WorkPlansPage() {
   const [completeModal, setCompleteModal] = useState<{ open: boolean; taskId: number; score: number; notes: string }>({ open: false, taskId: 0, score: 0, notes: '' });
   const [expandedId, setExpandedId] = useState<number | null>(null);
   const [saving, setSaving] = useState(false);
+
+  const [logModal, setLogModal] = useState<{ open: boolean; taskId: number }>({ open: false, taskId: 0 });
+  const [logForm, setLogForm] = useState({ log_date: new Date().toISOString().split('T')[0], completed_work: '', progress_percent: 0, notes: '', employee_id: '' });
+  const [taskLogsModal, setTaskLogsModal] = useState<{ open: boolean; task: any }>({ open: false, task: null });
+  const [taskLogs, setTaskLogs] = useState<any[]>([]);
+  const [closeModal, setCloseModal] = useState<{ open: boolean; planId: number }>({ open: false, planId: 0 });
+  const [closeNotes, setCloseNotes] = useState('');
+  const [evalModal, setEvalModal] = useState<{ open: boolean; data: any }>({ open: false, data: null });
+
   const [form, setForm] = useState({
     title: '', description: '', plan_type: 'daily', company_id: '', region_id: '',
     location_id: '', plan_date: new Date().toISOString().split('T')[0], assigned_to: '',
-    tasks: [{ title: '', description: '', assigned_to: '', priority: 'normal' }],
+    tasks: [{ title: '', description: '', assigned_to: '', priority: 'normal', start_date: '', end_date: '', region_id: '' }],
   });
-  const [taskForm, setTaskForm] = useState({ title: '', description: '', assigned_to: '', priority: 'normal' });
+  const [taskForm, setTaskForm] = useState({ title: '', description: '', assigned_to: '', priority: 'normal', start_date: '', end_date: '', region_id: '' });
 
   const loadData = () => {
     Promise.all([
@@ -74,7 +83,7 @@ export default function WorkPlansPage() {
     setForm({
       title: '', description: '', plan_type: 'daily', company_id: '', region_id: '',
       location_id: '', plan_date: new Date().toISOString().split('T')[0], assigned_to: '',
-      tasks: [{ title: '', description: '', assigned_to: '', priority: 'normal' }],
+      tasks: [{ title: '', description: '', assigned_to: '', priority: 'normal', start_date: '', end_date: '', region_id: '' }],
     });
     setModalOpen(true);
   };
@@ -86,7 +95,10 @@ export default function WorkPlansPage() {
       company_id: plan.company_id || '', region_id: plan.region_id || '',
       location_id: plan.location_id || '', plan_date: plan.plan_date || new Date().toISOString().split('T')[0],
       assigned_to: plan.assigned_to || '',
-      tasks: plan.tasks?.length > 0 ? plan.tasks.map((t: any) => ({ title: t.title, description: t.description || '', assigned_to: t.assigned_to || '', priority: t.priority || 'normal' })) : [{ title: '', description: '', assigned_to: '', priority: 'normal' }],
+      tasks: plan.tasks?.length > 0 ? plan.tasks.map((t: any) => ({
+        title: t.title, description: t.description || '', assigned_to: t.assigned_to || '', priority: t.priority || 'normal',
+        start_date: t.start_date || '', end_date: t.end_date || '', region_id: t.region_id || '',
+      })) : [{ title: '', description: '', assigned_to: '', priority: 'normal', start_date: '', end_date: '', region_id: '' }],
     });
     setModalOpen(true);
   };
@@ -104,6 +116,7 @@ export default function WorkPlansPage() {
         tasks: form.tasks.filter(t => t.title.trim()).map(t => ({
           ...t,
           assigned_to: t.assigned_to ? Number(t.assigned_to) : null,
+          region_id: t.region_id ? Number(t.region_id) : null,
         })),
       };
       if (editItem) {
@@ -124,9 +137,10 @@ export default function WorkPlansPage() {
       await api.post(`/work-plans/${taskModal.planId}/tasks`, {
         ...taskForm,
         assigned_to: taskForm.assigned_to ? Number(taskForm.assigned_to) : null,
+        region_id: taskForm.region_id ? Number(taskForm.region_id) : null,
       });
       setTaskModal({ open: false, planId: 0 });
-      setTaskForm({ title: '', description: '', assigned_to: '', priority: 'normal' });
+      setTaskForm({ title: '', description: '', assigned_to: '', priority: 'normal', start_date: '', end_date: '', region_id: '' });
       loadData();
     } catch (err: any) { alert(err.response?.data?.message || 'حدث خطأ'); }
     finally { setSaving(false); }
@@ -141,6 +155,9 @@ export default function WorkPlansPage() {
         description: editTaskModal.description,
         assigned_to: editTaskModal.assigned_to ? Number(editTaskModal.assigned_to) : null,
         priority: editTaskModal.priority,
+        start_date: editTaskModal.start_date || null,
+        end_date: editTaskModal.end_date || null,
+        region_id: editTaskModal.region_id ? Number(editTaskModal.region_id) : null,
       });
       setEditTaskModal(null);
       loadData();
@@ -159,6 +176,54 @@ export default function WorkPlansPage() {
       loadData();
     } catch (err: any) { alert(err.response?.data?.message || 'حدث خطأ'); }
     finally { setSaving(false); }
+  };
+
+  const handleAddLog = async () => {
+    if (!logForm.completed_work.trim()) return alert('أدخل الأعمال المنجزة');
+    setSaving(true);
+    try {
+      await api.post(`/work-plans/tasks/${logModal.taskId}/logs`, {
+        ...logForm,
+        progress_percent: Number(logForm.progress_percent),
+        employee_id: logForm.employee_id ? Number(logForm.employee_id) : null,
+      });
+      setLogModal({ open: false, taskId: 0 });
+      setLogForm({ log_date: new Date().toISOString().split('T')[0], completed_work: '', progress_percent: 0, notes: '', employee_id: '' });
+      loadData();
+    } catch (err: any) { alert(err.response?.data?.message || 'حدث خطأ'); }
+    finally { setSaving(false); }
+  };
+
+  const loadTaskLogs = async (task: any) => {
+    try {
+      const res = await api.get(`/work-plans/tasks/${task.id}/logs`);
+      setTaskLogs(res.data.data || []);
+      setTaskLogsModal({ open: true, task });
+    } catch (err) { alert('خطأ في تحميل السجلات'); }
+  };
+
+  const handleDeleteLog = async (logId: number) => {
+    if (!confirm('هل أنت متأكد من حذف السجل؟')) return;
+    await api.delete(`/work-plans/tasks/logs/${logId}`);
+    setTaskLogs(taskLogs.filter((l: any) => l.id !== logId));
+  };
+
+  const handleClosePlan = async () => {
+    setSaving(true);
+    try {
+      await api.post(`/work-plans/${closeModal.planId}/close`, { close_notes: closeNotes });
+      setCloseModal({ open: false, planId: 0 });
+      setCloseNotes('');
+      loadData();
+    } catch (err: any) { alert(err.response?.data?.message || 'حدث خطأ'); }
+    finally { setSaving(false); }
+  };
+
+  const loadEvaluation = async (planId: number) => {
+    try {
+      const res = await api.get(`/work-plans/${planId}/evaluation`);
+      setEvalModal({ open: true, data: res.data.data });
+    } catch (err) { alert('خطأ في تحميل التقييم'); }
   };
 
   const handleDeletePlan = async (id: number) => {
@@ -180,6 +245,7 @@ export default function WorkPlansPage() {
     pending: plans.filter(p => p.status === 'pending').length,
     in_progress: plans.filter(p => p.status === 'in_progress').length,
     completed: plans.filter(p => p.status === 'completed').length,
+    closed: plans.filter(p => p.status === 'closed').length,
   };
 
   if (loading) return (
@@ -193,34 +259,33 @@ export default function WorkPlansPage() {
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">خطط العمل</h1>
-          <p className="text-gray-500 text-sm mt-1">اليومية والشهرية والسنوية</p>
+          <p className="text-gray-500 text-sm mt-1">اليومية والشهرية والسنوية — تسجيل الأعمال اليومية والتقييم</p>
         </div>
         <Button onClick={openAdd}><Plus className="w-4 h-4" /> خطة جديدة</Button>
       </div>
 
-      {/* Stats */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
         {[
           { label: 'الكل', value: stats.total, color: 'bg-gray-100 text-gray-700', icon: ListTodo },
           { label: 'قيد الانتظار', value: stats.pending, color: 'bg-amber-100 text-amber-700', icon: Clock },
           { label: 'قيد التنفيذ', value: stats.in_progress, color: 'bg-blue-100 text-blue-700', icon: AlertCircle },
           { label: 'مكتملة', value: stats.completed, color: 'bg-green-100 text-green-700', icon: CheckCircle },
+          { label: 'مغلقة', value: stats.closed, color: 'bg-purple-100 text-purple-700', icon: Lock },
         ].map((s) => (
-          <Card key={s.label}><CardContent className="p-4">
-            <div className="flex items-center gap-3">
-              <div className={`w-10 h-10 rounded-xl ${s.color} flex items-center justify-center`}>
-                <s.icon className="w-5 h-5" />
+          <Card key={s.label}><CardContent className="p-3">
+            <div className="flex items-center gap-2">
+              <div className={`w-9 h-9 rounded-xl ${s.color} flex items-center justify-center`}>
+                <s.icon className="w-4 h-4" />
               </div>
               <div>
-                <p className="text-2xl font-bold">{s.value}</p>
-                <p className="text-xs text-gray-500">{s.label}</p>
+                <p className="text-xl font-bold">{s.value}</p>
+                <p className="text-[10px] text-gray-500">{s.label}</p>
               </div>
             </div>
           </CardContent></Card>
         ))}
       </div>
 
-      {/* Filters */}
       <div className="flex gap-2 flex-wrap">
         {[
           { key: 'all', label: 'الكل' },
@@ -235,17 +300,17 @@ export default function WorkPlansPage() {
         ))}
       </div>
 
-      {/* Plans List */}
       <div className="space-y-4">
         {filtered.map((plan) => {
           const isExpanded = expandedId === plan.id;
           const tasks = plan.tasks || [];
+          const isLocked = plan.is_locked || plan.status === 'closed';
           return (
-            <Card key={plan.id} className="hover:shadow-md transition-shadow">
+            <Card key={plan.id} className={`hover:shadow-md transition-shadow ${isLocked ? 'border-purple-200 bg-purple-50/30' : ''}`}>
               <CardContent className="p-5">
                 <div className="flex items-start justify-between">
-                  <div className="flex-1">
-                    <div className="flex items-center gap-3 mb-2">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap mb-2">
                       <h3 className="font-bold text-gray-900">{plan.title}</h3>
                       <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${
                         plan.plan_type === 'daily' ? 'bg-blue-100 text-blue-700' :
@@ -255,100 +320,135 @@ export default function WorkPlansPage() {
                       <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${
                         plan.status === 'completed' ? 'bg-green-100 text-green-700' :
                         plan.status === 'in_progress' ? 'bg-blue-100 text-blue-700' :
+                        plan.status === 'closed' ? 'bg-purple-100 text-purple-700' :
                         plan.status === 'cancelled' ? 'bg-red-100 text-red-700' :
                         'bg-gray-100 text-gray-600'
                       }`}>{plan.status_name}</span>
+                      {isLocked && <Lock className="w-3.5 h-3.5 text-purple-500" />}
                     </div>
                     {plan.description && <p className="text-sm text-gray-500 mb-2">{plan.description}</p>}
-                    <div className="flex items-center gap-4 text-xs text-gray-400">
+                    <div className="flex items-center gap-3 text-xs text-gray-400 flex-wrap">
                       <span className="flex items-center gap-1"><Calendar className="w-3.5 h-3.5" /> {plan.plan_date}</span>
+                      {plan.due_date && <span>الإنجاز: {plan.due_date}</span>}
                       {plan.assignee_name && <span>المكلف: {plan.assignee_name}</span>}
                       {plan.company_name && <span>{plan.company_name}</span>}
                       {plan.region_name && <span>{plan.region_name}</span>}
-                      {tasks.length > 0 && <span className="flex items-center gap-1"><ListTodo className="w-3.5 h-3.5" /> {plan.completed_tasks || 0}/{tasks.length} مهمة</span>}
+                      {tasks.length > 0 && <span className="flex items-center gap-1"><ListTodo className="w-3.5 h-3.5" /> {plan.completed_tasks || 0}/{tasks.length}</span>}
                     </div>
+                    {isLocked && plan.close_notes && <p className="text-xs text-purple-600 mt-1">ملاحظات الإغلاق: {plan.close_notes}</p>}
                   </div>
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-1.5 flex-shrink-0">
                     <div className="text-center">
-                      <div className="w-12 h-12 rounded-full bg-primary-50 flex items-center justify-center">
-                        <span className="text-lg font-bold text-primary-600">{plan.progress}%</span>
+                      <div className={`w-11 h-11 rounded-full flex items-center justify-center ${
+                        plan.progress >= 100 ? 'bg-green-100' : plan.progress > 0 ? 'bg-primary-50' : 'bg-gray-100'
+                      }`}>
+                        <span className={`text-sm font-bold ${plan.progress >= 100 ? 'text-green-600' : plan.progress > 0 ? 'text-primary-600' : 'text-gray-400'}`}>{plan.progress}%</span>
                       </div>
                     </div>
-                    <button onClick={() => setExpandedId(isExpanded ? null : plan.id)} className="p-2 rounded-lg hover:bg-gray-100 text-gray-500">
-                      {isExpanded ? <ChevronUp className="w-5 h-5" /> : <ChevronDown className="w-5 h-5" />}
+                    <button onClick={() => setExpandedId(isExpanded ? null : plan.id)} className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-500">
+                      {isExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
                     </button>
-                    <button onClick={() => { setTaskModal({ open: true, planId: plan.id }); }} className="p-2 rounded-lg hover:bg-blue-50 text-blue-500">
-                      <Plus className="w-4 h-4" />
+                    {!isLocked && (
+                      <>
+                        <button onClick={() => setTaskModal({ open: true, planId: plan.id })} className="p-1.5 rounded-lg hover:bg-blue-50 text-blue-500" title="إضافة مهمة">
+                          <Plus className="w-4 h-4" />
+                        </button>
+                        <button onClick={() => openEdit(plan)} className="p-1.5 rounded-lg hover:bg-amber-50 text-amber-500" title="تعديل">
+                          <Pencil className="w-4 h-4" />
+                        </button>
+                      </>
+                    )}
+                    <button onClick={() => loadEvaluation(plan.id)} className="p-1.5 rounded-lg hover:bg-indigo-50 text-indigo-500" title="تقييم">
+                      <BarChart3 className="w-4 h-4" />
                     </button>
-                    <button onClick={() => openEdit(plan)} className="p-2 rounded-lg hover:bg-amber-50 text-amber-500" title="تعديل">
-                      <Pencil className="w-4 h-4" />
-                    </button>
-                    <button onClick={() => handleDeletePlan(plan.id)} className="p-2 rounded-lg hover:bg-red-50 text-red-500">
-                      <Trash2 className="w-4 h-4" />
-                    </button>
+                    {!isLocked && plan.status !== 'completed' && (
+                      <button onClick={() => setCloseModal({ open: true, planId: plan.id })} className="p-1.5 rounded-lg hover:bg-purple-50 text-purple-500" title="إغلاق الخطة">
+                        <Lock className="w-4 h-4" />
+                      </button>
+                    )}
+                    {!isLocked && (
+                      <button onClick={() => handleDeletePlan(plan.id)} className="p-1.5 rounded-lg hover:bg-red-50 text-red-500" title="حذف">
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    )}
                   </div>
                 </div>
 
-                {/* Progress Bar */}
                 <div className="mt-3 h-2 bg-gray-100 rounded-full overflow-hidden">
                   <div className={`h-full rounded-full transition-all ${
                     plan.progress >= 100 ? 'bg-green-500' : plan.progress > 0 ? 'bg-primary-500' : 'bg-gray-300'
                   }`} style={{ width: `${plan.progress}%` }} />
                 </div>
 
-                {/* Tasks */}
                 {isExpanded && (
                   <div className="mt-4 space-y-2">
                     {tasks.length === 0 ? (
-                      <p className="text-sm text-gray-400 text-center py-4">لا توجد مهام بعد — أضف مهمة جديدة</p>
+                      <p className="text-sm text-gray-400 text-center py-4">لا توجد مهام بعد</p>
                     ) : (
                       tasks.map((task: any) => (
-                        <div key={task.id} className={`flex items-center gap-3 p-3 rounded-lg border ${
+                        <div key={task.id} className={`p-3 rounded-lg border ${
                           task.is_completed ? 'bg-green-50 border-green-200' : 'bg-white border-gray-200'
                         }`}>
-                          <div className={`w-6 h-6 rounded-full flex items-center justify-center ${
-                            task.is_completed ? 'bg-green-500 text-white' : 'bg-gray-200'
-                          }`}>
-                            {task.is_completed ? <CheckCircle className="w-4 h-4" /> : <span className="text-xs font-bold">{task.order + 1}</span>}
-                          </div>
-                          <div className="flex-1">
-                            <div className="flex items-center gap-2 flex-wrap">
-                              <span className={`text-sm font-medium ${task.is_completed ? 'line-through text-gray-400' : ''}`}>{task.title}</span>
-                              {task.priority && task.priority !== 'normal' && (
-                                <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold ${
-                                  task.priority === 'urgent' ? 'bg-red-100 text-red-700' :
-                                  task.priority === 'high' ? 'bg-orange-100 text-orange-700' :
-                                  'bg-gray-100 text-gray-500'
-                                }`}>
-                                  {task.priority === 'urgent' ? 'عاجل' : task.priority === 'high' ? 'مهم' : task.priority === 'low' ? 'منخفض' : ''}
-                                </span>
+                          <div className="flex items-start gap-3">
+                            <div className={`w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5 ${
+                              task.is_completed ? 'bg-green-500 text-white' : 'bg-gray-200'
+                            }`}>
+                              {task.is_completed ? <CheckCircle className="w-4 h-4" /> : <span className="text-xs font-bold">{task.order + 1}</span>}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <span className={`text-sm font-medium ${task.is_completed ? 'line-through text-gray-400' : ''}`}>{task.title}</span>
+                                {task.priority && task.priority !== 'normal' && (
+                                  <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold ${
+                                    task.priority === 'urgent' ? 'bg-red-100 text-red-700' :
+                                    task.priority === 'high' ? 'bg-orange-100 text-orange-700' :
+                                    'bg-gray-100 text-gray-500'
+                                  }`}>
+                                    {task.priority === 'urgent' ? 'عاجل' : task.priority === 'high' ? 'مهم' : 'منخفض'}
+                                  </span>
+                                )}
+                              </div>
+                              {task.description && <p className="text-xs text-gray-400 mt-0.5">{task.description}</p>}
+                              <div className="flex items-center gap-3 text-[11px] text-gray-400 mt-1 flex-wrap">
+                                {task.assignee_name && <span>المسؤول: {task.assignee_name}</span>}
+                                {task.region_name && <span>المنطقة: {task.region_name}</span>}
+                                {task.start_date && task.end_date && <span>{task.start_date} ← {task.end_date}</span>}
+                                {task.progress_percent > 0 && <span className="font-medium text-primary-600">{task.progress_percent}%</span>}
+                              </div>
+                              {task.is_completed && task.evaluation_score && (
+                                <div className="flex items-center gap-1 mt-1">
+                                  <StarRating value={task.evaluation_score} />
+                                  {task.evaluation_notes && <span className="text-xs text-gray-400 mr-2">{task.evaluation_notes}</span>}
+                                </div>
+                              )}
+                              {task.logs_count > 0 && (
+                                <span className="text-[11px] text-blue-500 mt-1 block">{task.logs_count} سجل عمل</span>
                               )}
                             </div>
-                            {task.description && <p className="text-xs text-gray-400">{task.description}</p>}
-                            {task.assignee_name && <p className="text-xs text-primary-600 mt-0.5">المسؤول: {task.assignee_name}</p>}
-                            {task.is_completed && task.evaluation_score && (
-                              <div className="flex items-center gap-1 mt-1">
-                                <StarRating value={task.evaluation_score} />
-                                {task.evaluation_notes && <span className="text-xs text-gray-400 mr-2">{task.evaluation_notes}</span>}
-                              </div>
-                            )}
-                          </div>
-                          <div className="flex items-center gap-1">
-                            {!task.is_completed && (
-                              <>
-                                <button onClick={() => setEditTaskModal({ ...task, assigned_to: task.assigned_to || '', priority: task.priority || 'normal' })}
-                                  className="p-1.5 rounded-lg hover:bg-blue-50 text-blue-500" title="تعديل المهمة">
-                                  <Pencil className="w-4 h-4" />
+                            <div className="flex items-center gap-1 flex-shrink-0">
+                              {!isLocked && !task.is_completed && (
+                                <>
+                                  <button onClick={() => setEditTaskModal({ ...task, assigned_to: task.assigned_to || '', priority: task.priority || 'normal', region_id: task.region_id || '' })}
+                                    className="p-1.5 rounded-lg hover:bg-blue-50 text-blue-500" title="تعديل">
+                                    <Pencil className="w-4 h-4" />
+                                  </button>
+                                  <button onClick={() => setLogModal({ open: true, taskId: task.id })} className="p-1.5 rounded-lg hover:bg-amber-50 text-amber-500" title="تسجيل عمل يومي">
+                                    <ClipboardList className="w-4 h-4" />
+                                  </button>
+                                  <button onClick={() => setCompleteModal({ open: true, taskId: task.id, score: 0, notes: '' })} className="p-1.5 rounded-lg hover:bg-green-50 text-green-500" title="إتمام وتقييم">
+                                    <CheckCircle className="w-4 h-4" />
+                                  </button>
+                                </>
+                              )}
+                              <button onClick={() => loadTaskLogs(task)} className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-500" title="السجلات">
+                                <FileText className="w-4 h-4" />
+                              </button>
+                              {!isLocked && (
+                                <button onClick={() => handleDeleteTask(task.id)} className="p-1.5 rounded-lg hover:bg-red-50 text-red-500" title="حذف">
+                                  <Trash2 className="w-4 h-4" />
                                 </button>
-                                <button onClick={() => setCompleteModal({ open: true, taskId: task.id, score: 0, notes: '' })}
-                                  className="p-1.5 rounded-lg hover:bg-green-50 text-green-500" title="إتمام المهمة">
-                                  <CheckCircle className="w-4 h-4" />
-                                </button>
-                              </>
-                            )}
-                            <button onClick={() => handleDeleteTask(task.id)} className="p-1.5 rounded-lg hover:bg-red-50 text-red-500">
-                              <Trash2 className="w-4 h-4" />
-                            </button>
+                              )}
+                            </div>
                           </div>
                         </div>
                       ))
@@ -366,7 +466,7 @@ export default function WorkPlansPage() {
       <Modal open={modalOpen} onClose={() => setModalOpen(false)} title={editItem ? 'تعديل خطة العمل' : 'خطة عمل جديدة'} size="lg">
         <div className="space-y-4">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <div className="col-span-2">
+            <div className="sm:col-span-2">
               <label className="block text-sm font-medium text-gray-700 mb-1">عنوان الخطة *</label>
               <Input value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} placeholder="عنوان خطة العمل" />
             </div>
@@ -416,35 +516,46 @@ export default function WorkPlansPage() {
             <textarea value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} className="w-full h-20 px-3 py-2 rounded-lg border-2 border-gray-200 text-sm focus:border-primary-500 outline-none resize-none" placeholder="وصف خطة العمل" />
           </div>
 
-          {/* Tasks */}
           <div className="border-t pt-4">
-            <h4 className="font-medium text-sm mb-3">المهام الأولية (يمكن إضافة المزيد لاحقاً)</h4>
-            <div className="space-y-2">
+            <h4 className="font-medium text-sm mb-3">المهام الأولية</h4>
+            <div className="space-y-3">
               {form.tasks.map((task, idx) => (
-                <div key={idx} className="flex gap-2 items-start">
-                  <div className="flex-1 grid grid-cols-1 sm:grid-cols-2 gap-2">
+                <div key={idx} className="p-3 bg-gray-50 rounded-lg border border-gray-200 space-y-2">
+                  <div className="flex gap-2 items-start">
                     <Input value={task.title} onChange={(e) => {
                       const newTasks = [...form.tasks];
                       newTasks[idx].title = e.target.value;
                       setForm({ ...form, tasks: newTasks });
-                    }} placeholder={`مهمة ${idx + 1}`} />
+                    }} placeholder={`مهمة ${idx + 1}`} className="flex-1" />
+                    {form.tasks.length > 1 && (
+                      <button onClick={() => setForm({ ...form, tasks: form.tasks.filter((_, i) => i !== idx) })} className="p-2 text-red-500 hover:bg-red-50 rounded-lg">
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    )}
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
                     <select value={task.assigned_to || ''} onChange={(e) => {
                       const newTasks = [...form.tasks];
                       newTasks[idx].assigned_to = e.target.value;
                       setForm({ ...form, tasks: newTasks });
-                    }} className="h-10 px-3 rounded-lg border-2 border-gray-200 text-sm">
+                    }} className="h-9 px-3 rounded-lg border-2 border-gray-200 text-sm">
                       <option value="">بدون مسؤول</option>
                       {employees.map((emp) => <option key={emp.id} value={emp.id}>{emp.name}</option>)}
                     </select>
+                    <Input type="date" value={task.start_date || ''} onChange={(e) => {
+                      const newTasks = [...form.tasks];
+                      newTasks[idx].start_date = e.target.value;
+                      setForm({ ...form, tasks: newTasks });
+                    }} />
+                    <Input type="date" value={task.end_date || ''} onChange={(e) => {
+                      const newTasks = [...form.tasks];
+                      newTasks[idx].end_date = e.target.value;
+                      setForm({ ...form, tasks: newTasks });
+                    }} />
                   </div>
-                  {form.tasks.length > 1 && (
-                    <button onClick={() => setForm({ ...form, tasks: form.tasks.filter((_, i) => i !== idx) })} className="p-2 text-red-500 hover:bg-red-50 rounded-lg mt-0">
-                      <Trash2 className="w-4 h-4" />
-                    </button>
-                  )}
                 </div>
               ))}
-              <button onClick={() => setForm({ ...form, tasks: [...form.tasks, { title: '', description: '', assigned_to: '', priority: 'normal' }] })} className="text-sm text-primary-600 hover:underline flex items-center gap-1">
+              <button onClick={() => setForm({ ...form, tasks: [...form.tasks, { title: '', description: '', assigned_to: '', priority: 'normal', start_date: '', end_date: '', region_id: '' }] })} className="text-sm text-primary-600 hover:underline flex items-center gap-1">
                 <Plus className="w-4 h-4" /> إضافة مهمة
               </button>
             </div>
@@ -452,7 +563,7 @@ export default function WorkPlansPage() {
 
           <div className="flex justify-end gap-2 pt-4 border-t">
             <Button variant="outline" onClick={() => setModalOpen(false)}>إلغاء</Button>
-            <Button onClick={handleSave} disabled={saving || !form.title}>{saving ? 'جاري الحفظ...' : editItem ? 'تحديث الخطة' : 'حفظ الخطة'}</Button>
+            <Button onClick={handleSave} disabled={saving || !form.title}>{saving ? 'جاري الحفظ...' : editItem ? 'تحديث' : 'حفظ'}</Button>
           </div>
         </div>
       </Modal>
@@ -483,6 +594,21 @@ export default function WorkPlansPage() {
                 <option value="normal">عادية</option>
                 <option value="high">مهمة</option>
                 <option value="urgent">عاجلة</option>
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">من تاريخ</label>
+              <Input type="date" value={taskForm.start_date} onChange={(e) => setTaskForm({ ...taskForm, start_date: e.target.value })} />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">إلى تاريخ</label>
+              <Input type="date" value={taskForm.end_date} onChange={(e) => setTaskForm({ ...taskForm, end_date: e.target.value })} />
+            </div>
+            <div className="sm:col-span-2">
+              <label className="block text-sm font-medium text-gray-700 mb-1">المنطقة</label>
+              <select value={taskForm.region_id} onChange={(e) => setTaskForm({ ...taskForm, region_id: e.target.value })} className="w-full h-10 px-3 rounded-lg border-2 border-gray-200 text-sm">
+                <option value="">اختر المنطقة</option>
+                {regions.map((r) => <option key={r.id} value={r.id}>{r.name}</option>)}
               </select>
             </div>
           </div>
@@ -521,6 +647,21 @@ export default function WorkPlansPage() {
                 <option value="urgent">عاجلة</option>
               </select>
             </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">من تاريخ</label>
+              <Input type="date" value={editTaskModal?.start_date || ''} onChange={(e) => setEditTaskModal({ ...editTaskModal, start_date: e.target.value })} />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">إلى تاريخ</label>
+              <Input type="date" value={editTaskModal?.end_date || ''} onChange={(e) => setEditTaskModal({ ...editTaskModal, end_date: e.target.value })} />
+            </div>
+            <div className="sm:col-span-2">
+              <label className="block text-sm font-medium text-gray-700 mb-1">المنطقة</label>
+              <select value={editTaskModal?.region_id || ''} onChange={(e) => setEditTaskModal({ ...editTaskModal, region_id: e.target.value })} className="w-full h-10 px-3 rounded-lg border-2 border-gray-200 text-sm">
+                <option value="">اختر المنطقة</option>
+                {regions.map((r) => <option key={r.id} value={r.id}>{r.name}</option>)}
+              </select>
+            </div>
           </div>
           <div className="flex justify-end gap-2 pt-4 border-t">
             <Button variant="outline" onClick={() => setEditTaskModal(null)}>إلغاء</Button>
@@ -545,6 +686,165 @@ export default function WorkPlansPage() {
             <Button onClick={handleCompleteTask} disabled={saving || completeModal.score === 0}>{saving ? 'جاري الحفظ...' : 'إتمام وتقييم'}</Button>
           </div>
         </div>
+      </Modal>
+
+      {/* Daily Work Log Modal */}
+      <Modal open={logModal.open} onClose={() => setLogModal({ open: false, taskId: 0 })} title="تسجيل عمل يومي">
+        <div className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">التاريخ *</label>
+            <Input type="date" value={logForm.log_date} onChange={(e) => setLogForm({ ...logForm, log_date: e.target.value })} />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">الأعمال المنجزة *</label>
+            <textarea value={logForm.completed_work} onChange={(e) => setLogForm({ ...logForm, completed_work: e.target.value })}
+              className="w-full h-24 px-3 py-2 rounded-lg border-2 border-gray-200 text-sm focus:border-primary-500 outline-none resize-none"
+              placeholder="اكتب الأعمال التي تم إنجازها اليوم..." />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">نسبة الإنجاز {logForm.progress_percent}%</label>
+            <input type="range" min="0" max="100" value={logForm.progress_percent}
+              onChange={(e) => setLogForm({ ...logForm, progress_percent: Number(e.target.value) })}
+              className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-primary-500" />
+            <div className="flex justify-between text-[10px] text-gray-400 mt-0.5">
+              <span>0%</span><span>25%</span><span>50%</span><span>75%</span><span>100%</span>
+            </div>
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">ملاحظات</label>
+            <textarea value={logForm.notes} onChange={(e) => setLogForm({ ...logForm, notes: e.target.value })}
+              className="w-full h-16 px-3 py-2 rounded-lg border-2 border-gray-200 text-sm focus:border-primary-500 outline-none resize-none"
+              placeholder="ملاحظات إضافية..." />
+          </div>
+          <div className="flex justify-end gap-2 pt-4 border-t">
+            <Button variant="outline" onClick={() => setLogModal({ open: false, taskId: 0 })}>إلغاء</Button>
+            <Button onClick={handleAddLog} disabled={saving || !logForm.completed_work.trim()}>{saving ? 'جاري الحفظ...' : 'حفظ السجل'}</Button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* Task Logs Modal */}
+      <Modal open={taskLogsModal.open} onClose={() => setTaskLogsModal({ open: false, task: null })} title={`سجلات العمل — ${taskLogsModal.task?.title || ''}`} size="lg">
+        <div className="space-y-3">
+          {taskLogs.length === 0 ? (
+            <p className="text-gray-400 text-center py-6">لا توجد سجلات عمل بعد</p>
+          ) : taskLogs.map((log: any) => (
+            <div key={log.id} className="p-3 bg-gray-50 rounded-lg border border-gray-200">
+              <div className="flex items-start justify-between">
+                <div className="flex-1">
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className="text-xs font-bold text-primary-600 bg-primary-50 px-2 py-0.5 rounded">{log.log_date}</span>
+                    <span className="text-xs font-bold text-blue-600">{log.progress_percent}%</span>
+                    {log.employee_name && <span className="text-xs text-gray-500">— {log.employee_name}</span>}
+                  </div>
+                  <p className="text-sm text-gray-700">{log.completed_work}</p>
+                  {log.notes && <p className="text-xs text-gray-400 mt-1">{log.notes}</p>}
+                </div>
+                <button onClick={() => handleDeleteLog(log.id)} className="p-1 rounded hover:bg-red-50 text-red-400">
+                  <Trash2 className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      </Modal>
+
+      {/* Close Plan Modal */}
+      <Modal open={closeModal.open} onClose={() => setCloseModal({ open: false, planId: 0 })} title="إغلاق خطة العمل">
+        <div className="space-y-4">
+          <p className="text-sm text-gray-600">هل أنت متأكد من إغلاق هذه الخطة؟ لن يمكن بعدها تعديلها أو إضافة مهام.</p>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">ملاحظات الإغلاق</label>
+            <textarea value={closeNotes} onChange={(e) => setCloseNotes(e.target.value)}
+              className="w-full h-20 px-3 py-2 rounded-lg border-2 border-gray-200 text-sm focus:border-primary-500 outline-none resize-none"
+              placeholder="ملاحظات عند الإغلاق..." />
+          </div>
+          <div className="flex justify-end gap-2 pt-4 border-t">
+            <Button variant="outline" onClick={() => setCloseModal({ open: false, planId: 0 })}>إلغاء</Button>
+            <Button onClick={handleClosePlan} disabled={saving} className="bg-purple-600 hover:bg-purple-700">{saving ? 'جاري الإغلاق...' : 'إغلاق الخطة'}</Button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* Evaluation Summary Modal */}
+      <Modal open={evalModal.open} onClose={() => setEvalModal({ open: false, data: null })} title="ملخص التقييم" size="lg">
+        {evalModal.data && (
+          <div className="space-y-6">
+            <div>
+              <h4 className="font-bold text-sm text-gray-700 mb-3">تقييم حسب العمال</h4>
+              {evalModal.data.by_employee?.length === 0 ? (
+                <p className="text-gray-400 text-sm text-center py-4">لا توجد بيانات تقييم</p>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead><tr className="bg-gray-50 border-b">
+                      <th className="px-3 py-2 text-right text-xs font-semibold">العامل</th>
+                      <th className="px-3 py-2 text-right text-xs font-semibold">المنطقة</th>
+                      <th className="px-3 py-2 text-center text-xs font-semibold">المهام</th>
+                      <th className="px-3 py-2 text-center text-xs font-semibold">المكتملة</th>
+                      <th className="px-3 py-2 text-center text-xs font-semibold">الإنجاز</th>
+                      <th className="px-3 py-2 text-center text-xs font-semibold">التقييم</th>
+                    </tr></thead>
+                    <tbody className="divide-y divide-gray-100">
+                      {evalModal.data.by_employee.map((emp: any, i: number) => (
+                        <tr key={i} className="hover:bg-gray-50">
+                          <td className="px-3 py-2 font-medium">{emp.name}</td>
+                          <td className="px-3 py-2 text-gray-500">{emp.region || '—'}</td>
+                          <td className="px-3 py-2 text-center">{emp.tasks_total}</td>
+                          <td className="px-3 py-2 text-center">{emp.tasks_completed}</td>
+                          <td className="px-3 py-2 text-center">
+                            <span className={`font-bold ${emp.avg_progress >= 80 ? 'text-green-600' : emp.avg_progress >= 50 ? 'text-amber-600' : 'text-red-600'}`}>
+                              {emp.avg_progress}%
+                            </span>
+                          </td>
+                          <td className="px-3 py-2 text-center">
+                            {emp.avg_score > 0 ? (
+                              <span className="inline-flex items-center gap-1">
+                                <Star className="w-4 h-4 fill-amber-400 text-amber-400" />
+                                <span className="font-bold">{emp.avg_score}</span>
+                              </span>
+                            ) : '—'}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+
+            <div className="border-t pt-4">
+              <h4 className="font-bold text-sm text-gray-700 mb-3">تقييم حسب المناطق</h4>
+              {evalModal.data.by_region?.length === 0 ? (
+                <p className="text-gray-400 text-sm text-center py-4">لا توجد بيانات مناطق</p>
+              ) : (
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                  {evalModal.data.by_region.map((region: any, i: number) => (
+                    <div key={i} className="p-3 bg-gray-50 rounded-lg border border-gray-200">
+                      <h5 className="font-bold text-sm text-gray-800 mb-2">{region.region}</h5>
+                      <div className="space-y-1 text-xs text-gray-600">
+                        <div className="flex justify-between"><span>العمال:</span><span className="font-bold">{region.employees_count}</span></div>
+                        <div className="flex justify-between"><span>المهام:</span><span className="font-bold">{region.tasks_completed}/{region.tasks_total}</span></div>
+                        <div className="flex justify-between"><span>الإنجاز:</span>
+                          <span className={`font-bold ${region.completion_pct >= 80 ? 'text-green-600' : region.completion_pct >= 50 ? 'text-amber-600' : 'text-red-600'}`}>
+                            {region.completion_pct}%
+                          </span>
+                        </div>
+                        {region.avg_score > 0 && (
+                          <div className="flex justify-between"><span>التقييم:</span>
+                            <span className="font-bold flex items-center gap-1">
+                              <Star className="w-3 h-3 fill-amber-400 text-amber-400" />{region.avg_score}
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
       </Modal>
     </div>
   );

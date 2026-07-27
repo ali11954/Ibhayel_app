@@ -8,7 +8,7 @@ from models import (
     Evaluation, EvaluationCriteria, EvaluationDetail, FinancialTransaction, Salary,
     Contract, Supplier, SupplierInvoice, SupplierInvoicePayment, Invoice, Account, JournalEntry, JournalEntryDetail,
     JournalEntryDetail as JED, MealDeduction, LaborMonthlyCost, ContractorAnnualCost,
-    ExpenseCategory, SystemSettings, AllowanceSetting, WorkPlan, WorkPlanTask,
+    ExpenseCategory, SystemSettings, AllowanceSetting, WorkPlan, WorkPlanTask, WorkPlanTaskLog,
     FinancialPeriod, LeaveType, LeaveBalance, LeaveRequest, BankInfo
 )
 
@@ -762,6 +762,8 @@ def api_work_plan_create():
 @login_required
 def api_work_plan_update(pid):
     p = WorkPlan.query.get_or_404(pid)
+    if p.is_locked:
+        return fail('الخطة مغلقة - لا يمكن تعديلها', 403)
     data = request.get_json(force=True, silent=True) or {}
     for field in ['title', 'description', 'plan_type', 'company_id', 'region_id', 'location_id', 'assigned_to', 'status', 'progress']:
         if field in data:
@@ -824,6 +826,8 @@ def api_work_plan_delete(pid):
 @login_required
 def api_work_plan_task_add(pid):
     p = WorkPlan.query.get_or_404(pid)
+    if p.is_locked:
+        return fail('الخطة مغلقة - لا يمكن إضافة مهام', 403)
     data = request.get_json(force=True, silent=True) or {}
     task = WorkPlanTask(
         plan_id=pid,
@@ -833,6 +837,9 @@ def api_work_plan_task_add(pid):
         assigned_to=data.get('assigned_to'),
         priority=data.get('priority', 'normal'),
         estimated_hours=data.get('estimated_hours'),
+        start_date=datetime.strptime(data['start_date'], '%Y-%m-%d').date() if data.get('start_date') else None,
+        end_date=datetime.strptime(data['end_date'], '%Y-%m-%d').date() if data.get('end_date') else None,
+        region_id=data.get('region_id'),
     )
     db.session.add(task)
     db.session.commit()
@@ -875,12 +882,164 @@ def api_work_plan_task_delete(tid):
 @login_required
 def api_work_plan_task_update(tid):
     task = WorkPlanTask.query.get_or_404(tid)
+    if task.plan.is_locked:
+        return fail('الخطة مغلقة - لا يمكن تعديل المهام', 403)
     data = request.get_json(force=True, silent=True) or {}
-    for field in ['title', 'description', 'order', 'assigned_to', 'priority', 'estimated_hours']:
+    for field in ['title', 'description', 'order', 'assigned_to', 'priority', 'estimated_hours', 'region_id', 'progress_percent']:
         if field in data:
             setattr(task, field, data[field])
+    if 'start_date' in data and data['start_date']:
+        task.start_date = datetime.strptime(data['start_date'], '%Y-%m-%d').date()
+    if 'end_date' in data and data['end_date']:
+        task.end_date = datetime.strptime(data['end_date'], '%Y-%m-%d').date()
     db.session.commit()
     return ok(task.to_dict(), 'تم تحديث المهمة')
+
+
+# ==================== WORK PLAN TASK LOGS ====================
+
+@rest_api.route('/work-plans/tasks/<int:tid>/logs', methods=['GET'])
+@login_required
+def api_work_plan_task_logs(tid):
+    task = WorkPlanTask.query.get_or_404(tid)
+    logs = WorkPlanTaskLog.query.filter_by(task_id=tid).order_by(WorkPlanTaskLog.log_date.desc()).all()
+    return ok([l.to_dict() for l in logs])
+
+
+@rest_api.route('/work-plans/tasks/<int:tid>/logs', methods=['POST'])
+@login_required
+def api_work_plan_task_log_add(tid):
+    task = WorkPlanTask.query.get_or_404(tid)
+    if task.plan.is_locked:
+        return fail('الخطة مغلقة - لا يمكن إضافة سجلات', 403)
+    data = request.get_json(force=True, silent=True) or {}
+    if not data.get('completed_work'):
+        return fail('أدخل الأعمال المنجزة')
+
+    log = WorkPlanTaskLog(
+        task_id=tid,
+        log_date=datetime.strptime(data['log_date'], '%Y-%m-%d').date() if data.get('log_date') else datetime.utcnow().date(),
+        completed_work=data.get('completed_work', ''),
+        progress_percent=min(100, max(0, int(data.get('progress_percent', 0)))),
+        notes=data.get('notes', ''),
+        employee_id=data.get('employee_id'),
+        created_by=current_user.id,
+    )
+    db.session.add(log)
+
+    # تحديث نسبة إنجاز المهمة
+    task.progress_percent = min(100, max(0, int(data.get('progress_percent', task.progress_percent))))
+    if task.progress_percent >= 100:
+        task.is_completed = True
+        task.completed_at = datetime.utcnow()
+
+    # تحديث نسبة إنجاز الخطة
+    total = len(task.plan.tasks)
+    completed_count = sum(1 for t in task.plan.tasks if t.is_completed or t.id == tid)
+    task.plan.progress = round(completed_count / total * 100) if total > 0 else 0
+    if task.plan.progress == 100:
+        task.plan.status = 'completed'
+    elif task.plan.progress > 0 and task.plan.status == 'pending':
+        task.plan.status = 'in_progress'
+
+    db.session.commit()
+    return ok(log.to_dict(), 'تم إضافة سجل العمل')
+
+
+@rest_api.route('/work-plans/tasks/logs/<int:log_id>', methods=['DELETE'])
+@login_required
+def api_work_plan_task_log_delete(log_id):
+    log = WorkPlanTaskLog.query.get_or_404(log_id)
+    if log.task.plan.is_locked:
+        return fail('الخطة مغلقة', 403)
+    db.session.delete(log)
+    db.session.commit()
+    return ok(message='تم حذف السجل')
+
+
+# ==================== WORK PLAN CLOSE ====================
+
+@rest_api.route('/work-plans/<int:pid>/close', methods=['POST'])
+@login_required
+def api_work_plan_close(pid):
+    p = WorkPlan.query.get_or_404(pid)
+    if p.is_locked:
+        return fail('الخطة مغلقة بالفعل')
+    data = request.get_json(force=True, silent=True) or {}
+    p.is_locked = True
+    p.status = 'closed'
+    p.closed_at = datetime.utcnow()
+    p.closed_by = current_user.id
+    p.close_notes = data.get('close_notes', '')
+    db.session.commit()
+    return ok(p.to_dict(), 'تم إغلاق خطة العمل')
+
+
+# ==================== WORK PLAN EVALUATION SUMMARY ====================
+
+@rest_api.route('/work-plans/<int:pid>/evaluation', methods=['GET'])
+@login_required
+def api_work_plan_evaluation(pid):
+    p = WorkPlan.query.get_or_404(pid)
+
+    # تجميع حسب العامل
+    by_employee = {}
+    for task in p.tasks:
+        emp_name = task.assignee_name or 'غير محدد'
+        emp_id = task.assigned_to or 0
+        if emp_id not in by_employee:
+            by_employee[emp_id] = {'name': emp_name, 'tasks_total': 0, 'tasks_completed': 0, 'total_progress': 0, 'scores': [], 'region': task.region_name}
+        by_employee[emp_id]['tasks_total'] += 1
+        if task.is_completed:
+            by_employee[emp_id]['tasks_completed'] += 1
+        by_employee[emp_id]['total_progress'] += task.progress_percent or 0
+        if task.evaluation_score:
+            by_employee[emp_id]['scores'].append(task.evaluation_score)
+
+    employee_summary = []
+    for emp_id, data in by_employee.items():
+        avg_score = round(sum(data['scores']) / len(data['scores']), 1) if data['scores'] else 0
+        avg_progress = round(data['total_progress'] / data['tasks_total']) if data['tasks_total'] > 0 else 0
+        employee_summary.append({
+            'employee_id': emp_id,
+            'name': data['name'],
+            'region': data['region'],
+            'tasks_total': data['tasks_total'],
+            'tasks_completed': data['tasks_completed'],
+            'avg_progress': avg_progress,
+            'avg_score': avg_score,
+        })
+
+    # تجميع حسب المنطقة
+    by_region = {}
+    for emp in employee_summary:
+        region = emp['region'] or 'بدون منطقة'
+        if region not in by_region:
+            by_region[region] = {'employees': 0, 'tasks_total': 0, 'tasks_completed': 0, 'scores': []}
+        by_region[region]['employees'] += 1
+        by_region[region]['tasks_total'] += emp['tasks_total']
+        by_region[region]['tasks_completed'] += emp['tasks_completed']
+        if emp['avg_score'] > 0:
+            by_region[region]['scores'].append(emp['avg_score'])
+
+    region_summary = []
+    for region, data in by_region.items():
+        avg_score = round(sum(data['scores']) / len(data['scores']), 1) if data['scores'] else 0
+        completion = round(data['tasks_completed'] / data['tasks_total'] * 100) if data['tasks_total'] > 0 else 0
+        region_summary.append({
+            'region': region,
+            'employees_count': data['employees'],
+            'tasks_total': data['tasks_total'],
+            'tasks_completed': data['tasks_completed'],
+            'completion_pct': completion,
+            'avg_score': avg_score,
+        })
+
+    return ok({
+        'plan': p.to_dict(),
+        'by_employee': employee_summary,
+        'by_region': region_summary,
+    })
 
 
 # ==================== FINANCIAL ====================
