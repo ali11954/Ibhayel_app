@@ -152,6 +152,44 @@ def debug_dist_info():
         result['db_error'] = str(e)
     return jsonify(result)
 
+@app.route('/api/debug/force-fix')
+def debug_force_fix():
+    """Force-add all missing columns"""
+    results = []
+    def add(col_sql):
+        try:
+            db.session.execute(sa.text(col_sql))
+            db.session.commit()
+            results.append({'sql': col_sql[:80], 'ok': True})
+        except Exception as e:
+            db.session.rollback()
+            msg = str(e).lower()
+            if 'already exists' in msg:
+                results.append({'sql': col_sql[:80], 'ok': True, 'note': 'already exists'})
+            else:
+                results.append({'sql': col_sql[:80], 'ok': False, 'error': str(e)[:150]})
+
+    add("ALTER TABLE work_plans ADD COLUMN IF NOT EXISTS is_locked BOOLEAN DEFAULT FALSE")
+    add("ALTER TABLE work_plans ADD COLUMN IF NOT EXISTS closed_at TIMESTAMP")
+    add("ALTER TABLE work_plans ADD COLUMN IF NOT EXISTS closed_by INTEGER")
+    add("ALTER TABLE work_plans ADD COLUMN IF NOT EXISTS close_notes TEXT")
+    add("ALTER TABLE work_plan_tasks ADD COLUMN IF NOT EXISTS start_date DATE")
+    add("ALTER TABLE work_plan_tasks ADD COLUMN IF NOT EXISTS end_date DATE")
+    add("ALTER TABLE work_plan_tasks ADD COLUMN IF NOT EXISTS region_id INTEGER")
+    add("ALTER TABLE work_plan_tasks ADD COLUMN IF NOT EXISTS progress_percent INTEGER DEFAULT 0")
+    add("ALTER TABLE evaluations ADD COLUMN IF NOT EXISTS region_id INTEGER")
+    add("ALTER TABLE evaluations ADD COLUMN IF NOT EXISTS location_id INTEGER")
+    add("ALTER TABLE evaluation_criteria ADD COLUMN IF NOT EXISTS company_id INTEGER")
+    add("ALTER TABLE financial_transactions ADD COLUMN IF NOT EXISTS payment_method VARCHAR(20) DEFAULT 'cash'")
+    add("ALTER TABLE financial_transactions ADD COLUMN IF NOT EXISTS supplier_id INTEGER")
+    add("ALTER TABLE financial_transactions ADD COLUMN IF NOT EXISTS monthly_installment FLOAT DEFAULT 0")
+    add("ALTER TABLE financial_transactions ADD COLUMN IF NOT EXISTS settled_amount FLOAT DEFAULT 0")
+    add("ALTER TABLE financial_transactions ADD COLUMN IF NOT EXISTS journal_entry_id INTEGER")
+    add("ALTER TABLE work_plan_task_logs ADD COLUMN IF NOT EXISTS created_by INTEGER")
+    add("ALTER TABLE employees ADD COLUMN IF NOT EXISTS allowances_updated_at TIMESTAMP")
+
+    return jsonify(results)
+
 @app.route('/api/debug/emp-raw')
 def debug_emp_raw():
     import sys
