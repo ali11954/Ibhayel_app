@@ -748,13 +748,20 @@ def api_work_plan_create():
             title=t.get('title', ''),
             description=t.get('description', ''),
             order=i,
-            assigned_to=t.get('assigned_to'),
+            assigned_to=t.get('assigned_to') if t.get('assigned_to') else None,
             priority=t.get('priority', 'normal'),
             estimated_hours=t.get('estimated_hours'),
+            start_date=datetime.strptime(t['start_date'], '%Y-%m-%d').date() if t.get('start_date') else None,
+            end_date=datetime.strptime(t['end_date'], '%Y-%m-%d').date() if t.get('end_date') else None,
+            region_id=t.get('region_id') if t.get('region_id') else None,
         )
         db.session.add(task)
 
-    db.session.commit()
+    try:
+        db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+        return fail(f'خطأ في حفظ الخطة: {str(e)[:200]}', 500)
     return ok({'id': p.id}, 'تم إضافة خطة العمل')
 
 

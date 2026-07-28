@@ -121,6 +121,8 @@ export default function WorkPlansPage() {
           ...t,
           assigned_to: t.assigned_to ? Number(t.assigned_to) : null,
           region_id: t.region_id ? Number(t.region_id) : null,
+          start_date: t.start_date || null,
+          end_date: t.end_date || null,
         })),
       };
       if (editItem) {
