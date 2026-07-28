@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Plus, CalendarCheck, Users, Clock, AlertTriangle, ClipboardCheck } from 'lucide-react';
+import { Plus, CalendarCheck, Users, Clock, AlertTriangle, ClipboardCheck, Pencil, Check, X } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -33,6 +33,10 @@ export default function AttendancePage() {
   const [form, setForm] = useState({ employee_id: '', attendance_status: 'present', notes: '', time_in: '', time_out: '' });
   const [saving, setSaving] = useState(false);
   const [activeTab, setActiveTab] = useState<'list' | 'charts' | 'group'>('list');
+
+  // Inline editing state
+  const [editingId, setEditingId] = useState<number | null>(null);
+  const [editForm, setEditForm] = useState({ attendance_status: '', notes: '', time_in: '', time_out: '' });
 
   // Group preparation state
   const [groupData, setGroupData] = useState<Record<number, { status: string; notes: string }>>({});
@@ -92,6 +96,36 @@ export default function AttendancePage() {
       alert(err.response?.data?.message || 'حدث خطأ');
     } finally {
       setSavingCompany(null);
+    }
+  };
+
+  const startEdit = (rec: any) => {
+    setEditingId(rec.id);
+    setEditForm({
+      attendance_status: rec.attendance_status || 'present',
+      notes: rec.notes || '',
+      time_in: rec.check_in_time || '',
+      time_out: rec.check_out_time || '',
+    });
+  };
+
+  const cancelEdit = () => {
+    setEditingId(null);
+    setEditForm({ attendance_status: '', notes: '', time_in: '', time_out: '' });
+  };
+
+  const handleUpdate = async (recId: number) => {
+    try {
+      await api.put(`/attendance/${recId}`, {
+        attendance_status: editForm.attendance_status,
+        notes: editForm.notes,
+        time_in: editForm.time_in || null,
+        time_out: editForm.time_out || null,
+      });
+      cancelEdit();
+      loadData();
+    } catch (err: any) {
+      alert(err.response?.data?.message || 'حدث خطأ');
     }
   };
 
@@ -366,22 +400,69 @@ export default function AttendancePage() {
                   <th className="px-4 py-3 text-right font-semibold">وقت الخروج</th>
                   <th className="px-4 py-3 text-right font-semibold">الحالة</th>
                   <th className="px-4 py-3 text-right font-semibold">ملاحظات</th>
+                  <th className="px-4 py-3 text-center font-semibold w-20">إجراءات</th>
                 </tr></thead>
                 <tbody>
-                  {filtered.map((rec, i) => (
-                    <tr key={rec.id || i} className="border-b border-gray-100 hover:bg-gray-50">
-                      <td className="px-4 py-3"><div className="flex items-center gap-3"><div className="w-8 h-8 rounded-full bg-primary-100 flex items-center justify-center text-primary-700 text-sm font-bold">{rec.employee_name?.[0]}</div><span className="font-medium">{rec.employee_name}</span></div></td>
-                      <td className="px-4 py-3">{rec.check_in_time || '—'}</td>
-                      <td className="px-4 py-3">{rec.check_out_time || '—'}</td>
-                      <td className="px-4 py-3">
-                        <Badge variant={(BADGE_VARIANT[rec.attendance_status] || 'danger') as any}>
-                          {statusMap[rec.attendance_status] || rec.attendance_status}
-                        </Badge>
-                      </td>
-                      <td className="px-4 py-3 text-gray-500 text-xs">{rec.notes || '—'}</td>
-                    </tr>
-                  ))}
-                  {filtered.length === 0 && <tr><td colSpan={5} className="text-center py-8 text-gray-400">لا توجد سجلات</td></tr>}
+                  {filtered.map((rec, i) => {
+                    const isEditing = editingId === rec.id;
+                    return (
+                      <tr key={rec.id || i} className={`border-b border-gray-100 ${isEditing ? 'bg-primary-50' : 'hover:bg-gray-50'}`}>
+                        <td className="px-4 py-3">
+                          <div className="flex items-center gap-3">
+                            <div className="w-8 h-8 rounded-full bg-primary-100 flex items-center justify-center text-primary-700 text-sm font-bold">{rec.employee_name?.[0]}</div>
+                            <span className="font-medium">{rec.employee_name}</span>
+                          </div>
+                        </td>
+                        <td className="px-4 py-3">
+                          {isEditing ? (
+                            <Input type="time" value={editForm.time_in} onChange={(e) => setEditForm({ ...editForm, time_in: e.target.value })} className="h-8 text-xs w-28" />
+                          ) : (rec.check_in_time || '—')}
+                        </td>
+                        <td className="px-4 py-3">
+                          {isEditing ? (
+                            <Input type="time" value={editForm.time_out} onChange={(e) => setEditForm({ ...editForm, time_out: e.target.value })} className="h-8 text-xs w-28" />
+                          ) : (rec.check_out_time || '—')}
+                        </td>
+                        <td className="px-4 py-3">
+                          {isEditing ? (
+                            <select value={editForm.attendance_status} onChange={(e) => setEditForm({ ...editForm, attendance_status: e.target.value })}
+                              className="h-8 px-2 rounded-lg border border-gray-200 text-xs">
+                              {STATUS_OPTIONS.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
+                            </select>
+                          ) : (
+                            <Badge variant={(BADGE_VARIANT[rec.attendance_status] || 'danger') as any}>
+                              {statusMap[rec.attendance_status] || rec.attendance_status}
+                            </Badge>
+                          )}
+                        </td>
+                        <td className="px-4 py-3">
+                          {isEditing ? (
+                            <input type="text" value={editForm.notes} onChange={(e) => setEditForm({ ...editForm, notes: e.target.value })}
+                              className="w-full h-8 px-2 rounded-lg border border-gray-200 text-xs" placeholder="ملاحظة..." />
+                          ) : (
+                            <span className="text-gray-500 text-xs">{rec.notes || '—'}</span>
+                          )}
+                        </td>
+                        <td className="px-4 py-3 text-center">
+                          {isEditing ? (
+                            <div className="flex items-center justify-center gap-1">
+                              <button onClick={() => handleUpdate(rec.id)} className="p-1.5 rounded-lg bg-green-50 text-green-600 hover:bg-green-100" title="حفظ">
+                                <Check className="w-4 h-4" />
+                              </button>
+                              <button onClick={cancelEdit} className="p-1.5 rounded-lg bg-red-50 text-red-600 hover:bg-red-100" title="إلغاء">
+                                <X className="w-4 h-4" />
+                              </button>
+                            </div>
+                          ) : (
+                            <button onClick={() => startEdit(rec)} className="p-1.5 rounded-lg hover:bg-blue-50 text-blue-500" title="تعديل">
+                              <Pencil className="w-4 h-4" />
+                            </button>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                  {filtered.length === 0 && <tr><td colSpan={6} className="text-center py-8 text-gray-400">لا توجد سجلات</td></tr>}
                 </tbody>
               </table>
             )}

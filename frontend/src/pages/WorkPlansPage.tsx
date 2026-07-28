@@ -4,6 +4,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Modal } from '@/components/ui/modal';
+import { MobileSelect } from '@/components/ui/select';
 import api from '@/api/client';
 
 function StarRating({ value, onChange, max = 5 }: { value: number; onChange?: (v: number) => void; max?: number }) {
@@ -484,31 +485,23 @@ export default function WorkPlansPage() {
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">الشركة</label>
-              <select value={form.company_id} onChange={(e) => setForm({ ...form, company_id: e.target.value })} className="w-full h-10 px-3 rounded-lg border-2 border-gray-200 text-sm">
-                <option value="">اختر الشركة</option>
-                {companies.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
-              </select>
+              <MobileSelect value={form.company_id} onChange={(v) => setForm({ ...form, company_id: v })}
+                options={companies.map((c) => ({ value: c.id, label: c.name }))} placeholder="اختر الشركة" />
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">المنطقة</label>
-              <select value={form.region_id} onChange={(e) => setForm({ ...form, region_id: e.target.value })} className="w-full h-10 px-3 rounded-lg border-2 border-gray-200 text-sm">
-                <option value="">اختر المنطقة</option>
-                {regions.map((r) => <option key={r.id} value={r.id}>{r.name}</option>)}
-              </select>
+              <MobileSelect value={form.region_id} onChange={(v) => setForm({ ...form, region_id: v })}
+                options={regions.map((r) => ({ value: r.id, label: r.name }))} placeholder="اختر المنطقة" />
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">الموقع</label>
-              <select value={form.location_id} onChange={(e) => setForm({ ...form, location_id: e.target.value })} className="w-full h-10 px-3 rounded-lg border-2 border-gray-200 text-sm">
-                <option value="">اختر الموقع</option>
-                {locations.filter((l: any) => !form.region_id || l.region_id === Number(form.region_id)).map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}
-              </select>
+              <MobileSelect value={form.location_id} onChange={(v) => setForm({ ...form, location_id: v })}
+                options={locations.filter((l: any) => !form.region_id || l.region_id === Number(form.region_id)).map((l) => ({ value: l.id, label: l.name }))} placeholder="اختر الموقع" />
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">المكلف</label>
-              <select value={form.assigned_to} onChange={(e) => setForm({ ...form, assigned_to: e.target.value })} className="w-full h-10 px-3 rounded-lg border-2 border-gray-200 text-sm">
-                <option value="">اختر الموظف</option>
-                {employees.map((e) => <option key={e.id} value={e.id}>{e.name} — {e.job_title || ''}</option>)}
-              </select>
+              <MobileSelect value={form.assigned_to} onChange={(v) => setForm({ ...form, assigned_to: v })}
+                options={employees.map((e) => ({ value: e.id, label: `${e.name} — ${e.job_title || ''}` }))} placeholder="اختر الموظف" />
             </div>
           </div>
           <div>
@@ -534,14 +527,12 @@ export default function WorkPlansPage() {
                     )}
                   </div>
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-                    <select value={task.assigned_to || ''} onChange={(e) => {
+                    <MobileSelect value={task.assigned_to || ''} onChange={(v) => {
                       const newTasks = [...form.tasks];
-                      newTasks[idx].assigned_to = e.target.value;
+                      newTasks[idx].assigned_to = v;
                       setForm({ ...form, tasks: newTasks });
-                    }} className="h-9 px-3 rounded-lg border-2 border-gray-200 text-sm">
-                      <option value="">بدون مسؤول</option>
-                      {employees.map((emp) => <option key={emp.id} value={emp.id}>{emp.name}</option>)}
-                    </select>
+                    }}
+                      options={employees.map((emp) => ({ value: emp.id, label: emp.name }))} placeholder="بدون مسؤول" />
                     <Input type="date" value={task.start_date || ''} onChange={(e) => {
                       const newTasks = [...form.tasks];
                       newTasks[idx].start_date = e.target.value;
@@ -582,10 +573,8 @@ export default function WorkPlansPage() {
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">المسؤول</label>
-              <select value={taskForm.assigned_to} onChange={(e) => setTaskForm({ ...taskForm, assigned_to: e.target.value })} className="w-full h-10 px-3 rounded-lg border-2 border-gray-200 text-sm">
-                <option value="">اختر المسؤول</option>
-                {employees.map((emp) => <option key={emp.id} value={emp.id}>{emp.name}</option>)}
-              </select>
+              <MobileSelect value={taskForm.assigned_to} onChange={(v) => setTaskForm({ ...taskForm, assigned_to: v })}
+                options={employees.map((emp) => ({ value: emp.id, label: emp.name }))} placeholder="اختر المسؤول" />
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">الأولوية</label>
@@ -606,10 +595,8 @@ export default function WorkPlansPage() {
             </div>
             <div className="sm:col-span-2">
               <label className="block text-sm font-medium text-gray-700 mb-1">المنطقة</label>
-              <select value={taskForm.region_id} onChange={(e) => setTaskForm({ ...taskForm, region_id: e.target.value })} className="w-full h-10 px-3 rounded-lg border-2 border-gray-200 text-sm">
-                <option value="">اختر المنطقة</option>
-                {regions.map((r) => <option key={r.id} value={r.id}>{r.name}</option>)}
-              </select>
+              <MobileSelect value={taskForm.region_id} onChange={(v) => setTaskForm({ ...taskForm, region_id: v })}
+                options={regions.map((r) => ({ value: r.id, label: r.name }))} placeholder="اختر المنطقة" />
             </div>
           </div>
           <div className="flex justify-end gap-2 pt-4 border-t">
@@ -633,10 +620,8 @@ export default function WorkPlansPage() {
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">المسؤول</label>
-              <select value={editTaskModal?.assigned_to || ''} onChange={(e) => setEditTaskModal({ ...editTaskModal, assigned_to: e.target.value })} className="w-full h-10 px-3 rounded-lg border-2 border-gray-200 text-sm">
-                <option value="">اختر المسؤول</option>
-                {employees.map((emp) => <option key={emp.id} value={emp.id}>{emp.name}</option>)}
-              </select>
+              <MobileSelect value={editTaskModal?.assigned_to || ''} onChange={(v) => setEditTaskModal({ ...editTaskModal, assigned_to: v })}
+                options={employees.map((emp) => ({ value: emp.id, label: emp.name }))} placeholder="اختر المسؤول" />
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">الأولوية</label>
@@ -657,10 +642,8 @@ export default function WorkPlansPage() {
             </div>
             <div className="sm:col-span-2">
               <label className="block text-sm font-medium text-gray-700 mb-1">المنطقة</label>
-              <select value={editTaskModal?.region_id || ''} onChange={(e) => setEditTaskModal({ ...editTaskModal, region_id: e.target.value })} className="w-full h-10 px-3 rounded-lg border-2 border-gray-200 text-sm">
-                <option value="">اختر المنطقة</option>
-                {regions.map((r) => <option key={r.id} value={r.id}>{r.name}</option>)}
-              </select>
+              <MobileSelect value={editTaskModal?.region_id || ''} onChange={(v) => setEditTaskModal({ ...editTaskModal, region_id: v })}
+                options={regions.map((r) => ({ value: r.id, label: r.name }))} placeholder="اختر المنطقة" />
             </div>
           </div>
           <div className="flex justify-end gap-2 pt-4 border-t">

@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Modal } from '@/components/ui/modal';
+import { MobileSelect } from '@/components/ui/select';
 import { formatNum } from '@/lib/utils';
 import { openEmployeeProfilePDF } from '@/lib/pdfExport';
 import api from '@/api/client';
@@ -866,10 +867,8 @@ export default function EmployeesPage() {
               {useNewJobTitle ? (
                 <Input value={form.job_title || ''} onChange={(e) => setForm({ ...form, job_title: e.target.value })} placeholder="أدخل المسمى الوظيفي" />
               ) : (
-                <select value={form.job_title || ''} onChange={(e) => setForm({ ...form, job_title: e.target.value })} className="w-full h-10 px-3 rounded-lg border-2 border-gray-200 text-sm focus:border-primary-500 outline-none">
-                  <option value="">اختر الوظيفة</option>
-                  {jobTitles.map((jt) => <option key={jt} value={jt}>{jt}</option>)}
-                </select>
+                <MobileSelect value={form.job_title || ''} onChange={(v) => setForm({ ...form, job_title: v })}
+                  options={jobTitles.map((jt) => ({ value: jt, label: jt }))} placeholder="اختر الوظيفة" />
               )}
               <button type="button" onClick={() => setUseNewJobTitle(!useNewJobTitle)} className="mt-1 text-xs text-primary-600 hover:underline">
                 {useNewJobTitle ? 'اختيار من القائمة' : 'إضافة وظيفة جديدة'}
@@ -877,27 +876,21 @@ export default function EmployeesPage() {
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">الشركة</label>
-              <select value={form.company_id || ''} onChange={(e) => setForm({ ...form, company_id: e.target.value })} className="w-full h-10 px-3 rounded-lg border-2 border-gray-200 text-sm focus:border-primary-500 outline-none">
-                <option value="">اختر الشركة</option>
-                {companies.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
-              </select>
+              <MobileSelect value={form.company_id || ''} onChange={(v) => setForm({ ...form, company_id: v })}
+                options={companies.map((c) => ({ value: c.id, label: c.name }))} placeholder="اختر الشركة" />
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">المنطقة</label>
-              <select value={form.region_id || ''} onChange={(e) => setForm({ ...form, region_id: e.target.value })} className="w-full h-10 px-3 rounded-lg border-2 border-gray-200 text-sm focus:border-primary-500 outline-none">
-                <option value="">اختر المنطقة</option>
-                {regions.map((r) => <option key={r.id} value={r.id}>{r.name}</option>)}
-              </select>
+              <MobileSelect value={form.region_id || ''} onChange={(v) => setForm({ ...form, region_id: v })}
+                options={regions.map((r) => ({ value: r.id, label: r.name }))} placeholder="اختر المنطقة" />
             </div>
             {form.employee_type === 'worker' && (
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">المشرف</label>
-                <select value={form.supervisor_id || ''} onChange={(e) => setForm({ ...form, supervisor_id: e.target.value })} className="w-full h-10 px-3 rounded-lg border-2 border-gray-200 text-sm focus:border-primary-500 outline-none">
-                  <option value="">اختر المشرف</option>
-                  {supervisors.filter(s => !form.company_id || s.company_id === Number(form.company_id)).map((s) => (
-                    <option key={s.id} value={s.id}>{s.name} ({s.company_name || 'بدون شركة'})</option>
-                  ))}
-                </select>
+                <MobileSelect value={form.supervisor_id || ''} onChange={(v) => setForm({ ...form, supervisor_id: v })}
+                  options={supervisors.filter(s => !form.company_id || s.company_id === Number(form.company_id)).map((s) => ({
+                    value: s.id, label: `${s.name} (${s.company_name || 'بدون شركة'})`
+                  }))} placeholder="اختر المشرف" />
               </div>
             )}
 
