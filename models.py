@@ -2371,6 +2371,13 @@ class WorkPlan(db.Model):
     tasks = db.relationship('WorkPlanTask', backref='plan', cascade='all, delete-orphan', order_by='WorkPlanTask.order')
 
     def to_dict(self):
+        tasks_list = self.tasks
+        n = len(tasks_list)
+        if n > 0:
+            computed_progress = round(sum(t.progress_percent or 0 for t in tasks_list) / n)
+        else:
+            computed_progress = self.progress or 0
+
         return {
             'id': self.id,
             'title': self.title,
@@ -2391,13 +2398,13 @@ class WorkPlan(db.Model):
             'creator_name': self.creator.full_name if self.creator else None,
             'status': self.status,
             'status_name': {'pending': 'قيد الانتظار', 'in_progress': 'قيد التنفيذ', 'completed': 'مكتمل', 'cancelled': 'ملغي', 'closed': 'مغلق'}.get(self.status, self.status),
-            'progress': self.progress,
+            'progress': computed_progress,
             'is_locked': self.is_locked,
             'closed_at': self.closed_at.strftime('%Y-%m-%d %H:%M') if self.closed_at else None,
             'close_notes': self.close_notes or '',
-            'tasks_count': len(self.tasks),
-            'completed_tasks': sum(1 for t in self.tasks if t.is_completed),
-            'tasks': [t.to_dict() for t in self.tasks],
+            'tasks_count': n,
+            'completed_tasks': sum(1 for t in tasks_list if t.is_completed),
+            'tasks': [t.to_dict() for t in tasks_list],
             'created_at': self.created_at.strftime('%Y-%m-%d %H:%M') if self.created_at else None,
         }
 

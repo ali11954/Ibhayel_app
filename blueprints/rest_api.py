@@ -811,10 +811,22 @@ def api_work_plan_update(pid):
                 db.session.delete(ot)
 
     total = len(p.tasks) + sum(1 for t in data.get('tasks', []) if not t.get('id') and t.get('title'))
-    completed = sum(1 for t in p.tasks if t.is_completed)
-    p.progress = round(completed / total * 100) if total > 0 else 0
-    if p.progress == 100:
+    if total > 0:
+        all_tasks = list(p.tasks)
+        completed = sum(1 for t in all_tasks if t.is_completed)
+        if completed == total:
+            p.progress = 100
+        else:
+            avg_progress = sum(t.progress_percent or 0 for t in all_tasks)
+            p.progress = round(avg_progress / total) if all_tasks else 0
+    else:
+        p.progress = 0
+    if p.progress >= 100:
+        p.progress = 100
         p.status = 'completed'
+        for t in p.tasks:
+            if not t.is_completed:
+                t.is_completed = True
 
     db.session.commit()
     return ok(p.to_dict(), 'تم تحديث خطة العمل')
@@ -859,15 +871,20 @@ def api_work_plan_task_complete(tid):
     task = WorkPlanTask.query.get_or_404(tid)
     data = request.get_json(force=True, silent=True) or {}
     task.is_completed = True
+    task.progress_percent = 100
     task.completed_at = datetime.utcnow()
     task.completed_by = data.get('completed_by')
     task.evaluation_score = data.get('evaluation_score')
     task.evaluation_notes = data.get('evaluation_notes', '')
 
-    total = len(task.plan.tasks)
-    completed = sum(1 for t in task.plan.tasks if t.is_completed or t.id == tid)
-    task.plan.progress = round(completed / total * 100) if total > 0 else 0
-    if task.plan.progress == 100:
+    all_tasks = list(task.plan.tasks)
+    total = len(all_tasks)
+    if total > 0:
+        avg_progress = sum(t.progress_percent or 0 for t in all_tasks)
+        task.plan.progress = round(avg_progress / total)
+    else:
+        task.plan.progress = 0
+    if task.plan.progress >= 100:
         task.plan.status = 'completed'
     elif task.plan.progress > 0:
         task.plan.status = 'in_progress'
@@ -940,11 +957,16 @@ def api_work_plan_task_log_add(tid):
         task.is_completed = True
         task.completed_at = datetime.utcnow()
 
-    # تحديث نسبة إنجاز الخطة
-    total = len(task.plan.tasks)
-    completed_count = sum(1 for t in task.plan.tasks if t.is_completed or t.id == tid)
-    task.plan.progress = round(completed_count / total * 100) if total > 0 else 0
-    if task.plan.progress == 100:
+    # تحديث نسبة إنجاز الخطة بناءً على متوسط تقدم المهام
+    all_tasks = list(task.plan.tasks)
+    total = len(all_tasks)
+    if total > 0:
+        avg_progress = sum(t.progress_percent or 0 for t in all_tasks)
+        task.plan.progress = round(avg_progress / total)
+    else:
+        task.plan.progress = 0
+    if task.plan.progress >= 100:
+        task.plan.progress = 100
         task.plan.status = 'completed'
     elif task.plan.progress > 0 and task.plan.status == 'pending':
         task.plan.status = 'in_progress'
