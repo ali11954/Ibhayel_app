@@ -18,6 +18,7 @@ interface MobileSelectProps {
 export function MobileSelect({ value, onChange, options, placeholder = 'اختر...', className = '' }: MobileSelectProps) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
+  const dropdownRef = useRef<HTMLDivElement>(null);
   const [position, setPosition] = useState({ top: 0, left: 0, width: 0 });
 
   const calcPosition = useCallback(() => {
@@ -35,12 +36,16 @@ export function MobileSelect({ value, onChange, options, placeholder = 'اختر
   }, [options.length]);
 
   useEffect(() => {
+    if (!open) return;
     const handler = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+      const target = e.target as Node;
+      const insideButton = ref.current?.contains(target);
+      const insideDropdown = dropdownRef.current?.contains(target);
+      if (!insideButton && !insideDropdown) setOpen(false);
     };
     document.addEventListener('mousedown', handler);
     return () => document.removeEventListener('mousedown', handler);
-  }, []);
+  }, [open]);
 
   useEffect(() => {
     if (open) calcPosition();
@@ -62,8 +67,9 @@ export function MobileSelect({ value, onChange, options, placeholder = 'اختر
       </button>
       {open && createPortal(
         <div
-          className="fixed z-[9999] bg-white border border-gray-200 rounded-lg shadow-xl max-h-60 overflow-y-auto"
-          style={{ top: position.top, left: position.left, width: position.width }}
+          ref={dropdownRef}
+          className="fixed bg-white border border-gray-200 rounded-lg shadow-xl max-h-60 overflow-y-auto"
+          style={{ top: position.top, left: position.left, width: position.width, zIndex: 9999 }}
         >
           <button
             type="button"
@@ -76,7 +82,7 @@ export function MobileSelect({ value, onChange, options, placeholder = 'اختر
             <button
               key={opt.value}
               type="button"
-              onClick={() => { onChange(String(opt.value)); setOpen(false); }}
+              onClick={(e) => { e.stopPropagation(); onChange(String(opt.value)); setOpen(false); }}
               className={`w-full px-3 py-2.5 text-sm text-right hover:bg-primary-50 transition-colors ${
                 String(opt.value) === String(value) ? 'bg-primary-50 text-primary-700 font-medium' : 'text-gray-700'
               }`}
