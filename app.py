@@ -173,6 +173,8 @@ def debug_force_fix():
     add("ALTER TABLE work_plans ADD COLUMN IF NOT EXISTS closed_at TIMESTAMP")
     add("ALTER TABLE work_plans ADD COLUMN IF NOT EXISTS closed_by INTEGER")
     add("ALTER TABLE work_plans ADD COLUMN IF NOT EXISTS close_notes TEXT")
+    add("ALTER TABLE work_plans ADD COLUMN IF NOT EXISTS is_recurring BOOLEAN DEFAULT FALSE")
+    add("ALTER TABLE work_plans ADD COLUMN IF NOT EXISTS recurrence_parent_id INTEGER")
     add("ALTER TABLE work_plan_tasks ADD COLUMN IF NOT EXISTS start_date DATE")
     add("ALTER TABLE work_plan_tasks ADD COLUMN IF NOT EXISTS end_date DATE")
     add("ALTER TABLE work_plan_tasks ADD COLUMN IF NOT EXISTS region_id INTEGER")
@@ -582,6 +584,8 @@ def auto_migrate():
     add_column('work_plans', 'closed_at', 'TIMESTAMP')
     add_column('work_plans', 'closed_by', 'INTEGER')
     add_column('work_plans', 'close_notes', 'TEXT')
+    add_column('work_plans', 'is_recurring', 'BOOLEAN', 'FALSE')
+    add_column('work_plans', 'recurrence_parent_id', 'INTEGER')
 
     add_column('work_plan_tasks', 'start_date', 'DATE')
     add_column('work_plan_tasks', 'end_date', 'DATE')

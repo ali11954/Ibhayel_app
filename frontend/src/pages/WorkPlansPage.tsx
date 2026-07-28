@@ -57,6 +57,7 @@ export default function WorkPlansPage() {
   const [form, setForm] = useState({
     title: '', description: '', plan_type: 'daily', company_id: '', region_id: '',
     location_id: '', plan_date: new Date().toISOString().split('T')[0], assigned_to: '',
+    is_recurring: false,
     tasks: [{ title: '', description: '', assigned_to: '', priority: 'normal', start_date: '', end_date: '', region_id: '' }],
   });
   const [taskForm, setTaskForm] = useState({ title: '', description: '', assigned_to: '', priority: 'normal', start_date: '', end_date: '', region_id: '' });
@@ -87,6 +88,7 @@ export default function WorkPlansPage() {
     setForm({
       title: '', description: '', plan_type: 'daily', company_id: '', region_id: '',
       location_id: '', plan_date: new Date().toISOString().split('T')[0], assigned_to: '',
+      is_recurring: false,
       tasks: [{ title: '', description: '', assigned_to: '', priority: 'normal', start_date: '', end_date: '', region_id: '' }],
     });
     setModalOpen(true);
@@ -98,7 +100,7 @@ export default function WorkPlansPage() {
       title: plan.title, description: plan.description || '', plan_type: plan.plan_type,
       company_id: plan.company_id || '', region_id: plan.region_id || '',
       location_id: plan.location_id || '', plan_date: plan.plan_date || new Date().toISOString().split('T')[0],
-      assigned_to: plan.assigned_to || '',
+      assigned_to: plan.assigned_to || '', is_recurring: plan.is_recurring || false,
       tasks: plan.tasks?.length > 0 ? plan.tasks.map((t: any) => ({
         title: t.title, description: t.description || '', assigned_to: t.assigned_to || '', priority: t.priority || 'normal',
         start_date: t.start_date || '', end_date: t.end_date || '', region_id: t.region_id || '',
@@ -296,6 +298,7 @@ export default function WorkPlansPage() {
         {[
           { key: 'all', label: 'الكل' },
           { key: 'daily', label: 'يومي' },
+          { key: 'weekly', label: 'أسبوعي' },
           { key: 'monthly', label: 'شهري' },
           { key: 'yearly', label: 'سنوي' },
         ].map((f) => (
@@ -320,9 +323,11 @@ export default function WorkPlansPage() {
                       <h3 className="font-bold text-gray-900">{plan.title}</h3>
                       <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${
                         plan.plan_type === 'daily' ? 'bg-blue-100 text-blue-700' :
+                        plan.plan_type === 'weekly' ? 'bg-teal-100 text-teal-700' :
                         plan.plan_type === 'monthly' ? 'bg-purple-100 text-purple-700' :
                         'bg-amber-100 text-amber-700'
                       }`}>{plan.plan_type_name}</span>
+                      {plan.is_recurring && <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-700">دورية</span>}
                       <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${
                         plan.status === 'completed' ? 'bg-green-100 text-green-700' :
                         plan.status === 'in_progress' ? 'bg-blue-100 text-blue-700' :
@@ -480,6 +485,7 @@ export default function WorkPlansPage() {
               <label className="block text-sm font-medium text-gray-700 mb-1">نوع الخطة *</label>
               <select value={form.plan_type} onChange={(e) => setForm({ ...form, plan_type: e.target.value })} className="w-full h-10 px-3 rounded-lg border-2 border-gray-200 text-sm">
                 <option value="daily">يومي</option>
+                <option value="weekly">أسبوعي</option>
                 <option value="monthly">شهري</option>
                 <option value="yearly">سنوي</option>
               </select>
@@ -487,6 +493,13 @@ export default function WorkPlansPage() {
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">تاريخ الخطة *</label>
               <Input type="date" value={form.plan_date} onChange={(e) => setForm({ ...form, plan_date: e.target.value })} />
+            </div>
+            <div className="flex items-center gap-3 pt-6">
+              <label className="relative inline-flex items-center cursor-pointer">
+                <input type="checkbox" checked={form.is_recurring} onChange={(e) => setForm({ ...form, is_recurring: e.target.checked })} className="sr-only peer" />
+                <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary-600"></div>
+              </label>
+              <span className="text-sm font-medium text-gray-700">خطة دورية (تتكرر تلقائياً)</span>
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">الشركة</label>

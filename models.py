@@ -2340,13 +2340,13 @@ class AllowanceSetting(db.Model):
 
 # ==================== Work Plans ====================
 class WorkPlan(db.Model):
-    """خطط العمل اليومية والشهرية والسنوية"""
+    """خطط العمل اليومية والاسبوعية والشهرية والسنوية"""
     __tablename__ = 'work_plans'
 
     id = db.Column(db.Integer, primary_key=True)
     title = db.Column(db.String(200), nullable=False)
     description = db.Column(db.Text)
-    plan_type = db.Column(db.String(20), nullable=False)  # daily, monthly, yearly
+    plan_type = db.Column(db.String(20), nullable=False)  # daily, weekly, monthly, yearly
     company_id = db.Column(db.Integer, db.ForeignKey('companies.id'), nullable=True)
     region_id = db.Column(db.Integer, db.ForeignKey('regions.id'), nullable=True)
     location_id = db.Column(db.Integer, db.ForeignKey('locations.id'), nullable=True)
@@ -2361,6 +2361,9 @@ class WorkPlan(db.Model):
     closed_by = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=True)
     close_notes = db.Column(db.Text, nullable=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    is_recurring = db.Column(db.Boolean, default=False)
+    recurrence_parent_id = db.Column(db.Integer, db.ForeignKey('work_plans.id'), nullable=True)
 
     company = db.relationship('Company', backref='work_plans')
     region = db.relationship('Region', backref='work_plans')
@@ -2383,7 +2386,7 @@ class WorkPlan(db.Model):
             'title': self.title,
             'description': self.description or '',
             'plan_type': self.plan_type,
-            'plan_type_name': {'daily': 'يومي', 'monthly': 'شهري', 'yearly': 'سنوي'}.get(self.plan_type, self.plan_type),
+            'plan_type_name': {'daily': 'يومي', 'weekly': 'أسبوعي', 'monthly': 'شهري', 'yearly': 'سنوي'}.get(self.plan_type, self.plan_type),
             'company_id': self.company_id,
             'company_name': self.company.name if self.company else None,
             'region_id': self.region_id,
@@ -2404,6 +2407,8 @@ class WorkPlan(db.Model):
             'close_notes': self.close_notes or '',
             'tasks_count': n,
             'completed_tasks': sum(1 for t in tasks_list if t.is_completed),
+            'is_recurring': self.is_recurring or False,
+            'recurrence_parent_id': self.recurrence_parent_id,
             'tasks': [t.to_dict() for t in tasks_list],
             'created_at': self.created_at.strftime('%Y-%m-%d %H:%M') if self.created_at else None,
         }

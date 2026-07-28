@@ -737,6 +737,7 @@ def api_work_plan_create():
         assigned_to=data.get('assigned_to'),
         created_by=current_user.id,
         status=data.get('status', 'pending'),
+        is_recurring=data.get('is_recurring', False),
     )
     db.session.add(p)
     db.session.flush()
@@ -827,6 +828,7 @@ def api_work_plan_update(pid):
         for t in p.tasks:
             if not t.is_completed:
                 t.is_completed = True
+        _generate_next_recurring_plan(p)
 
     db.session.commit()
     return ok(p.to_dict(), 'تم تحديث خطة العمل')
@@ -886,6 +888,7 @@ def api_work_plan_task_complete(tid):
         task.plan.progress = 0
     if task.plan.progress >= 100:
         task.plan.status = 'completed'
+        _generate_next_recurring_plan(task.plan)
     elif task.plan.progress > 0:
         task.plan.status = 'in_progress'
 
@@ -968,6 +971,7 @@ def api_work_plan_task_log_add(tid):
     if task.plan.progress >= 100:
         task.plan.progress = 100
         task.plan.status = 'completed'
+        _generate_next_recurring_plan(task.plan)
     elif task.plan.progress > 0 and task.plan.status == 'pending':
         task.plan.status = 'in_progress'
 
@@ -988,6 +992,63 @@ def api_work_plan_task_log_delete(log_id):
 
 # ==================== WORK PLAN CLOSE ====================
 
+def _generate_next_recurring_plan(plan):
+    """Auto-generate next plan in a recurring series"""
+    if not plan.is_recurring:
+        return None
+
+    from datetime import timedelta
+    if plan.plan_type == 'daily':
+        next_date = plan.plan_date + timedelta(days=1)
+    elif plan.plan_type == 'weekly':
+        next_date = plan.plan_date + timedelta(weeks=1)
+    elif plan.plan_type == 'monthly':
+        m = plan.plan_date.month + 1
+        y = plan.plan_date.year
+        if m > 12:
+            m = 1
+            y += 1
+        next_date = plan.plan_date.replace(year=y, month=m, day=min(plan.plan_date.day, 28))
+    elif plan.plan_type == 'yearly':
+        next_date = plan.plan_date.replace(year=plan.plan_date.year + 1)
+    else:
+        return None
+
+    parent_id = plan.recurrence_parent_id or plan.id
+
+    new_plan = WorkPlan(
+        title=plan.title,
+        description=plan.description,
+        plan_type=plan.plan_type,
+        company_id=plan.company_id,
+        region_id=plan.region_id,
+        location_id=plan.location_id,
+        plan_date=next_date,
+        assigned_to=plan.assigned_to,
+        created_by=plan.created_by,
+        status='pending',
+        is_recurring=True,
+        recurrence_parent_id=parent_id,
+    )
+    db.session.add(new_plan)
+    db.session.flush()
+
+    for t in plan.tasks:
+        new_task = WorkPlanTask(
+            plan_id=new_plan.id,
+            title=t.title,
+            description=t.description,
+            order=t.order,
+            assigned_to=t.assigned_to,
+            priority=t.priority,
+            estimated_hours=t.estimated_hours,
+            region_id=t.region_id,
+        )
+        db.session.add(new_task)
+
+    return new_plan
+
+
 @rest_api.route('/work-plans/<int:pid>/close', methods=['POST'])
 @login_required
 def api_work_plan_close(pid):
@@ -1000,6 +1061,7 @@ def api_work_plan_close(pid):
     p.closed_at = datetime.utcnow()
     p.closed_by = current_user.id
     p.close_notes = data.get('close_notes', '')
+    _generate_next_recurring_plan(p)
     db.session.commit()
     return ok(p.to_dict(), 'تم إغلاق خطة العمل')
 
