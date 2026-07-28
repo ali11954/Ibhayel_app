@@ -61,20 +61,23 @@ export default function WorkPlansPage() {
   });
   const [taskForm, setTaskForm] = useState({ title: '', description: '', assigned_to: '', priority: 'normal', start_date: '', end_date: '', region_id: '' });
 
-  const loadData = () => {
-    Promise.all([
-      api.get('/work-plans'),
-      api.get('/employees'),
-      api.get('/companies'),
-      api.get('/regions'),
-      api.get('/locations'),
-    ]).then(([pRes, eRes, cRes, rRes, lRes]) => {
-      setPlans(pRes.data.data || []);
-      setEmployees(eRes.data.data || []);
-      setCompanies(cRes.data.data || []);
-      setRegions(rRes.data.data || []);
-      setLocations(lRes.data.data || []);
-    }).catch(console.error).finally(() => setLoading(false));
+  const loadData = async () => {
+    setLoading(true);
+    try {
+      const [pRes, eRes, cRes, rRes, lRes] = await Promise.allSettled([
+        api.get('/work-plans'),
+        api.get('/employees'),
+        api.get('/companies'),
+        api.get('/regions'),
+        api.get('/locations'),
+      ]);
+      if (pRes.status === 'fulfilled') setPlans(pRes.value.data.data || []);
+      if (eRes.status === 'fulfilled') setEmployees(eRes.value.data.data || []);
+      if (cRes.status === 'fulfilled') setCompanies(cRes.value.data.data || []);
+      if (rRes.status === 'fulfilled') setRegions(rRes.value.data.data || []);
+      if (lRes.status === 'fulfilled') setLocations(lRes.value.data.data || []);
+    } catch (e) { console.error(e); }
+    finally { setLoading(false); }
   };
 
   useEffect(() => { loadData(); }, []);
