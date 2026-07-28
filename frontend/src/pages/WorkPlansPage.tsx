@@ -132,7 +132,7 @@ export default function WorkPlansPage() {
       }
       setModalOpen(false);
       loadData();
-    } catch (err: any) { alert(err.response?.data?.message || 'حدث خطأ'); }
+    } catch (err: any) { alert(JSON.stringify(err.response?.data || err.message || 'حدث خطأ')); }
     finally { setSaving(false); }
   };
 
