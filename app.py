@@ -271,6 +271,8 @@ def auto_migrate():
     """Fix Supabase column types + add missing columns"""
     print("Auto-migration: fixing column types...")
 
+    inspector = sa.inspect(db.engine)
+
     def force_alter(table, column, target_type):
         try:
             row = db.session.execute(sa.text(
