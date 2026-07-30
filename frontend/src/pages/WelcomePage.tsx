@@ -170,10 +170,11 @@ export default function WelcomePage() {
 
         {/* Footer */}
         <div className="w-full text-center py-6 border-t border-white/5">
-          <p className="text-gray-600 text-xs">
-            تصميم وتطوير{' '}
-            <span className="text-gray-400 font-semibold">الغيث لتصميم التطبيقات والأنظمة</span>
-          </p>
+          <a href="https://alghithapp.netlify.app" target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 group">
+            <img src="https://alghithapp.netlify.app/a.png" alt="الغيث" className="w-7 h-7 rounded-lg object-contain bg-white/10 p-0.5 group-hover:scale-110 transition-transform" />
+            <span className="text-gray-500 text-xs">تصميم وتطوير</span>
+            <span className="text-gray-400 text-xs font-semibold group-hover:text-green-400 transition-colors">الغيث لتصميم التطبيقات والأنظمة</span>
+          </a>
         </div>
       </div>
 
