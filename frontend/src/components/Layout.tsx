@@ -172,7 +172,16 @@ export default function Layout({ children }: { children: React.ReactNode }) {
         </nav>
 
         {/* Logout */}
-        <div className="p-2 border-t border-gray-50">
+        <div className="p-2 border-t border-gray-50 space-y-2">
+          <a
+            href="https://alghithapp.netlify.app"
+            target="_blank"
+            rel="noopener noreferrer"
+            className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-teal-700 bg-teal-50 hover:bg-teal-100 transition-all ${!sidebarOpen ? 'justify-center' : ''}`}
+          >
+            <img src="https://alghithapp.netlify.app/a.png" alt="الغيث" className="w-7 h-7 rounded-lg object-contain flex-shrink-0" />
+            {sidebarOpen && <span>الغيث - التطوير</span>}
+          </a>
           <button
             onClick={handleLogout}
             className="flex items-center gap-3 w-full px-3 py-2.5 rounded-xl text-sm font-medium text-red-500 hover:bg-red-50 transition-all"
