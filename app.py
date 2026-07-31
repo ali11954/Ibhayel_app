@@ -592,6 +592,39 @@ def auto_migrate():
     add_column('work_plan_tasks', 'region_id', 'INTEGER')
     add_column('work_plan_tasks', 'progress_percent', 'INTEGER', '0')
 
+    # Molas tables - ensure columns exist
+    for table, cols in [
+        ('molas_customers', [
+            ('name', 'VARCHAR(200)', None), ('phone', 'VARCHAR(50)', "''"), ('secondary_phone', 'VARCHAR(50)', "''"),
+            ('address', 'TEXT', "''"), ('company', 'VARCHAR(200)', "''"), ('tax_number', 'VARCHAR(50)', "''"),
+            ('contact_person', 'VARCHAR(100)', "''"), ('credit_limit', 'FLOAT', '0'),
+            ('notes', 'TEXT', "''"), ('is_active', 'BOOLEAN', 'TRUE'), ('created_at', 'TIMESTAMP', None),
+        ]),
+        ('molas_orders', [
+            ('customer_id', 'INTEGER', None), ('order_number', 'VARCHAR(50)', None),
+            ('order_date', 'DATE', None), ('delivery_date', 'DATE', None),
+            ('status', 'VARCHAR(20)', "'pending'"), ('total_amount', 'FLOAT', '0'),
+            ('discount', 'FLOAT', '0'), ('tax_rate', 'FLOAT', '0'), ('tax_amount', 'FLOAT', '0'),
+            ('final_amount', 'FLOAT', '0'), ('paid_amount', 'FLOAT', '0'), ('remaining_amount', 'FLOAT', '0'),
+            ('payment_method', 'VARCHAR(20)', "'cash'"), ('delivery_address', 'TEXT', "''"),
+            ('notes', 'TEXT', "''"), ('created_by', 'INTEGER', None),
+            ('created_at', 'TIMESTAMP', None), ('updated_at', 'TIMESTAMP', None),
+        ]),
+        ('molas_order_items', [
+            ('order_id', 'INTEGER', None), ('product_name', 'VARCHAR(200)', None),
+            ('description', 'TEXT', "''"), ('quantity', 'FLOAT', '1'),
+            ('unit', 'VARCHAR(50)', "'كيس'"), ('unit_price', 'FLOAT', '0'), ('total_price', 'FLOAT', '0'),
+        ]),
+        ('molas_payments', [
+            ('order_id', 'INTEGER', None), ('customer_id', 'INTEGER', None),
+            ('amount', 'FLOAT', '0'), ('payment_method', 'VARCHAR(20)', "'cash'"),
+            ('payment_date', 'DATE', None), ('reference_number', 'VARCHAR(100)', "''"),
+            ('notes', 'TEXT', "''"), ('created_by', 'INTEGER', None), ('created_at', 'TIMESTAMP', None),
+        ]),
+    ]:
+        for col, typ, default in cols:
+            add_column(table, col, typ, default)
+
     print("Auto-migration: column check complete")
 
 

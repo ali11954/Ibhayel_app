@@ -25,6 +25,7 @@ import EmployeePortalPage from '@/pages/EmployeePortalPage';
 import AttendanceGridPage from '@/pages/AttendanceGridPage';
 import AttendanceReportPage from '@/pages/AttendanceReportPage';
 import ProfilePage from '@/pages/ProfilePage';
+import MolasSalesPage from '@/pages/MolasSalesPage';
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const [checking, setChecking] = useState(true);
@@ -239,6 +240,14 @@ export default function App() {
           element={
             <ProtectedRoute>
               <Layout><ProfilePage /></Layout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/molas-sales"
+          element={
+            <ProtectedRoute>
+              <Layout><MolasSalesPage /></Layout>
             </ProtectedRoute>
           }
         />

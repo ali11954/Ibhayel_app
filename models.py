@@ -2732,3 +2732,198 @@ class BankInfo(db.Model):
             'created_at': self.created_at.strftime('%Y-%m-%d %H:%M') if self.created_at else None,
             'updated_at': self.updated_at.strftime('%Y-%m-%d %H:%M') if self.updated_at else None,
         }
+
+
+# ==================== Molas Marketing & Sales ====================
+
+class MolasCustomer(db.Model):
+    """عملاء المولاس"""
+    __tablename__ = 'molas_customers'
+
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(200), nullable=False)
+    phone = db.Column(db.String(50), default='')
+    secondary_phone = db.Column(db.String(50), default='')
+    address = db.Column(db.Text, default='')
+    company = db.Column(db.String(200), default='')
+    tax_number = db.Column(db.String(50), default='')
+    contact_person = db.Column(db.String(100), default='')
+    credit_limit = db.Column(db.Float, default=0)
+    notes = db.Column(db.Text, default='')
+    is_active = db.Column(db.Boolean, default=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    orders = db.relationship('MolasOrder', backref='customer', lazy='dynamic')
+
+    def get_balance(self):
+        total_orders = sum(o.total_amount or 0 for o in self.orders.filter(MolasOrder.status != 'cancelled'))
+        total_paid = sum(o.paid_amount or 0 for o in self.orders.filter(MolasOrder.status != 'cancelled'))
+        return total_orders - total_paid
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'name': self.name,
+            'phone': self.phone or '',
+            'secondary_phone': self.secondary_phone or '',
+            'address': self.address or '',
+            'company': self.company or '',
+            'tax_number': self.tax_number or '',
+            'contact_person': self.contact_person or '',
+            'credit_limit': self.credit_limit or 0,
+            'notes': self.notes or '',
+            'is_active': self.is_active,
+            'balance': self.get_balance(),
+            'created_at': self.created_at.strftime('%Y-%m-%d') if self.created_at else None,
+        }
+
+
+class MolasOrder(db.Model):
+    """طلبات بيع المولاس"""
+    __tablename__ = 'molas_orders'
+
+    id = db.Column(db.Integer, primary_key=True)
+    customer_id = db.Column(db.Integer, db.ForeignKey('molas_customers.id'), nullable=False)
+    order_number = db.Column(db.String(50), unique=True, nullable=False)
+    order_date = db.Column(db.Date, nullable=False, default=datetime.utcnow)
+    delivery_date = db.Column(db.Date, nullable=True)
+    status = db.Column(db.String(20), default='pending')  # pending, confirmed, delivered, cancelled
+    total_amount = db.Column(db.Float, default=0)
+    discount = db.Column(db.Float, default=0)
+    tax_rate = db.Column(db.Float, default=0)
+    tax_amount = db.Column(db.Float, default=0)
+    final_amount = db.Column(db.Float, default=0)
+    paid_amount = db.Column(db.Float, default=0)
+    remaining_amount = db.Column(db.Float, default=0)
+    payment_method = db.Column(db.String(20), default='cash')  # cash, bank, transfer, credit
+    delivery_address = db.Column(db.Text, default='')
+    notes = db.Column(db.Text, default='')
+    created_by = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    items = db.relationship('MolasOrderItem', backref='order', cascade='all, delete-orphan', order_by='MolasOrderItem.id')
+    payments = db.relationship('MolasPayment', backref='order', cascade='all, delete-orphan')
+    creator = db.relationship('User', backref='created_molas_orders')
+
+    STATUS_MAP = {
+        'pending': 'قيد الانتظار',
+        'confirmed': 'مؤكد',
+        'delivered': 'تم التوصيل',
+        'cancelled': 'ملغي',
+    }
+    PAYMENT_METHODS = {
+        'cash': 'نقدي',
+        'bank': 'تحويل بنكي',
+        'transfer': 'تحويل',
+        'credit': 'آجل',
+    }
+
+    def compute_totals(self):
+        self.total_amount = sum(item.total_price or 0 for item in self.items)
+        self.tax_amount = self.total_amount * (self.tax_rate or 0) / 100
+        self.final_amount = self.total_amount - (self.discount or 0) + self.tax_amount
+        self.remaining_amount = self.final_amount - (self.paid_amount or 0)
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'customer_id': self.customer_id,
+            'customer_name': self.customer.name if self.customer else '',
+            'customer_phone': self.customer.phone if self.customer else '',
+            'order_number': self.order_number,
+            'order_date': self.order_date.strftime('%Y-%m-%d') if self.order_date else None,
+            'delivery_date': self.delivery_date.strftime('%Y-%m-%d') if self.delivery_date else None,
+            'status': self.status,
+            'status_name': self.STATUS_MAP.get(self.status, self.status),
+            'total_amount': self.total_amount or 0,
+            'discount': self.discount or 0,
+            'tax_rate': self.tax_rate or 0,
+            'tax_amount': self.tax_amount or 0,
+            'final_amount': self.final_amount or 0,
+            'paid_amount': self.paid_amount or 0,
+            'remaining_amount': self.remaining_amount or 0,
+            'payment_method': self.payment_method,
+            'payment_method_name': self.PAYMENT_METHODS.get(self.payment_method, self.payment_method),
+            'delivery_address': self.delivery_address or '',
+            'notes': self.notes or '',
+            'items_count': len(self.items),
+            'items': [item.to_dict() for item in self.items],
+            'payments': [p.to_dict() for p in self.payments],
+            'created_by': self.created_by,
+            'creator_name': self.creator.full_name if self.creator else '',
+            'created_at': self.created_at.strftime('%Y-%m-%d %H:%M') if self.created_at else None,
+        }
+
+
+class MolasOrderItem(db.Model):
+    """بنود طلب بيع المولاس"""
+    __tablename__ = 'molas_order_items'
+
+    id = db.Column(db.Integer, primary_key=True)
+    order_id = db.Column(db.Integer, db.ForeignKey('molas_orders.id'), nullable=False)
+    product_name = db.Column(db.String(200), nullable=False)
+    description = db.Column(db.Text, default='')
+    quantity = db.Column(db.Float, default=1)
+    unit = db.Column(db.String(50), default='طن')
+    unit_price = db.Column(db.Float, default=0)
+    total_price = db.Column(db.Float, default=0)
+
+    def compute_total(self):
+        self.total_price = (self.quantity or 0) * (self.unit_price or 0)
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'order_id': self.order_id,
+            'product_name': self.product_name,
+            'description': self.description or '',
+            'quantity': self.quantity or 0,
+            'unit': self.unit or 'طن',
+            'unit_price': self.unit_price or 0,
+            'total_price': self.total_price or 0,
+        }
+
+
+class MolasPayment(db.Model):
+    """مدفوعات المولاس"""
+    __tablename__ = 'molas_payments'
+
+    id = db.Column(db.Integer, primary_key=True)
+    order_id = db.Column(db.Integer, db.ForeignKey('molas_orders.id'), nullable=False)
+    customer_id = db.Column(db.Integer, db.ForeignKey('molas_customers.id'), nullable=False)
+    amount = db.Column(db.Float, nullable=False, default=0)
+    payment_method = db.Column(db.String(20), default='cash')
+    payment_date = db.Column(db.Date, nullable=False, default=datetime.utcnow)
+    reference_number = db.Column(db.String(100), default='')
+    notes = db.Column(db.Text, default='')
+    created_by = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    customer = db.relationship('MolasCustomer', backref='payments')
+    creator = db.relationship('User', backref='created_molas_payments')
+
+    PAYMENT_METHODS = {
+        'cash': 'نقدي',
+        'bank': 'تحويل بنكي',
+        'transfer': 'تحويل',
+        'check': 'شيك',
+    }
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'order_id': self.order_id,
+            'order_number': self.order.order_number if self.order else '',
+            'customer_id': self.customer_id,
+            'customer_name': self.customer.name if self.customer else '',
+            'amount': self.amount or 0,
+            'payment_method': self.payment_method,
+            'payment_method_name': self.PAYMENT_METHODS.get(self.payment_method, self.payment_method),
+            'payment_date': self.payment_date.strftime('%Y-%m-%d') if self.payment_date else None,
+            'reference_number': self.reference_number or '',
+            'notes': self.notes or '',
+            'created_by': self.created_by,
+            'creator_name': self.creator.full_name if self.creator else '',
+            'created_at': self.created_at.strftime('%Y-%m-%d %H:%M') if self.created_at else None,
+        }

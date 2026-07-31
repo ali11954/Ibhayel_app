@@ -9,7 +9,8 @@ from models import (
     Contract, Supplier, SupplierInvoice, SupplierInvoicePayment, Invoice, Account, JournalEntry, JournalEntryDetail,
     JournalEntryDetail as JED, MealDeduction, LaborMonthlyCost, ContractorAnnualCost,
     ExpenseCategory, SystemSettings, AllowanceSetting, WorkPlan, WorkPlanTask, WorkPlanTaskLog,
-    FinancialPeriod, LeaveType, LeaveBalance, LeaveRequest, BankInfo
+    FinancialPeriod, LeaveType, LeaveBalance, LeaveRequest, BankInfo,
+    MolasCustomer, MolasOrder, MolasOrderItem, MolasPayment
 )
 
 rest_api = Blueprint('rest_api', __name__, url_prefix='/api')
@@ -4132,3 +4133,374 @@ def api_employee_my_evaluations():
         'evaluation_type': e.evaluation_type,
         'evaluator_name': e.evaluator.full_name if e.evaluator else '',
     } for e in evals])
+
+
+# ==================== MOLAS MARKETING & SALES ====================
+
+def _generate_order_number():
+    import random, string
+    today = datetime.utcnow().strftime('%Y%m%d')
+    rand = ''.join(random.choices(string.digits, k=4))
+    return f'MLS-{today}-{rand}'
+
+
+# ---------- Customers ----------
+
+@rest_api.route('/molas/customers', methods=['GET'])
+@login_required
+def api_molas_customers():
+    q = MolasCustomer.query
+    search = request.args.get('search', '').strip()
+    if search:
+        q = q.filter(MolasCustomer.name.contains(search) | MolasCustomer.phone.contains(search))
+    active = request.args.get('active')
+    if active == '1':
+        q = q.filter_by(is_active=True)
+    customers = q.order_by(MolasCustomer.name).all()
+    return ok([c.to_dict() for c in customers])
+
+
+@rest_api.route('/molas/customers/<int:cid>', methods=['GET'])
+@login_required
+def api_molas_customer_get(cid):
+    c = MolasCustomer.query.get_or_404(cid)
+    return ok(c.to_dict())
+
+
+@rest_api.route('/molas/customers', methods=['POST'])
+@login_required
+def api_molas_customer_create():
+    data = request.get_json(force=True, silent=True) or {}
+    if not data.get('name'):
+        return fail('اسم العميل مطلوب')
+    c = MolasCustomer(
+        name=data['name'],
+        phone=data.get('phone', ''),
+        secondary_phone=data.get('secondary_phone', ''),
+        address=data.get('address', ''),
+        company=data.get('company', ''),
+        tax_number=data.get('tax_number', ''),
+        contact_person=data.get('contact_person', ''),
+        credit_limit=safe_float(data.get('credit_limit', 0)),
+        notes=data.get('notes', ''),
+    )
+    db.session.add(c)
+    try:
+        db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+        return fail(f'خطأ في إضافة العميل: {str(e)}', 400)
+    return ok(c.to_dict(), 'تم إضافة العميل بنجاح')
+
+
+@rest_api.route('/molas/customers/<int:cid>', methods=['PUT'])
+@login_required
+def api_molas_customer_update(cid):
+    c = MolasCustomer.query.get_or_404(cid)
+    data = request.get_json(force=True, silent=True) or {}
+    for field in ['name', 'phone', 'secondary_phone', 'address', 'company', 'tax_number',
+                  'contact_person', 'notes']:
+        if field in data:
+            setattr(c, field, data[field])
+    if 'credit_limit' in data:
+        c.credit_limit = safe_float(data['credit_limit'])
+    if 'is_active' in data:
+        c.is_active = bool(data['is_active'])
+    db.session.commit()
+    return ok(c.to_dict(), 'تم تحديث العميل بنجاح')
+
+
+@rest_api.route('/molas/customers/<int:cid>', methods=['DELETE'])
+@login_required
+def api_molas_customer_delete(cid):
+    c = MolasCustomer.query.get_or_404(cid)
+    if c.orders.count() > 0:
+        return fail('لا يمكن حذف العميل لأنه مرتبط بطلبات بيع', 400)
+    db.session.delete(c)
+    db.session.commit()
+    return ok(message='تم حذف العميل بنجاح')
+
+
+# ---------- Orders ----------
+
+@rest_api.route('/molas/orders', methods=['GET'])
+@login_required
+def api_molas_orders():
+    q = MolasOrder.query
+    customer_id = request.args.get('customer_id')
+    if customer_id:
+        q = q.filter_by(customer_id=int(customer_id))
+    status = request.args.get('status')
+    if status:
+        q = q.filter_by(status=status)
+    date_from = request.args.get('date_from')
+    if date_from:
+        q = q.filter(MolasOrder.order_date >= date_from)
+    date_to = request.args.get('date_to')
+    if date_to:
+        q = q.filter(MolasOrder.order_date <= date_to)
+    search = request.args.get('search', '').strip()
+    if search:
+        q = q.join(MolasCustomer).filter(
+            (MolasOrder.order_number.contains(search)) | (MolasCustomer.name.contains(search))
+        )
+    orders = q.order_by(MolasOrder.id.desc()).limit(500).all()
+    return ok([o.to_dict() for o in orders])
+
+
+@rest_api.route('/molas/orders/<int:oid>', methods=['GET'])
+@login_required
+def api_molas_order_get(oid):
+    o = MolasOrder.query.get_or_404(oid)
+    return ok(o.to_dict())
+
+
+@rest_api.route('/molas/orders', methods=['POST'])
+@login_required
+def api_molas_order_create():
+    data = request.get_json(force=True, silent=True) or {}
+    if not data.get('customer_id'):
+        return fail('يجب اختيار العميل')
+    order = MolasOrder(
+        customer_id=int(data['customer_id']),
+        order_number=data.get('order_number') or _generate_order_number(),
+        order_date=datetime.strptime(data['order_date'], '%Y-%m-%d').date() if data.get('order_date') else datetime.utcnow().date(),
+        delivery_date=datetime.strptime(data['delivery_date'], '%Y-%m-%d').date() if data.get('delivery_date') else None,
+        status=data.get('status', 'pending'),
+        discount=safe_float(data.get('discount', 0)),
+        tax_rate=safe_float(data.get('tax_rate', 0)),
+        payment_method=data.get('payment_method', 'cash'),
+        delivery_address=data.get('delivery_address', ''),
+        notes=data.get('notes', ''),
+        created_by=current_user.id if current_user.is_authenticated else None,
+    )
+    db.session.add(order)
+    db.session.flush()
+
+    for item_data in data.get('items', []):
+        if not item_data.get('product_name'):
+            continue
+        item = MolasOrderItem(
+            order_id=order.id,
+            product_name=item_data['product_name'],
+            description=item_data.get('description', ''),
+            quantity=safe_float(item_data.get('quantity', 1)),
+            unit=item_data.get('unit', 'طن'),
+            unit_price=safe_float(item_data.get('unit_price', 0)),
+            total_price=safe_float(item_data.get('quantity', 1)) * safe_float(item_data.get('unit_price', 0)),
+        )
+        db.session.add(item)
+
+    db.session.flush()
+    order.compute_totals()
+
+    if data.get('initial_payment'):
+        payment = MolasPayment(
+            order_id=order.id,
+            customer_id=order.customer_id,
+            amount=safe_float(data['initial_payment']),
+            payment_method=data.get('payment_method', 'cash'),
+            payment_date=order.order_date,
+            created_by=current_user.id if current_user.is_authenticated else None,
+        )
+        db.session.add(payment)
+        order.paid_amount = safe_float(data['initial_payment'])
+        order.remaining_amount = order.final_amount - order.paid_amount
+
+    try:
+        db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+        return fail(f'خطأ في إنشاء الطلب: {str(e)}', 400)
+    return ok(order.to_dict(), 'تم إنشاء الطلب بنجاح')
+
+
+@rest_api.route('/molas/orders/<int:oid>', methods=['PUT'])
+@login_required
+def api_molas_order_update(oid):
+    o = MolasOrder.query.get_or_404(oid)
+    data = request.get_json(force=True, silent=True) or {}
+
+    if 'status' in data:
+        o.status = data['status']
+    if 'delivery_date' in data and data['delivery_date']:
+        o.delivery_date = datetime.strptime(data['delivery_date'], '%Y-%m-%d').date()
+    if 'discount' in data:
+        o.discount = safe_float(data['discount'])
+    if 'tax_rate' in data:
+        o.tax_rate = safe_float(data['tax_rate'])
+    if 'payment_method' in data:
+        o.payment_method = data['payment_method']
+    if 'delivery_address' in data:
+        o.delivery_address = data['delivery_address']
+    if 'notes' in data:
+        o.notes = data['notes']
+
+    if 'items' in data:
+        MolasOrderItem.query.filter_by(order_id=o.id).delete()
+        for item_data in data['items']:
+            if not item_data.get('product_name'):
+                continue
+            item = MolasOrderItem(
+                order_id=o.id,
+                product_name=item_data['product_name'],
+                description=item_data.get('description', ''),
+                quantity=safe_float(item_data.get('quantity', 1)),
+                unit=item_data.get('unit', 'طن'),
+                unit_price=safe_float(item_data.get('unit_price', 0)),
+                total_price=safe_float(item_data.get('quantity', 1)) * safe_float(item_data.get('unit_price', 0)),
+            )
+            db.session.add(item)
+
+    db.session.flush()
+    o.compute_totals()
+    o.remaining_amount = o.final_amount - (o.paid_amount or 0)
+
+    try:
+        db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+        return fail(f'خطأ في تحديث الطلب: {str(e)}', 400)
+    return ok(o.to_dict(), 'تم تحديث الطلب بنجاح')
+
+
+@rest_api.route('/molas/orders/<int:oid>', methods=['DELETE'])
+@login_required
+def api_molas_order_delete(oid):
+    o = MolasOrder.query.get_or_404(oid)
+    if o.paid_amount and o.paid_amount > 0:
+        return fail('لا يمكن حذف الطلب لأنه مرتبط بمدفوعات', 400)
+    db.session.delete(o)
+    db.session.commit()
+    return ok(message='تم حذف الطلب بنجاح')
+
+
+# ---------- Payments ----------
+
+@rest_api.route('/molas/payments', methods=['GET'])
+@login_required
+def api_molas_payments():
+    q = MolasPayment.query
+    order_id = request.args.get('order_id')
+    if order_id:
+        q = q.filter_by(order_id=int(order_id))
+    customer_id = request.args.get('customer_id')
+    if customer_id:
+        q = q.filter_by(customer_id=int(customer_id))
+    date_from = request.args.get('date_from')
+    if date_from:
+        q = q.filter(MolasPayment.payment_date >= date_from)
+    date_to = request.args.get('date_to')
+    if date_to:
+        q = q.filter(MolasPayment.payment_date <= date_to)
+    payments = q.order_by(MolasPayment.id.desc()).limit(500).all()
+    return ok([p.to_dict() for p in payments])
+
+
+@rest_api.route('/molas/payments', methods=['POST'])
+@login_required
+def api_molas_payment_create():
+    data = request.get_json(force=True, silent=True) or {}
+    if not data.get('order_id'):
+        return fail('يجب اختيار الطلب')
+    if not data.get('amount') or safe_float(data['amount']) <= 0:
+        return fail('المبلغ يجب أن يكون أكبر من صفر')
+
+    order = MolasOrder.query.get_or_404(int(data['order_id']))
+    amount = safe_float(data['amount'])
+
+    if amount > (order.remaining_amount or 0):
+        return fail(f'المبلغ ({amount}) أكبر من المتبقي ({order.remaining_amount})')
+
+    payment = MolasPayment(
+        order_id=order.id,
+        customer_id=order.customer_id,
+        amount=amount,
+        payment_method=data.get('payment_method', 'cash'),
+        payment_date=datetime.strptime(data['payment_date'], '%Y-%m-%d').date() if data.get('payment_date') else datetime.utcnow().date(),
+        reference_number=data.get('reference_number', ''),
+        notes=data.get('notes', ''),
+        created_by=current_user.id if current_user.is_authenticated else None,
+    )
+    db.session.add(payment)
+
+    order.paid_amount = (order.paid_amount or 0) + amount
+    order.remaining_amount = order.final_amount - order.paid_amount
+    if order.remaining_amount <= 0:
+        order.status = 'delivered'
+
+    try:
+        db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+        return fail(f'خطأ في تسجيل الدفع: {str(e)}', 400)
+    return ok({'payment': payment.to_dict(), 'order': order.to_dict()}, 'تم تسجيل الدفع بنجاح')
+
+
+# ---------- Reports ----------
+
+@rest_api.route('/molas/reports/summary', methods=['GET'])
+@login_required
+def api_molas_reports_summary():
+    date_from = request.args.get('date_from')
+    date_to = request.args.get('date_to')
+
+    q = MolasOrder.query.filter(MolasOrder.status != 'cancelled')
+    if date_from:
+        q = q.filter(MolasOrder.order_date >= date_from)
+    if date_to:
+        q = q.filter(MolasOrder.order_date <= date_to)
+
+    orders = q.all()
+    total_orders = len(orders)
+    total_amount = sum(o.final_amount or 0 for o in orders)
+    total_paid = sum(o.paid_amount or 0 for o in orders)
+    total_remaining = total_amount - total_paid
+
+    delivered = [o for o in orders if o.status == 'delivered']
+    pending = [o for o in orders if o.status in ('pending', 'confirmed')]
+
+    top_customers = {}
+    for o in orders:
+        cid = o.customer_id
+        if cid not in top_customers:
+            top_customers[cid] = {'name': o.customer.name if o.customer else '', 'total': 0, 'count': 0}
+        top_customers[cid]['total'] += o.final_amount or 0
+        top_customers[cid]['count'] += 1
+
+    return ok({
+        'total_orders': total_orders,
+        'total_amount': total_amount,
+        'total_paid': total_paid,
+        'total_remaining': total_remaining,
+        'delivered_count': len(delivered),
+        'pending_count': len(pending),
+        'top_customers': sorted(top_customers.values(), key=lambda x: x['total'], reverse=True)[:10],
+    })
+
+
+@rest_api.route('/molas/reports/customer-statement', methods=['GET'])
+@login_required
+def api_molas_reports_customer_statement():
+    customer_id = request.args.get('customer_id')
+    if not customer_id:
+        return fail('يجب اختيار العميل')
+
+    customer = MolasCustomer.query.get_or_404(int(customer_id))
+    orders = MolasOrder.query.filter_by(customer_id=customer.id).filter(
+        MolasOrder.status != 'cancelled'
+    ).order_by(MolasOrder.order_date).all()
+
+    payments = MolasPayment.query.filter_by(customer_id=customer.id).order_by(MolasPayment.payment_date).all()
+
+    total_orders = sum(o.final_amount or 0 for o in orders)
+    total_paid = sum(p.amount or 0 for p in payments)
+
+    return ok({
+        'customer': customer.to_dict(),
+        'orders': [o.to_dict() for o in orders],
+        'payments': [p.to_dict() for p in payments],
+        'total_orders': total_orders,
+        'total_paid': total_paid,
+        'balance': total_orders - total_paid,
+    })
