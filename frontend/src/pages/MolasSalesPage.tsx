@@ -694,123 +694,350 @@ export default function MolasSalesPage() {
 
           {/* Address Summary Report */}
           {reportTab === 'addresses' && (
-            <Card className="border-0 shadow-sm">
-              <CardContent className="p-4">
-                <div className="flex items-center justify-between mb-4">
-                  <h3 className="font-bold text-gray-900">ملخص المبيعات حسب العناوين</h3>
-                  <button onClick={() => {
-                    exportExcel(['العنوان', 'عدد الطلبات', 'العملاء', 'الكمية (طن)', 'القيمة ($)', 'المدفوع ($)', 'المتبقي ($)'],
-                      addressSummary.map(a => [a.address, a.orders_count, a.customers_count, a.total_tons, a.total_amount, a.total_paid, a.balance]),
-                      'molas_addresses_report');
-                  }} className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-green-50 text-green-600 hover:bg-green-100 text-xs font-semibold">
-                    <FileSpreadsheet className="w-3.5 h-3.5" /> تصدير Excel
-                  </button>
-                </div>
-                <div className="overflow-x-auto">
-                  <table className="w-full text-sm">
-                    <thead><tr className="bg-emerald-600 text-white">
-                      <th className="px-3 py-2.5 text-right text-xs font-semibold">العنوان</th>
-                      <th className="px-3 py-2.5 text-right text-xs font-semibold">الطلبات</th>
-                      <th className="px-3 py-2.5 text-right text-xs font-semibold">العملاء</th>
-                      <th className="px-3 py-2.5 text-right text-xs font-semibold">الكمية (طن)</th>
-                      <th className="px-3 py-2.5 text-right text-xs font-semibold">القيمة ($)</th>
-                      <th className="px-3 py-2.5 text-right text-xs font-semibold">المدفوع ($)</th>
-                      <th className="px-3 py-2.5 text-right text-xs font-semibold">المتبقي ($)</th>
-                    </tr></thead>
-                    <tbody>
-                      {addressSummary.length === 0 ? (
-                        <tr><td colSpan={7} className="px-3 py-8 text-center text-gray-400">لا توجد بيانات</td></tr>
-                      ) : addressSummary.map((a, i) => (
-                        <tr key={i} className="border-b border-gray-50 hover:bg-gray-50/50">
-                          <td className="px-3 py-2.5 font-bold">{a.address}</td>
-                          <td className="px-3 py-2.5">{a.orders_count}</td>
-                          <td className="px-3 py-2.5 text-gray-500 text-xs">{a.customers_names}</td>
-                          <td className="px-3 py-2.5 font-semibold">{a.total_tons} طن</td>
-                          <td className="px-3 py-2.5 font-bold text-blue-700">${formatNum(a.total_amount)}</td>
-                          <td className="px-3 py-2.5 font-bold text-green-600">${formatNum(a.total_paid)}</td>
-                          <td className="px-3 py-2.5 font-bold text-amber-600">${formatNum(a.balance)}</td>
-                        </tr>
-                      ))}
-                      {addressSummary.length > 0 && (
-                        <tr className="bg-emerald-50 font-bold">
-                          <td className="px-3 py-2.5">الإجمالي</td>
-                          <td className="px-3 py-2.5">{addressSummary.reduce((s, a) => s + a.orders_count, 0)}</td>
-                          <td className="px-3 py-2.5"></td>
-                          <td className="px-3 py-2.5">{addressSummary.reduce((s, a) => s + a.total_tons, 0).toFixed(1)} طن</td>
-                          <td className="px-3 py-2.5 text-blue-700">${formatNum(addressSummary.reduce((s, a) => s + a.total_amount, 0))}</td>
-                          <td className="px-3 py-2.5 text-green-600">${formatNum(addressSummary.reduce((s, a) => s + a.total_paid, 0))}</td>
-                          <td className="px-3 py-2.5 text-amber-600">${formatNum(addressSummary.reduce((s, a) => s + a.balance, 0))}</td>
-                        </tr>
-                      )}
-                    </tbody>
-                  </table>
-                </div>
-              </CardContent>
-            </Card>
+            <div className="space-y-6">
+              {addressSummary.length > 0 && (() => {
+                const totalAmt = addressSummary.reduce((s: number, a: any) => s + a.total_amount, 0);
+                const totalPaid = addressSummary.reduce((s: number, a: any) => s + a.total_paid, 0);
+                const totalTons = addressSummary.reduce((s: number, a: any) => s + a.total_tons, 0);
+                const totalOrders = addressSummary.reduce((s: number, a: any) => s + a.orders_count, 0);
+                const avgPerAddress = totalAmt / addressSummary.length;
+                const paymentRate = totalAmt > 0 ? ((totalPaid / totalAmt) * 100).toFixed(1) : '0';
+                const topAddr = addressSummary[0];
+                return (
+                  <>
+                    {/* KPIs */}
+                    <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                      <Card className="border-0 shadow-sm bg-gradient-to-br from-emerald-50 to-white">
+                        <CardContent className="p-4 text-center">
+                          <div className="text-3xl font-black text-emerald-700">{addressSummary.length}</div>
+                          <div className="text-xs text-gray-500 mt-1">عدد العناوين</div>
+                          <div className="text-[10px] text-emerald-600 mt-0.5">{totalOrders} طلب إجمالي</div>
+                        </CardContent>
+                      </Card>
+                      <Card className="border-0 shadow-sm bg-gradient-to-br from-blue-50 to-white">
+                        <CardContent className="p-4 text-center">
+                          <div className="text-3xl font-black text-blue-700">{totalTons.toFixed(1)}</div>
+                          <div className="text-xs text-gray-500 mt-1">إجمالي الطن</div>
+                          <div className="text-[10px] text-blue-600 mt-0.5">متوسط {(totalTons / addressSummary.length).toFixed(1)} طن/عنوان</div>
+                        </CardContent>
+                      </Card>
+                      <Card className="border-0 shadow-sm bg-gradient-to-br from-green-50 to-white">
+                        <CardContent className="p-4 text-center">
+                          <div className="text-3xl font-black text-green-700">${formatNum(totalAmt)}</div>
+                          <div className="text-xs text-gray-500 mt-1">إجمالي القيمة</div>
+                          <div className="text-[10px] text-green-600 mt-0.5">متوسط ${formatNum(avgPerAddress)}/عنوان</div>
+                        </CardContent>
+                      </Card>
+                      <Card className="border-0 shadow-sm bg-gradient-to-br from-violet-50 to-white">
+                        <CardContent className="p-4 text-center">
+                          <div className="text-3xl font-black text-violet-700">{paymentRate}%</div>
+                          <div className="text-xs text-gray-500 mt-1">نسبة التحصيل</div>
+                          <div className="text-[10px] text-violet-600 mt-0.5">${formatNum(totalPaid)} مدفوع</div>
+                        </CardContent>
+                      </Card>
+                    </div>
+
+                    {/* Bar Chart — Value by Address */}
+                    <Card className="border-0 shadow-sm">
+                      <CardContent className="p-5">
+                        <h3 className="font-bold text-gray-900 mb-4">📊 القيمة ($) حسب العنوان</h3>
+                        <div className="space-y-3">
+                          {addressSummary.map((a: any, i: number) => {
+                            const maxVal = Math.max(...addressSummary.map((x: any) => x.total_amount), 1);
+                            const pct = (a.total_amount / maxVal) * 100;
+                            const paidPct = a.total_amount > 0 ? (a.total_paid / a.total_amount) * 100 : 0;
+                            return (
+                              <div key={i}>
+                                <div className="flex items-center justify-between mb-1">
+                                  <span className="text-xs font-bold text-gray-700">{a.address}</span>
+                                  <span className="text-xs text-gray-500">${formatNum(a.total_amount)} — {a.total_tons} طن</span>
+                                </div>
+                                <div className="relative h-7 bg-gray-100 rounded-lg overflow-hidden">
+                                  <div className="absolute inset-y-0 right-0 bg-blue-400/30 rounded-lg transition-all duration-700" style={{ width: `${pct}%` }} />
+                                  <div className="absolute inset-y-0 right-0 bg-gradient-to-l from-emerald-500 to-emerald-400 rounded-lg transition-all duration-700" style={{ width: `${pct * paidPct / 100}%` }} />
+                                  <div className="absolute inset-0 flex items-center justify-center text-[10px] font-bold text-gray-700">
+                                    ${formatNum(a.total_amount)} | تحصيل {paidPct.toFixed(0)}%
+                                  </div>
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                        <div className="flex items-center gap-4 mt-4 text-[10px] text-gray-500">
+                          <span className="flex items-center gap-1"><span className="w-3 h-2 bg-blue-400/30 rounded" /> إجمالي القيمة</span>
+                          <span className="flex items-center gap-1"><span className="w-3 h-2 bg-emerald-500 rounded" /> المدفوع</span>
+                        </div>
+                      </CardContent>
+                    </Card>
+
+                    {/* Pie-like breakdown */}
+                    <Card className="border-0 shadow-sm">
+                      <CardContent className="p-5">
+                        <h3 className="font-bold text-gray-900 mb-4">🥧 توزيع المبيعات على العناوين</h3>
+                        <div className="flex flex-wrap gap-3">
+                          {addressSummary.map((a: any, i: number) => {
+                            const pct = totalAmt > 0 ? ((a.total_amount / totalAmt) * 100).toFixed(1) : '0';
+                            const colors = ['bg-emerald-500', 'bg-blue-500', 'bg-amber-500', 'bg-rose-500', 'bg-violet-500', 'bg-cyan-500'];
+                            return (
+                              <div key={i} className="flex items-center gap-2 bg-gray-50 rounded-xl px-4 py-2.5 border border-gray-100">
+                                <div className={`w-3 h-8 rounded ${colors[i % colors.length]}`} />
+                                <div>
+                                  <div className="text-xs font-bold text-gray-800">{a.address}</div>
+                                  <div className="text-[10px] text-gray-500">{pct}% — ${formatNum(a.total_amount)}</div>
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </CardContent>
+                    </Card>
+
+                    {/* Table */}
+                    <Card className="border-0 shadow-sm">
+                      <CardContent className="p-4">
+                        <div className="flex items-center justify-between mb-4">
+                          <h3 className="font-bold text-gray-900">📋 جدول العناوين التفصيلي</h3>
+                          <button onClick={() => {
+                            exportExcel(['العنوان', 'عدد الطلبات', 'العملاء', 'الكمية (طن)', 'القيمة ($)', 'المدفوع ($)', 'المتبقي ($)'],
+                              addressSummary.map(a => [a.address, a.orders_count, a.customers_count, a.total_tons, a.total_amount, a.total_paid, a.balance]),
+                              'molas_addresses_report');
+                          }} className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-green-50 text-green-600 hover:bg-green-100 text-xs font-semibold">
+                            <FileSpreadsheet className="w-3.5 h-3.5" /> تصدير Excel
+                          </button>
+                        </div>
+                        <div className="overflow-x-auto">
+                          <table className="w-full text-sm">
+                            <thead><tr className="bg-emerald-600 text-white">
+                              <th className="px-3 py-2.5 text-right text-xs font-semibold">العنوان</th>
+                              <th className="px-3 py-2.5 text-right text-xs font-semibold">الطلبات</th>
+                              <th className="px-3 py-2.5 text-right text-xs font-semibold">العملاء</th>
+                              <th className="px-3 py-2.5 text-right text-xs font-semibold">الكمية (طن)</th>
+                              <th className="px-3 py-2.5 text-right text-xs font-semibold">القيمة ($)</th>
+                              <th className="px-3 py-2.5 text-right text-xs font-semibold">المدفوع ($)</th>
+                              <th className="px-3 py-2.5 text-right text-xs font-semibold">المتبقي ($)</th>
+                            </tr></thead>
+                            <tbody>
+                              {addressSummary.map((a, i) => (
+                                <tr key={i} className="border-b border-gray-50 hover:bg-gray-50/50">
+                                  <td className="px-3 py-2.5 font-bold">{a.address}</td>
+                                  <td className="px-3 py-2.5">{a.orders_count}</td>
+                                  <td className="px-3 py-2.5 text-gray-500 text-xs">{a.customers_names}</td>
+                                  <td className="px-3 py-2.5 font-semibold">{a.total_tons} طن</td>
+                                  <td className="px-3 py-2.5 font-bold text-blue-700">${formatNum(a.total_amount)}</td>
+                                  <td className="px-3 py-2.5 font-bold text-green-600">${formatNum(a.total_paid)}</td>
+                                  <td className="px-3 py-2.5 font-bold text-amber-600">${formatNum(a.balance)}</td>
+                                </tr>
+                              ))}
+                              <tr className="bg-emerald-50 font-bold">
+                                <td className="px-3 py-2.5">الإجمالي</td>
+                                <td className="px-3 py-2.5">{totalOrders}</td>
+                                <td className="px-3 py-2.5"></td>
+                                <td className="px-3 py-2.5">{totalTons.toFixed(1)} طن</td>
+                                <td className="px-3 py-2.5 text-blue-700">${formatNum(totalAmt)}</td>
+                                <td className="px-3 py-2.5 text-green-600">${formatNum(totalPaid)}</td>
+                                <td className="px-3 py-2.5 text-amber-600">${formatNum(totalAmt - totalPaid)}</td>
+                              </tr>
+                            </tbody>
+                          </table>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  </>
+                );
+              })()}
+              {addressSummary.length === 0 && (
+                <Card className="border-0 shadow-sm"><CardContent className="p-12 text-center text-gray-400">لا توجد بيانات حسب العناوين</CardContent></Card>
+              )}
+            </div>
           )}
 
           {/* Period Report */}
           {reportTab === 'periods' && periodData && (
-            <Card className="border-0 shadow-sm">
-              <CardContent className="p-4">
-                <div className="flex items-center justify-between mb-4">
-                  <h3 className="font-bold text-gray-900">التقرير اليومي حسب الفترات</h3>
-                  <button onClick={() => {
-                    exportPDF('تقرير فترات المولاس',
-                      ['التاريخ', 'الطلبات', 'الكمية (طن)', 'القيمة ($)', 'المدفوع ($)', 'المتبقي ($)'],
-                      periodData.daily.map((d: any) => [d.date, d.orders, d.tons + ' طن', '$' + formatNum(d.amount), '$' + formatNum(d.paid), '$' + formatNum(d.balance)]),
-                      'molas_period',
-                      [`إجمالي الطلبات: ${periodData.summary.total_orders}`, `إجمالي الطن: ${periodData.summary.total_tons}`,
-                       `القيمة: $${formatNum(periodData.summary.total_amount)}`, `المدفوع: $${formatNum(periodData.summary.total_paid)}`]
-                    );
-                  }} className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-red-50 text-red-600 hover:bg-red-100 text-xs font-semibold">
-                    <FileText className="w-3.5 h-3.5" /> تصدير PDF
-                  </button>
-                </div>
-                <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-4">
-                  <div className="bg-emerald-50 rounded-xl p-3 text-center">
-                    <div className="text-2xl font-black text-emerald-700">{periodData.summary.total_orders}</div>
-                    <div className="text-xs text-gray-500">إجمالي الطلبات</div>
-                  </div>
-                  <div className="bg-blue-50 rounded-xl p-3 text-center">
-                    <div className="text-2xl font-black text-blue-700">{periodData.summary.total_tons} طن</div>
-                    <div className="text-xs text-gray-500">إجمالي الكمية</div>
-                  </div>
-                  <div className="bg-green-50 rounded-xl p-3 text-center">
-                    <div className="text-2xl font-black text-green-700">${formatNum(periodData.summary.total_amount)}</div>
-                    <div className="text-xs text-gray-500">إجمالي القيمة</div>
-                  </div>
-                  <div className="bg-amber-50 rounded-xl p-3 text-center">
-                    <div className="text-2xl font-black text-amber-700">${formatNum(periodData.summary.total_paid)}</div>
-                    <div className="text-xs text-gray-500">إجمالي المدفوع</div>
-                  </div>
-                </div>
-                <div className="overflow-x-auto">
-                  <table className="w-full text-sm">
-                    <thead><tr className="bg-emerald-600 text-white">
-                      <th className="px-3 py-2.5 text-right text-xs font-semibold">التاريخ</th>
-                      <th className="px-3 py-2.5 text-right text-xs font-semibold">الطلبات</th>
-                      <th className="px-3 py-2.5 text-right text-xs font-semibold">الكمية (طن)</th>
-                      <th className="px-3 py-2.5 text-right text-xs font-semibold">القيمة ($)</th>
-                      <th className="px-3 py-2.5 text-right text-xs font-semibold">المدفوع ($)</th>
-                      <th className="px-3 py-2.5 text-right text-xs font-semibold">المتبقي ($)</th>
-                    </tr></thead>
-                    <tbody>
-                      {periodData.daily.map((d: any, i: number) => (
-                        <tr key={i} className="border-b border-gray-50 hover:bg-gray-50/50">
-                          <td className="px-3 py-2.5 font-semibold">{d.date}</td>
-                          <td className="px-3 py-2.5">{d.orders}</td>
-                          <td className="px-3 py-2.5 font-semibold">{d.tons} طن</td>
-                          <td className="px-3 py-2.5 font-bold text-blue-700">${formatNum(d.amount)}</td>
-                          <td className="px-3 py-2.5 font-bold text-green-600">${formatNum(d.paid)}</td>
-                          <td className="px-3 py-2.5 font-bold text-amber-600">${formatNum(d.balance)}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </CardContent>
-            </Card>
+            <div className="space-y-6">
+              {(() => {
+                const s = periodData.summary;
+                const daily = periodData.daily || [];
+                const avgDaily = daily.length > 0 ? s.total_amount / daily.length : 0;
+                const avgTons = daily.length > 0 ? s.total_tons / daily.length : 0;
+                const collectionRate = s.total_amount > 0 ? ((s.total_paid / s.total_amount) * 100).toFixed(1) : '0';
+                const maxDaily = Math.max(...daily.map((d: any) => d.amount), 1);
+                return (
+                  <>
+                    {/* KPIs */}
+                    <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                      <Card className="border-0 shadow-sm bg-gradient-to-br from-emerald-50 to-white">
+                        <CardContent className="p-4 text-center">
+                          <div className="text-3xl font-black text-emerald-700">{s.total_orders}</div>
+                          <div className="text-xs text-gray-500 mt-1">إجمالي الطلبات</div>
+                          <div className="text-[10px] text-emerald-600 mt-0.5">{daily.length} يوم مبيعات</div>
+                        </CardContent>
+                      </Card>
+                      <Card className="border-0 shadow-sm bg-gradient-to-br from-blue-50 to-white">
+                        <CardContent className="p-4 text-center">
+                          <div className="text-3xl font-black text-blue-700">{s.total_tons}</div>
+                          <div className="text-xs text-gray-500 mt-1">إجمالي الطن</div>
+                          <div className="text-[10px] text-blue-600 mt-0.5">متوسط {avgTons.toFixed(1)} طن/يوم</div>
+                        </CardContent>
+                      </Card>
+                      <Card className="border-0 shadow-sm bg-gradient-to-br from-green-50 to-white">
+                        <CardContent className="p-4 text-center">
+                          <div className="text-3xl font-black text-green-700">${formatNum(s.total_amount)}</div>
+                          <div className="text-xs text-gray-500 mt-1">إجمالي القيمة</div>
+                          <div className="text-[10px] text-green-600 mt-0.5">متوسط ${formatNum(avgDaily)}/يوم</div>
+                        </CardContent>
+                      </Card>
+                      <Card className="border-0 shadow-sm bg-gradient-to-br from-violet-50 to-white">
+                        <CardContent className="p-4 text-center">
+                          <div className="text-3xl font-black text-violet-700">{collectionRate}%</div>
+                          <div className="text-xs text-gray-500 mt-1">نسبة التحصيل</div>
+                          <div className="text-[10px] text-violet-600 mt-0.5">{s.payment_count} عملية دفع</div>
+                        </CardContent>
+                      </Card>
+                    </div>
+
+                    {/* Daily Bar Chart */}
+                    <Card className="border-0 shadow-sm">
+                      <CardContent className="p-5">
+                        <h3 className="font-bold text-gray-900 mb-4">📊 المبيعات اليومية ($)</h3>
+                        <div className="flex items-end gap-2 h-48 border-b border-gray-200 pb-2">
+                          {daily.map((d: any, i: number) => {
+                            const h = (d.amount / maxDaily) * 100;
+                            const paidH = d.amount > 0 ? (d.paid / d.amount) * h : 0;
+                            return (
+                              <div key={i} className="flex-1 flex flex-col items-center gap-1 group relative">
+                                <div className="absolute -top-8 bg-gray-800 text-white text-[9px] px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-10">
+                                  ${formatNum(d.amount)} | {d.tons} طن
+                                </div>
+                                <div className="w-full flex flex-col justify-end" style={{ height: '100%' }}>
+                                  <div className="relative w-full rounded-t-md transition-all duration-500" style={{ height: `${h}%`, minHeight: '4px' }}>
+                                    <div className="absolute inset-0 bg-blue-200 rounded-t-md" />
+                                    <div className="absolute inset-0 bg-gradient-to-t from-emerald-500 to-emerald-400 rounded-t-md" style={{ height: `${paidH}%` }} />
+                                  </div>
+                                </div>
+                                <div className="text-[8px] text-gray-500 text-center leading-tight mt-1">{d.date?.slice(5)}</div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                        <div className="flex items-center gap-4 mt-3 text-[10px] text-gray-500">
+                          <span className="flex items-center gap-1"><span className="w-3 h-2 bg-blue-200 rounded" /> إجمالي</span>
+                          <span className="flex items-center gap-1"><span className="w-3 h-2 bg-emerald-500 rounded" /> مدفوع</span>
+                        </div>
+                      </CardContent>
+                    </Card>
+
+                    {/* Tons Chart */}
+                    <Card className="border-0 shadow-sm">
+                      <CardContent className="p-5">
+                        <h3 className="font-bold text-gray-900 mb-4">📦 الأطنان اليومية</h3>
+                        <div className="flex items-end gap-2 h-36 border-b border-gray-200 pb-2">
+                          {daily.map((d: any, i: number) => {
+                            const maxT = Math.max(...daily.map((x: any) => x.tons), 1);
+                            const h = (d.tons / maxT) * 100;
+                            return (
+                              <div key={i} className="flex-1 flex flex-col items-center gap-1 group relative">
+                                <div className="absolute -top-6 bg-gray-800 text-white text-[9px] px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-10">
+                                  {d.tons} طن | {d.orders} طلب
+                                </div>
+                                <div className="w-full flex flex-col justify-end" style={{ height: '100%' }}>
+                                  <div className="w-full bg-gradient-to-t from-amber-500 to-amber-400 rounded-t-md transition-all duration-500" style={{ height: `${h}%`, minHeight: '4px' }} />
+                                </div>
+                                <div className="text-[8px] text-gray-500 text-center leading-tight mt-1">{d.date?.slice(5)}</div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </CardContent>
+                    </Card>
+
+                    {/* Cumulative Line */}
+                    <Card className="border-0 shadow-sm">
+                      <CardContent className="p-5">
+                        <h3 className="font-bold text-gray-900 mb-4">📈 التراكمي للقيمة ($)</h3>
+                        <div className="relative h-40 border-b border-r border-gray-200">
+                          {(() => {
+                            let cum = 0;
+                            const maxCum = daily.reduce((s: number, d: any) => s + d.amount, 0);
+                            const points: string[] = [];
+                            const labels: { x: number; y: number; val: number; date: string }[] = [];
+                            daily.forEach((d: any, i: number) => {
+                              cum += d.amount;
+                              const x = daily.length > 1 ? (i / (daily.length - 1)) * 100 : 50;
+                              const y = maxCum > 0 ? (1 - cum / maxCum) * 100 : 50;
+                              points.push(`${x}%,${y}%`);
+                              labels.push({ x, y, val: cum, date: d.date });
+                            });
+                            return (
+                              <>
+                                <svg className="absolute inset-0 w-full h-full" preserveAspectRatio="none">
+                                  <defs>
+                                    <linearGradient id="areaGrad" x1="0" y1="0" x2="0" y2="1">
+                                      <stop offset="0%" stopColor="rgb(16,185,129)" stopOpacity="0.3" />
+                                      <stop offset="100%" stopColor="rgb(16,185,129)" stopOpacity="0.02" />
+                                    </linearGradient>
+                                  </defs>
+                                  <polygon points={`0%,100% ${points.map(p => p.replace(/%/g, '')).join(' ')} 100%,100%`} fill="url(#areaGrad)" />
+                                  <polyline points={points.map(p => p.replace(/%/g, '')).join(' ')} fill="none" stroke="#10b981" strokeWidth="2.5" strokeLinejoin="round" />
+                                  {labels.map((l, i) => (
+                                    <circle key={i} cx={`${l.x}%`} cy={`${l.y}%`} r="3.5" fill="#10b981" stroke="#fff" strokeWidth="1.5" />
+                                  ))}
+                                </svg>
+                                <div className="absolute bottom-0 left-0 right-0 flex justify-between text-[8px] text-gray-400 px-1">
+                                  {labels.map((l, i) => <span key={i}>{l.date?.slice(5)}</span>)}
+                                </div>
+                              </>
+                            );
+                          })()}
+                        </div>
+                      </CardContent>
+                    </Card>
+
+                    {/* Table */}
+                    <Card className="border-0 shadow-sm">
+                      <CardContent className="p-4">
+                        <div className="flex items-center justify-between mb-4">
+                          <h3 className="font-bold text-gray-900">📋 جدول الفترات التفصيلي</h3>
+                          <button onClick={() => {
+                            exportPDF('تقرير فترات المولاس',
+                              ['التاريخ', 'الطلبات', 'الكمية (طن)', 'القيمة ($)', 'المدفوع ($)', 'المتبقي ($)'],
+                              daily.map((d: any) => [d.date, d.orders, d.tons + ' طن', '$' + formatNum(d.amount), '$' + formatNum(d.paid), '$' + formatNum(d.balance)]),
+                              'molas_period',
+                              [`إجمالي الطلبات: ${s.total_orders}`, `إجمالي الطن: ${s.total_tons}`, `القيمة: $${formatNum(s.total_amount)}`, `المدفوع: $${formatNum(s.total_paid)}`]
+                            );
+                          }} className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-red-50 text-red-600 hover:bg-red-100 text-xs font-semibold">
+                            <FileText className="w-3.5 h-3.5" /> تصدير PDF
+                          </button>
+                        </div>
+                        <div className="overflow-x-auto">
+                          <table className="w-full text-sm">
+                            <thead><tr className="bg-emerald-600 text-white">
+                              <th className="px-3 py-2.5 text-right text-xs font-semibold">التاريخ</th>
+                              <th className="px-3 py-2.5 text-right text-xs font-semibold">الطلبات</th>
+                              <th className="px-3 py-2.5 text-right text-xs font-semibold">الكمية (طن)</th>
+                              <th className="px-3 py-2.5 text-right text-xs font-semibold">القيمة ($)</th>
+                              <th className="px-3 py-2.5 text-right text-xs font-semibold">المدفوع ($)</th>
+                              <th className="px-3 py-2.5 text-right text-xs font-semibold">المتبقي ($)</th>
+                            </tr></thead>
+                            <tbody>
+                              {daily.map((d: any, i: number) => (
+                                <tr key={i} className="border-b border-gray-50 hover:bg-gray-50/50">
+                                  <td className="px-3 py-2.5 font-semibold">{d.date}</td>
+                                  <td className="px-3 py-2.5">{d.orders}</td>
+                                  <td className="px-3 py-2.5 font-semibold">{d.tons} طن</td>
+                                  <td className="px-3 py-2.5 font-bold text-blue-700">${formatNum(d.amount)}</td>
+                                  <td className="px-3 py-2.5 font-bold text-green-600">${formatNum(d.paid)}</td>
+                                  <td className="px-3 py-2.5 font-bold text-amber-600">${formatNum(d.balance)}</td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  </>
+                );
+              })()}
+            </div>
           )}
 
           {/* Customer Statement */}
