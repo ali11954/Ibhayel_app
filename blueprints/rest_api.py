@@ -230,6 +230,8 @@ def api_employee_delete(emp_id):
         blockers.append('بيانات حسابات بنكية')
     if User.query.filter_by(employee_id=emp_id).first():
         blockers.append('حساب مستخدم مرتبط')
+    if Employee.query.filter_by(supervisor_id=emp_id).first():
+        blockers.append('موظفين مُسندين إليه كمشرف')
     if blockers:
         return fail(f'لا يمكن حذف الموظف "{emp.name}" لأنه مرتبط بـ: {", ".join(blockers)}', 400)
     db.session.delete(emp)
