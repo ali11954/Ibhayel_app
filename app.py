@@ -596,8 +596,9 @@ def auto_migrate():
     for table, cols in [
         ('molas_customers', [
             ('name', 'VARCHAR(200)', None), ('phone', 'VARCHAR(50)', "''"), ('secondary_phone', 'VARCHAR(50)', "''"),
-            ('address', 'TEXT', "''"), ('company', 'VARCHAR(200)', "''"), ('tax_number', 'VARCHAR(50)', "''"),
-            ('contact_person', 'VARCHAR(100)', "''"), ('credit_limit', 'FLOAT', '0'),
+            ('address', 'TEXT', "''"), ('company', 'VARCHAR(200)', "''"), ('governorate', 'VARCHAR(100)', "''"),
+            ('tax_number', 'VARCHAR(50)', "''"), ('contact_person', 'VARCHAR(100)', "''"),
+            ('credit_limit', 'FLOAT', '0'),
             ('notes', 'TEXT', "''"), ('is_active', 'BOOLEAN', 'TRUE'), ('created_at', 'TIMESTAMP', None),
         ]),
         ('molas_orders', [
@@ -607,6 +608,9 @@ def auto_migrate():
             ('discount', 'FLOAT', '0'), ('tax_rate', 'FLOAT', '0'), ('tax_amount', 'FLOAT', '0'),
             ('final_amount', 'FLOAT', '0'), ('paid_amount', 'FLOAT', '0'), ('remaining_amount', 'FLOAT', '0'),
             ('payment_method', 'VARCHAR(20)', "'cash'"), ('delivery_address', 'TEXT', "''"),
+            ('governorate', 'VARCHAR(100)', "''"),
+            ('currency', 'VARCHAR(10)', "'USD'"),
+            ('exchange_rate', 'FLOAT', '1.0'),
             ('notes', 'TEXT', "''"), ('created_by', 'INTEGER', None),
             ('created_at', 'TIMESTAMP', None), ('updated_at', 'TIMESTAMP', None),
         ]),

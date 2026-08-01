@@ -203,16 +203,35 @@ def api_employee_update(emp_id):
 @login_required
 def api_employee_delete(emp_id):
     emp = Employee.query.get_or_404(emp_id)
-    # فحص الارتباط بسجلات أخرى
-    has_salaries = Salary.query.filter_by(employee_id=emp_id).first()
-    if has_salaries:
-        return fail('لا يمكن حذف الموظف لأنه مرتبط بسجلات رواتب', 400)
-    has_attendance = Attendance.query.filter_by(employee_id=emp_id).first()
-    if has_attendance:
-        return fail('لا يمكن حذف الموظف لأنه مرتبط بسجلات حضور', 400)
-    has_transactions = FinancialTransaction.query.filter_by(employee_id=emp_id).first()
-    if has_transactions:
-        return fail('لا يمكن حذف الموظف لأنه مرتبط بمعاملات مالية', 400)
+    blockers = []
+    if Salary.query.filter_by(employee_id=emp_id).first():
+        blockers.append('سجلات رواتب')
+    if Attendance.query.filter_by(employee_id=emp_id).first():
+        blockers.append('سجلات حضور وانصراف')
+    if FinancialTransaction.query.filter_by(employee_id=emp_id).first():
+        blockers.append('معاملات مالية (سلف / سندات صرف)')
+    if MealDeduction.query.filter_by(employee_id=emp_id).first():
+        blockers.append('خصومات وجبات')
+    if LaborMonthlyCost.query.filter_by(employee_id=emp_id).first():
+        blockers.append('تكاليف شهرية')
+    if Evaluation.query.filter_by(employee_id=emp_id).first():
+        blockers.append('تقييمات أداء')
+    if WorkPlan.query.filter_by(assigned_to=emp_id).first():
+        blockers.append('خطط عمل مُسندة')
+    if WorkPlanTask.query.filter_by(assigned_to=emp_id).first():
+        blockers.append('مهام خطط عمل')
+    if WorkPlanTaskLog.query.filter_by(employee_id=emp_id).first():
+        blockers.append('سجلات تنفيذ مهام')
+    if LeaveBalance.query.filter_by(employee_id=emp_id).first():
+        blockers.append('أرصدة إجازات')
+    if LeaveRequest.query.filter_by(employee_id=emp_id).first():
+        blockers.append('طلبات إجازات')
+    if BankInfo.query.filter_by(employee_id=emp_id).first():
+        blockers.append('بيانات حسابات بنكية')
+    if User.query.filter_by(employee_id=emp_id).first():
+        blockers.append('حساب مستخدم مرتبط')
+    if blockers:
+        return fail(f'لا يمكن حذف الموظف "{emp.name}" لأنه مرتبط بـ: {", ".join(blockers)}', 400)
     db.session.delete(emp)
     db.session.commit()
     return ok(message='تم حذف الموظف بنجاح')
@@ -4179,6 +4198,7 @@ def api_molas_customer_create():
         secondary_phone=data.get('secondary_phone', ''),
         address=data.get('address', ''),
         company=data.get('company', ''),
+        governorate=data.get('governorate', ''),
         tax_number=data.get('tax_number', ''),
         contact_person=data.get('contact_person', ''),
         credit_limit=safe_float(data.get('credit_limit', 0)),
@@ -4198,7 +4218,7 @@ def api_molas_customer_create():
 def api_molas_customer_update(cid):
     c = MolasCustomer.query.get_or_404(cid)
     data = request.get_json(force=True, silent=True) or {}
-    for field in ['name', 'phone', 'secondary_phone', 'address', 'company', 'tax_number',
+    for field in ['name', 'phone', 'secondary_phone', 'address', 'company', 'governorate', 'tax_number',
                   'contact_person', 'notes']:
         if field in data:
             setattr(c, field, data[field])
@@ -4271,6 +4291,9 @@ def api_molas_order_create():
         tax_rate=safe_float(data.get('tax_rate', 0)),
         payment_method=data.get('payment_method', 'cash'),
         delivery_address=data.get('delivery_address', ''),
+        governorate=data.get('governorate', ''),
+        currency=data.get('currency', 'USD'),
+        exchange_rate=safe_float(data.get('exchange_rate', 1.0)),
         notes=data.get('notes', ''),
         created_by=current_user.id if current_user.is_authenticated else None,
     )
@@ -4333,6 +4356,12 @@ def api_molas_order_update(oid):
         o.payment_method = data['payment_method']
     if 'delivery_address' in data:
         o.delivery_address = data['delivery_address']
+    if 'governorate' in data:
+        o.governorate = data['governorate']
+    if 'currency' in data:
+        o.currency = data['currency']
+    if 'exchange_rate' in data:
+        o.exchange_rate = safe_float(data['exchange_rate'])
     if 'notes' in data:
         o.notes = data['notes']
 
@@ -4567,18 +4596,21 @@ def api_molas_reports_address_summary():
     orders = q.all()
     addresses = {}
     for o in orders:
+        gov = o.governorate or o.customer.governorate or 'غير محدد'
         addr = o.delivery_address or o.customer.address or 'غير محدد'
-        if addr not in addresses:
-            addresses[addr] = {'address': addr, 'orders_count': 0, 'total_tons': 0, 'total_amount': 0, 'total_paid': 0, 'customers': set()}
-        addresses[addr]['orders_count'] += 1
-        addresses[addr]['total_tons'] += sum(it.quantity or 0 for it in o.items)
-        addresses[addr]['total_amount'] += o.final_amount or 0
-        addresses[addr]['total_paid'] += o.paid_amount or 0
-        addresses[addr]['customers'].add(o.customer.name if o.customer else '')
+        key = f'{gov}|{addr}'
+        if key not in addresses:
+            addresses[key] = {'governorate': gov, 'address': addr, 'orders_count': 0, 'total_tons': 0, 'total_amount': 0, 'total_paid': 0, 'customers': set()}
+        addresses[key]['orders_count'] += 1
+        addresses[key]['total_tons'] += sum(it.quantity or 0 for it in o.items)
+        addresses[key]['total_amount'] += o.final_amount or 0
+        addresses[key]['total_paid'] += o.paid_amount or 0
+        addresses[key]['customers'].add(o.customer.name if o.customer else '')
 
     result = []
     for v in addresses.values():
         result.append({
+            'governorate': v['governorate'],
             'address': v['address'],
             'orders_count': v['orders_count'],
             'total_tons': round(v['total_tons'], 2),
@@ -4587,6 +4619,50 @@ def api_molas_reports_address_summary():
             'balance': round(v['total_amount'] - v['total_paid'], 2),
             'customers_count': len(v['customers']),
             'customers_names': ', '.join(list(v['customers'])[:5]),
+        })
+
+    result.sort(key=lambda x: x['total_amount'], reverse=True)
+    return ok(result)
+
+
+@rest_api.route('/molas/reports/governorate-summary', methods=['GET'])
+@login_required
+def api_molas_reports_governorate_summary():
+    date_from = request.args.get('date_from')
+    date_to = request.args.get('date_to')
+
+    q = MolasOrder.query.filter(MolasOrder.status != 'cancelled')
+    if date_from:
+        q = q.filter(MolasOrder.order_date >= date_from)
+    if date_to:
+        q = q.filter(MolasOrder.order_date <= date_to)
+
+    orders = q.all()
+    governorates = {}
+    for o in orders:
+        gov = o.governorate or o.customer.governorate or 'غير محدد'
+        if gov not in governorates:
+            governorates[gov] = {'governorate': gov, 'orders_count': 0, 'total_tons': 0, 'total_amount': 0, 'total_paid': 0, 'customers': set(), 'addresses': set()}
+        governorates[gov]['orders_count'] += 1
+        governorates[gov]['total_tons'] += sum(it.quantity or 0 for it in o.items)
+        governorates[gov]['total_amount'] += o.final_amount or 0
+        governorates[gov]['total_paid'] += o.paid_amount or 0
+        governorates[gov]['customers'].add(o.customer.name if o.customer else '')
+        addr = o.delivery_address or o.customer.address or ''
+        if addr:
+            governorates[gov]['addresses'].add(addr)
+
+    result = []
+    for v in governorates.values():
+        result.append({
+            'governorate': v['governorate'],
+            'orders_count': v['orders_count'],
+            'total_tons': round(v['total_tons'], 2),
+            'total_amount': round(v['total_amount'], 2),
+            'total_paid': round(v['total_paid'], 2),
+            'balance': round(v['total_amount'] - v['total_paid'], 2),
+            'customers_count': len(v['customers']),
+            'addresses_count': len(v['addresses']),
         })
 
     result.sort(key=lambda x: x['total_amount'], reverse=True)

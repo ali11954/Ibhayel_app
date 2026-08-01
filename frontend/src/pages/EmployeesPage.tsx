@@ -233,8 +233,12 @@ export default function EmployeesPage() {
 
   const handleDelete = async (id: number) => {
     if (!confirm('هل أنت متأكد من حذف هذا الموظف؟')) return;
-    await api.delete(`/employees/${id}`);
-    loadData();
+    try {
+      await api.delete(`/employees/${id}`);
+      loadData();
+    } catch (err: any) {
+      alert(err.response?.data?.message || 'حدث خطأ أثناء حذف الموظف');
+    }
   };
 
   const loadEmployeeDetail = async (emp: any) => {

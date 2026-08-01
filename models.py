@@ -2746,6 +2746,7 @@ class MolasCustomer(db.Model):
     secondary_phone = db.Column(db.String(50), default='')
     address = db.Column(db.Text, default='')
     company = db.Column(db.String(200), default='')
+    governorate = db.Column(db.String(100), default='')
     tax_number = db.Column(db.String(50), default='')
     contact_person = db.Column(db.String(100), default='')
     credit_limit = db.Column(db.Float, default=0)
@@ -2768,6 +2769,7 @@ class MolasCustomer(db.Model):
             'secondary_phone': self.secondary_phone or '',
             'address': self.address or '',
             'company': self.company or '',
+            'governorate': self.governorate or '',
             'tax_number': self.tax_number or '',
             'contact_person': self.contact_person or '',
             'credit_limit': self.credit_limit or 0,
@@ -2797,6 +2799,9 @@ class MolasOrder(db.Model):
     remaining_amount = db.Column(db.Float, default=0)
     payment_method = db.Column(db.String(20), default='cash')  # cash, bank, transfer, credit
     delivery_address = db.Column(db.Text, default='')
+    governorate = db.Column(db.String(100), default='')
+    currency = db.Column(db.String(10), default='USD')
+    exchange_rate = db.Column(db.Float, default=1.0)
     notes = db.Column(db.Text, default='')
     created_by = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
@@ -2846,6 +2851,9 @@ class MolasOrder(db.Model):
             'payment_method': self.payment_method,
             'payment_method_name': self.PAYMENT_METHODS.get(self.payment_method, self.payment_method),
             'delivery_address': self.delivery_address or '',
+            'governorate': self.governorate or '',
+            'currency': self.currency or 'USD',
+            'exchange_rate': self.exchange_rate or 1.0,
             'notes': self.notes or '',
             'items_count': len(self.items),
             'items': [item.to_dict() for item in self.items],
