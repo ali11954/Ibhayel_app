@@ -32,7 +32,7 @@ export default function FinancialPage() {
 
   const loadData = () => {
     Promise.all([api.get('/financial/transactions'), api.get('/financial/dashboard'), api.get('/employees'), api.get('/accounts/balance'), api.get('/suppliers')])
-      .then(([txRes, dashRes, empRes, balRes, supRes]) => { setTransactions(txRes.data.data || []); setDashboard(dashRes.data.data); setEmployees(empRes.data.data || []); setBalances(balRes.data.data || { cash: 0, bank: 0, total: 0 }); setSuppliers(supRes.data.data || []); })
+      .then(([txRes, dashRes, empRes, balRes, supRes]) => { setTransactions(txRes.data.data || []); setDashboard(dashRes.data.data); setEmployees((empRes.data.data || []).filter((e: any) => e.is_active !== false)); setBalances(balRes.data.data || { cash: 0, bank: 0, total: 0 }); setSuppliers(supRes.data.data || []); })
       .catch(console.error).finally(() => setLoading(false));
   };
   useEffect(() => { loadData(); }, []);

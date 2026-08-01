@@ -50,12 +50,13 @@ export default function AttendancePage() {
       api.get('/reports/attendance'),
     ]).then(([aRes, eRes, rRes]) => {
       setRecords(aRes.data.data || []);
-      setEmployees(eRes.data.data || []);
+      const allEmps = eRes.data.data || [];
+      setEmployees(allEmps.filter((e: any) => e.is_active !== false));
       setAttendanceReport(rRes.data.data);
       // Initialize group data for employees not yet present today
       const presentEmpIds = new Set((aRes.data.data || []).map((r: any) => r.employee_id));
       const initial: Record<number, { status: string; notes: string }> = {};
-      (eRes.data.data || []).forEach((emp: any) => {
+      allEmps.filter((e: any) => e.is_active !== false).forEach((emp: any) => {
         if (!presentEmpIds.has(emp.id)) {
           initial[emp.id] = { status: 'absent', notes: '' };
         }

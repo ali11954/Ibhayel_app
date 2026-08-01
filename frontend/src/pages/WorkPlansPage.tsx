@@ -73,7 +73,7 @@ export default function WorkPlansPage() {
         api.get('/locations'),
       ]);
       if (pRes.status === 'fulfilled') setPlans(pRes.value.data.data || []);
-      if (eRes.status === 'fulfilled') setEmployees(eRes.value.data.data || []);
+      if (eRes.status === 'fulfilled') setEmployees((eRes.value.data.data || []).filter((e: any) => e.is_active !== false));
       if (cRes.status === 'fulfilled') setCompanies(cRes.value.data.data || []);
       if (rRes.status === 'fulfilled') setRegions(rRes.value.data.data || []);
       if (lRes.status === 'fulfilled') setLocations(lRes.value.data.data || []);

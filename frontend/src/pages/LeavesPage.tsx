@@ -34,7 +34,7 @@ export default function LeavesPage() {
       ]);
       setLeaves(leavesRes.data.data || []);
       setLeaveTypes(typesRes.data.data || []);
-      setEmployees(empRes.data.data || []);
+      setEmployees((empRes.data.data || []).filter((e: any) => e.is_active !== false));
 
       // Load balances for each employee
       const balRes = await api.get(`/leave-balances?year=${currentYear}`);

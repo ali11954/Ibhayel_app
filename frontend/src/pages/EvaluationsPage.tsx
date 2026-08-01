@@ -50,7 +50,7 @@ export default function EvaluationsPage() {
       api.get('/evaluation-criteria'),
     ]).then(([eRes, empRes, regRes, locRes, jtRes, crRes]) => {
       setEvaluations(eRes.data.data || []);
-      setEmployees(empRes.data.data || []);
+      setEmployees((empRes.data.data || []).filter((e: any) => e.is_active !== false));
       setRegions(regRes.data.data || []);
       setLocations(locRes.data.data || []);
       setJobTitles(jtRes.data.data || []);

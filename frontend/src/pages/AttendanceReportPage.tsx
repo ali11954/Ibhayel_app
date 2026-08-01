@@ -96,7 +96,7 @@ export default function AttendanceReportPage() {
       api.get('/reports/attendance-detail', { params }).catch(() => ({ data: { data: null } })),
     ]).then(([cRes, eRes, aRes]) => {
       setCompanies(cRes.data.data || []);
-      setEmployees(eRes.data.data || []);
+      setEmployees((eRes.data.data || []).filter((e: any) => e.is_active !== false));
       setData(aRes.data.data);
     }).catch(console.error).finally(() => setLoading(false));
   };

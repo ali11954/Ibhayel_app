@@ -90,8 +90,8 @@ export default function UsersPage() {
     setCodeSearch(code);
     if (code.length < 2) { setCodeResults([]); return; }
     const results = employees.filter((e: any) =>
-      e.code?.toLowerCase().includes(code.toLowerCase()) ||
-      e.name?.toLowerCase().includes(code.toLowerCase())
+      (e.code?.toLowerCase().includes(code.toLowerCase()) ||
+      e.name?.toLowerCase().includes(code.toLowerCase())) && e.is_active !== false
     );
     setCodeResults(results.slice(0, 5));
   };

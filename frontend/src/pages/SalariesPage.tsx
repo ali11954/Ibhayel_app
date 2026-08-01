@@ -24,7 +24,7 @@ export default function SalariesPage() {
       api.get('/companies'),
     ]).then(([sRes, eRes, cRes]) => {
       setSalaries(sRes.data.data || []);
-      setEmployees(eRes.data.data || []);
+      setEmployees((eRes.data.data || []).filter((e: any) => e.is_active !== false));
       setCompanies(cRes.data.data || []);
     }).catch(console.error).finally(() => setLoading(false));
   };

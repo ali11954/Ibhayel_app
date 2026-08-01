@@ -96,9 +96,9 @@ export default function CompaniesPage() {
   };
 
   const getCompanyRegions = (companyId: number) => regions.filter(r => r.company_id === companyId);
-  const getCompanyEmployees = (companyId: number) => employees.filter(e => e.company_id === companyId);
+  const getCompanyEmployees = (companyId: number) => employees.filter(e => e.company_id === companyId && e.is_active !== false);
   const getRegionLocations = (regionId: number) => locations.filter(l => l.region_id === regionId);
-  const getRegionEmployees = (regionId: number) => employees.filter(e => e.region_id === regionId);
+  const getRegionEmployees = (regionId: number) => employees.filter(e => e.region_id === regionId && e.is_active !== false);
   const getCompanyLocationsCount = (companyId: number) => {
     const crs = getCompanyRegions(companyId);
     return crs.reduce((acc, r) => acc + getRegionLocations(r.id).length, 0);
