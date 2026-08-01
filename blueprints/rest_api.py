@@ -10,7 +10,7 @@ from models import (
     JournalEntryDetail as JED, MealDeduction, LaborMonthlyCost, ContractorAnnualCost,
     ExpenseCategory, SystemSettings, AllowanceSetting, WorkPlan, WorkPlanTask, WorkPlanTaskLog,
     FinancialPeriod, LeaveType, LeaveBalance, LeaveRequest, BankInfo,
-    MolasCustomer, MolasOrder, MolasOrderItem, MolasPayment
+    MolasCustomer, MolasOrder, MolasOrderItem, MolasPayment, safe_float
 )
 
 rest_api = Blueprint('rest_api', __name__, url_prefix='/api')
