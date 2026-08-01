@@ -4504,3 +4504,140 @@ def api_molas_reports_customer_statement():
         'total_paid': total_paid,
         'balance': total_orders - total_paid,
     })
+
+
+@rest_api.route('/molas/reports/customers-summary', methods=['GET'])
+@login_required
+def api_molas_reports_customers_summary():
+    date_from = request.args.get('date_from')
+    date_to = request.args.get('date_to')
+
+    customers = MolasCustomer.query.filter_by(is_active=True).all()
+    result = []
+    for c in customers:
+        q = MolasOrder.query.filter_by(customer_id=c.id).filter(MolasOrder.status != 'cancelled')
+        if date_from:
+            q = q.filter(MolasOrder.order_date >= date_from)
+        if date_to:
+            q = q.filter(MolasOrder.order_date <= date_to)
+        orders = q.all()
+
+        p_q = MolasPayment.query.filter_by(customer_id=c.id)
+        if date_from:
+            p_q = p_q.filter(MolasPayment.payment_date >= date_from)
+        if date_to:
+            p_q = p_q.filter(MolasPayment.payment_date <= date_to)
+        payments = p_q.all()
+
+        total = sum(o.final_amount or 0 for o in orders)
+        paid = sum(p.amount or 0 for p in payments)
+        tons = sum(
+            sum(it.quantity or 0 for it in o.items)
+            for o in orders
+        )
+        if total > 0 or paid > 0:
+            result.append({
+                'customer_id': c.id,
+                'customer_name': c.name,
+                'phone': c.phone or '',
+                'company': c.company or '',
+                'total_orders': len(orders),
+                'total_tons': round(tons, 2),
+                'total_amount': round(total, 2),
+                'total_paid': round(paid, 2),
+                'balance': round(total - paid, 2),
+            })
+
+    result.sort(key=lambda x: x['total_amount'], reverse=True)
+    return ok(result)
+
+
+@rest_api.route('/molas/reports/address-summary', methods=['GET'])
+@login_required
+def api_molas_reports_address_summary():
+    date_from = request.args.get('date_from')
+    date_to = request.args.get('date_to')
+
+    q = MolasOrder.query.filter(MolasOrder.status != 'cancelled')
+    if date_from:
+        q = q.filter(MolasOrder.order_date >= date_from)
+    if date_to:
+        q = q.filter(MolasOrder.order_date <= date_to)
+
+    orders = q.all()
+    addresses = {}
+    for o in orders:
+        addr = o.delivery_address or o.customer.address or 'غير محدد'
+        if addr not in addresses:
+            addresses[addr] = {'address': addr, 'orders_count': 0, 'total_tons': 0, 'total_amount': 0, 'total_paid': 0, 'customers': set()}
+        addresses[addr]['orders_count'] += 1
+        addresses[addr]['total_tons'] += sum(it.quantity or 0 for it in o.items)
+        addresses[addr]['total_amount'] += o.final_amount or 0
+        addresses[addr]['total_paid'] += o.paid_amount or 0
+        addresses[addr]['customers'].add(o.customer.name if o.customer else '')
+
+    result = []
+    for v in addresses.values():
+        result.append({
+            'address': v['address'],
+            'orders_count': v['orders_count'],
+            'total_tons': round(v['total_tons'], 2),
+            'total_amount': round(v['total_amount'], 2),
+            'total_paid': round(v['total_paid'], 2),
+            'balance': round(v['total_amount'] - v['total_paid'], 2),
+            'customers_count': len(v['customers']),
+            'customers_names': ', '.join(list(v['customers'])[:5]),
+        })
+
+    result.sort(key=lambda x: x['total_amount'], reverse=True)
+    return ok(result)
+
+
+@rest_api.route('/molas/reports/period', methods=['GET'])
+@login_required
+def api_molas_reports_period():
+    date_from = request.args.get('date_from')
+    date_to = request.args.get('date_to')
+
+    q = MolasOrder.query.filter(MolasOrder.status != 'cancelled')
+    if date_from:
+        q = q.filter(MolasOrder.order_date >= date_from)
+    if date_to:
+        q = q.filter(MolasOrder.order_date <= date_to)
+
+    orders = q.order_by(MolasOrder.order_date).all()
+
+    p_q = MolasPayment.query
+    if date_from:
+        p_q = p_q.filter(MolasPayment.payment_date >= date_from)
+    if date_to:
+        p_q = p_q.filter(MolasPayment.payment_date <= date_to)
+    payments = p_q.all()
+
+    daily = {}
+    for o in orders:
+        day = o.order_date.strftime('%Y-%m-%d') if o.order_date else 'غير محدد'
+        if day not in daily:
+            daily[day] = {'date': day, 'orders': 0, 'tons': 0, 'amount': 0, 'paid': 0}
+        daily[day]['orders'] += 1
+        daily[day]['tons'] += sum(it.quantity or 0 for it in o.items)
+        daily[day]['amount'] += o.final_amount or 0
+        daily[day]['paid'] += o.paid_amount or 0
+
+    for day_data in daily.values():
+        day_data['tons'] = round(day_data['tons'], 2)
+        day_data['amount'] = round(day_data['amount'], 2)
+        day_data['paid'] = round(day_data['paid'], 2)
+        day_data['balance'] = round(day_data['amount'] - day_data['paid'], 2)
+
+    return ok({
+        'summary': {
+            'total_orders': len(orders),
+            'total_tons': round(sum(sum(it.quantity or 0 for it in o.items) for o in orders), 2),
+            'total_amount': round(sum(o.final_amount or 0 for o in orders), 2),
+            'total_paid': round(sum(o.paid_amount or 0 for o in orders), 2),
+            'total_payments': round(sum(p.amount or 0 for p in payments), 2),
+            'payment_count': len(payments),
+        },
+        'daily': sorted(daily.values(), key=lambda x: x['date']),
+    })
