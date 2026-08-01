@@ -250,6 +250,60 @@ def api_check_card():
     return ok({'exists': q.first() is not None})
 
 
+# ==================== EMPLOYEE FILE UPLOADS ====================
+
+import os as _os
+import uuid as _uuid
+
+UPLOAD_DIR = _os.path.join(_os.path.dirname(_os.path.abspath(__file__)), '..', 'static', 'uploads', 'employees')
+
+
+@rest_api.route('/employees/<int:emp_id>/photo', methods=['POST'])
+@login_required
+def api_upload_employee_photo(emp_id):
+    emp = Employee.query.get_or_404(emp_id)
+    if 'file' not in request.files:
+        return fail('لا يوجد ملف')
+    f = request.files['file']
+    if not f.filename:
+        return fail('لا يوجد ملف')
+    ext = f.filename.rsplit('.', 1)[-1].lower() if '.' in f.filename else 'png'
+    if ext not in ('png', 'jpg', 'jpeg', 'webp', 'gif'):
+        return fail('صيغة الملف غير مدعومة')
+    _os.makedirs(UPLOAD_DIR, exist_ok=True)
+    fname = f'photo_{emp_id}_{_uuid.uuid4().hex[:8]}.{ext}'
+    f.save(_os.path.join(UPLOAD_DIR, fname))
+    url = f'/static/uploads/employees/{fname}'
+    emp.photo_path = url
+    db.session.commit()
+    return ok({'url': url, 'message': 'تم رفع الصورة بنجاح'})
+
+
+@rest_api.route('/employees/<int:emp_id>/id-card', methods=['POST'])
+@login_required
+def api_upload_employee_id_card(emp_id):
+    emp = Employee.query.get_or_404(emp_id)
+    side = request.form.get('side', 'front')
+    if 'file' not in request.files:
+        return fail('لا يوجد ملف')
+    f = request.files['file']
+    if not f.filename:
+        return fail('لا يوجد ملف')
+    ext = f.filename.rsplit('.', 1)[-1].lower() if '.' in f.filename else 'png'
+    if ext not in ('png', 'jpg', 'jpeg', 'webp', 'gif', 'pdf'):
+        return fail('صيغة الملف غير مدعومة')
+    _os.makedirs(UPLOAD_DIR, exist_ok=True)
+    fname = f'idcard_{emp_id}_{side}_{_uuid.uuid4().hex[:8]}.{ext}'
+    f.save(_os.path.join(UPLOAD_DIR, fname))
+    url = f'/static/uploads/employees/{fname}'
+    if side == 'back':
+        emp.id_card_back = url
+    else:
+        emp.id_card_front = url
+    db.session.commit()
+    return ok({'url': url, 'side': side, 'message': 'تم رفع البطاقة بنجاح'})
+
+
 # ==================== BANK INFO ====================
 
 @rest_api.route('/employees/<int:emp_id>/bank-info')

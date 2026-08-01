@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Plus, Edit, Trash2, Users, User, Building2, ChevronDown, ChevronUp, UserCheck, UserX, ArrowRight, Star, Calendar, DollarSign, Clock, FileText, Eye, X, Download } from 'lucide-react';
+import { Plus, Edit, Trash2, Users, User, Building2, ChevronDown, ChevronUp, UserCheck, UserX, ArrowRight, Star, Calendar, DollarSign, Clock, FileText, Eye, X, Download, Upload, CreditCard, Printer, Image } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -17,7 +17,7 @@ const emptyEmployee = {
   clothing_allowance: '', health_card_allowance: '', monthly_insurance: '',
 };
 
-type Tab = 'table' | 'grouped' | 'structure' | 'detail';
+type Tab = 'table' | 'grouped' | 'structure' | 'detail' | 'inactive' | 'cards';
 
 function BankInfoTab({ employeeId, employeeName }: { employeeId: number; employeeName: string }) {
   const [items, setItems] = useState<any[]>([]);
@@ -148,13 +148,125 @@ function BankInfoTab({ employeeId, employeeName }: { employeeId: number; employe
   );
 }
 
+function IDCardsTab({ employeeId, employeeName }: { employeeId: number; employeeName: string }) {
+  const [photo, setPhoto] = useState<string>('');
+  const [cardFront, setCardFront] = useState<string>('');
+  const [cardBack, setCardBack] = useState<string>('');
+  const [uploading, setUploading] = useState(false);
+
+  useEffect(() => {
+    api.get(`/employees/${employeeId}`).then(res => {
+      const d = res.data?.data;
+      if (d) {
+        setPhoto(d.photo_path || '');
+        setCardFront(d.id_card_front || '');
+        setCardBack(d.id_card_back || '');
+      }
+    }).catch(() => {});
+  }, [employeeId]);
+
+  const uploadFile = async (side: string, file: File) => {
+    setUploading(true);
+    try {
+      const fd = new FormData();
+      fd.append('file', file);
+      fd.append('side', side);
+      const res = await api.post(`/employees/${employeeId}/id-card`, fd, { headers: { 'Content-Type': 'multipart/form-data' } });
+      const url = res.data?.data?.url;
+      if (url) {
+        if (side === 'front') setCardFront(url);
+        else if (side === 'back') setCardBack(url);
+        else setPhoto(url);
+      }
+    } catch (e: any) { alert(e?.response?.data?.message || 'خطأ أثناء الرفع'); }
+    setUploading(false);
+  };
+
+  const uploadPhoto = async (file: File) => {
+    setUploading(true);
+    try {
+      const fd = new FormData();
+      fd.append('file', file);
+      const res = await api.post(`/employees/${employeeId}/photo`, fd, { headers: { 'Content-Type': 'multipart/form-data' } });
+      const url = res.data?.data?.url;
+      if (url) setPhoto(url);
+    } catch (e: any) { alert(e?.response?.data?.message || 'خطأ أثناء الرفع'); }
+    setUploading(false);
+  };
+
+  const handleUpload = (side: string) => (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (side === 'photo') uploadPhoto(file);
+    else uploadFile(side, file);
+  };
+
+  return (
+    <Card>
+      <div className="p-4 border-b"><h3 className="font-bold text-gray-900">بطاقات الهوية — {employeeName}</h3></div>
+      <div className="p-5 space-y-6">
+        {uploading && <div className="fixed inset-0 bg-black/20 flex items-center justify-center z-50"><div className="bg-white rounded-xl p-4 shadow-lg flex items-center gap-3"><div className="w-5 h-5 border-2 border-primary-500/30 border-t-primary-500 rounded-full animate-spin" /><span className="text-sm">جاري الرفع...</span></div></div>}
+        
+        {/* Photo */}
+        <div>
+          <h4 className="text-sm font-semibold text-gray-700 mb-3">صورة الموظف</h4>
+          <div className="flex items-start gap-4">
+            <div className="w-32 h-40 rounded-xl border-2 border-dashed border-gray-300 flex items-center justify-center bg-gray-50 overflow-hidden">
+              {photo ? <img src={photo} alt={employeeName} className="w-full h-full object-cover" /> : <User className="w-10 h-10 text-gray-300" />}
+            </div>
+            <div>
+              <label className="flex items-center gap-2 px-3 py-2 bg-primary-50 text-primary-700 rounded-lg cursor-pointer hover:bg-primary-100 text-sm font-medium">
+                <Upload className="w-4 h-4" /> رفع صورة
+                <input type="file" accept="image/*" onChange={handleUpload('photo')} className="hidden" />
+              </label>
+              <p className="text-xs text-gray-400 mt-2">PNG, JPG — حتى 5MB</p>
+            </div>
+          </div>
+        </div>
+
+        {/* ID Card Front */}
+        <div>
+          <h4 className="text-sm font-semibold text-gray-700 mb-3">البطاقة الأمامية</h4>
+          <div className="flex items-start gap-4">
+            <div className="w-64 h-40 rounded-xl border-2 border-dashed border-gray-300 flex items-center justify-center bg-gray-50 overflow-hidden">
+              {cardFront ? <img src={cardFront} alt="بطاقة أمامية" className="w-full h-full object-cover" /> : <CreditCard className="w-10 h-10 text-gray-300" />}
+            </div>
+            <div>
+              <label className="flex items-center gap-2 px-3 py-2 bg-blue-50 text-blue-700 rounded-lg cursor-pointer hover:bg-blue-100 text-sm font-medium">
+                <Upload className="w-4 h-4" /> رفع البطاقة الأمامية
+                <input type="file" accept="image/*,.pdf" onChange={handleUpload('front')} className="hidden" />
+              </label>
+            </div>
+          </div>
+        </div>
+
+        {/* ID Card Back */}
+        <div>
+          <h4 className="text-sm font-semibold text-gray-700 mb-3">البطاقة الخلفية</h4>
+          <div className="flex items-start gap-4">
+            <div className="w-64 h-40 rounded-xl border-2 border-dashed border-gray-300 flex items-center justify-center bg-gray-50 overflow-hidden">
+              {cardBack ? <img src={cardBack} alt="بطاقة خلفية" className="w-full h-full object-cover" /> : <CreditCard className="w-10 h-10 text-gray-300" />}
+            </div>
+            <div>
+              <label className="flex items-center gap-2 px-3 py-2 bg-blue-50 text-blue-700 rounded-lg cursor-pointer hover:bg-blue-100 text-sm font-medium">
+                <Upload className="w-4 h-4" /> رفع البطاقة الخلفية
+                <input type="file" accept="image/*,.pdf" onChange={handleUpload('back')} className="hidden" />
+              </label>
+            </div>
+          </div>
+        </div>
+      </div>
+    </Card>
+  );
+}
+
 export default function EmployeesPage() {
   const [employees, setEmployees] = useState<any[]>([]);
   const [companies, setCompanies] = useState<any[]>([]);
   const [regions, setRegions] = useState<any[]>([]);
   const [jobTitles, setJobTitles] = useState<string[]>([]);
   const [search, setSearch] = useState('');
-  const [filter, setFilter] = useState('all');
+  const [filter, setFilter] = useState('active');
   const [tab, setTab] = useState<Tab>('table');
   const [loading, setLoading] = useState(true);
   const [modalOpen, setModalOpen] = useState(false);
@@ -165,7 +277,7 @@ export default function EmployeesPage() {
   const [selectedEmployee, setSelectedEmployee] = useState<any>(null);
   const [detailData, setDetailData] = useState<any>(null);
   const [detailLoading, setDetailLoading] = useState(false);
-  const [detailTab, setDetailTab] = useState<'profile' | 'salary' | 'attendance' | 'evaluations' | 'transactions' | 'leaves' | 'bank'>('profile');
+  const [detailTab, setDetailTab] = useState<'profile' | 'salary' | 'attendance' | 'evaluations' | 'transactions' | 'leaves' | 'bank' | 'idcards'>('profile');
   const [bankItems, setBankItems] = useState<any[]>([]);
 
   const loadData = () => {
@@ -241,6 +353,25 @@ export default function EmployeesPage() {
     }
   };
 
+  const handleReactivate = async (emp: any) => {
+    try {
+      await api.put(`/employees/${emp.id}`, { is_active: true });
+      loadData();
+    } catch (err: any) {
+      alert(err.response?.data?.message || 'حدث خطأ');
+    }
+  };
+
+  const handleDeactivate = async (emp: any) => {
+    if (!confirm(`هل تريد استبعاد "${emp.name}" من القائمة النشطة؟`)) return;
+    try {
+      await api.put(`/employees/${emp.id}`, { is_active: false });
+      loadData();
+    } catch (err: any) {
+      alert(err.response?.data?.message || 'حدث خطأ');
+    }
+  };
+
   const loadEmployeeDetail = async (emp: any) => {
     setSelectedEmployee(emp);
     setDetailTab('profile');
@@ -293,7 +424,7 @@ export default function EmployeesPage() {
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">الموظفين</h1>
-          <p className="text-gray-500 text-sm mt-1">{employees.length} موظف — {companies.length} شركة — {supervisors.length} مشرف</p>
+          <p className="text-gray-500 text-sm mt-1">{employees.filter(e => e.is_active).length} موظف نشط — {employees.filter(e => !e.is_active).length} غير نشط — {companies.length} شركة — {supervisors.length} مشرف</p>
         </div>
         <Button onClick={openAdd}><Plus className="w-4 h-4" /> إضافة موظف</Button>
       </div>
@@ -333,8 +464,8 @@ export default function EmployeesPage() {
             <input type="text" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="بحث بالاسم أو رقم البطاقة أو الكود..." className="w-full h-10 px-4 rounded-lg border-2 border-gray-200 text-sm focus:border-primary-500 outline-none" />
           </CardContent></Card>
           <select value={filter} onChange={(e) => setFilter(e.target.value)} className="h-10 px-4 rounded-lg border-2 border-gray-200 text-sm">
-            <option value="all">الكل</option>
             <option value="active">نشط</option>
+            <option value="all">الكل</option>
             <option value="inactive">غير نشط</option>
           </select>
           <div className="flex gap-1 bg-gray-100 rounded-lg p-1">
@@ -342,6 +473,7 @@ export default function EmployeesPage() {
               ['table', 'جدول'],
               ['grouped', 'حسب الشركة'],
               ['structure', 'هيكل'],
+              ['cards', 'بطاقات'],
             ] as [Tab, string][]).map(([key, label]) => (
               <button key={key} onClick={() => setTab(key)} className={`px-3 py-1.5 rounded-md text-xs font-medium ${tab === key ? 'bg-white shadow-sm text-primary-700' : 'text-gray-500'}`}>{label}</button>
             ))}
@@ -403,6 +535,7 @@ export default function EmployeesPage() {
               ['transactions', FileText, 'المعاملات'],
               ['leaves', Clock, 'الإجازات'],
               ['bank', Building2, 'المعلومات البنكية'],
+              ['idcards', CreditCard, 'بطاقات الهوية'],
             ] as const).map(([key, Icon, label]) => (
               <button key={key} onClick={() => setDetailTab(key)} className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium whitespace-nowrap ${detailTab === key ? 'bg-primary-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>
                 <Icon className="w-3.5 h-3.5" /> {label}
@@ -615,6 +748,11 @@ export default function EmployeesPage() {
               {detailTab === 'bank' && (
                 <BankInfoTab employeeId={selectedEmployee.id} employeeName={selectedEmployee.name} />
               )}
+
+              {/* ID Cards Tab */}
+              {detailTab === 'idcards' && (
+                <IDCardsTab employeeId={selectedEmployee.id} employeeName={selectedEmployee.name} />
+              )}
             </>
           )}
         </div>
@@ -665,6 +803,7 @@ export default function EmployeesPage() {
                         <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
                           <button onClick={() => loadEmployeeDetail(emp)} className="p-1.5 rounded-lg hover:bg-green-50 text-green-500"><Eye className="w-4 h-4" /></button>
                           <button onClick={() => openEdit(emp)} className="p-1.5 rounded-lg hover:bg-blue-50 text-blue-500"><Edit className="w-4 h-4" /></button>
+                          <button onClick={() => handleDeactivate(emp)} className="p-1.5 rounded-lg hover:bg-orange-50 text-orange-500" title="استبعاد"><UserX className="w-4 h-4" /></button>
                           <button onClick={() => handleDelete(emp.id)} className="p-1.5 rounded-lg hover:bg-red-50 text-red-500"><Trash2 className="w-4 h-4" /></button>
                         </div>
                       </td>
@@ -843,6 +982,80 @@ export default function EmployeesPage() {
               </CardContent>
             </Card>
           ))}
+        </div>
+      )}
+
+      {/* ========== INACTIVE EMPLOYEES ========== */}
+      {tab === 'inactive' && (
+        <Card>
+          <div className="p-4 border-b flex items-center justify-between">
+            <h3 className="font-bold text-gray-900">الموظفين غير النشطين ({employees.filter(e => !e.is_active).length})</h3>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="bg-gray-100 text-gray-600">
+                  <th className="px-3 py-3 text-right font-semibold text-xs">الكود</th>
+                  <th className="px-3 py-3 text-right font-semibold text-xs">الاسم</th>
+                  <th className="px-3 py-3 text-right font-semibold text-xs">الوظيفة</th>
+                  <th className="px-3 py-3 text-right font-semibold text-xs">الشركة</th>
+                  <th className="px-3 py-3 text-right font-semibold text-xs">إجراءات</th>
+                </tr>
+              </thead>
+              <tbody>
+                {employees.filter(e => !e.is_active).map((emp) => (
+                  <tr key={emp.id} className="border-b border-gray-100 hover:bg-gray-50">
+                    <td className="px-3 py-3 font-mono text-gray-500 font-bold text-xs">{emp.code}</td>
+                    <td className="px-3 py-3">
+                      <div className="flex items-center gap-2">
+                        <div className="w-7 h-7 rounded-full bg-gray-200 flex items-center justify-center text-gray-500 text-xs font-bold">{emp.name?.[0]}</div>
+                        <span className="font-medium text-gray-600">{emp.name}</span>
+                      </div>
+                    </td>
+                    <td className="px-3 py-3 text-gray-500">{emp.job_title || '—'}</td>
+                    <td className="px-3 py-3"><span className="text-xs bg-gray-100 px-2 py-0.5 rounded-full text-gray-500">{emp.company_name || '—'}</span></td>
+                    <td className="px-3 py-3">
+                      <div className="flex items-center gap-1">
+                        <button onClick={() => handleReactivate(emp)} className="flex items-center gap-1 px-2 py-1 rounded-lg bg-green-50 text-green-700 hover:bg-green-100 text-xs font-medium">
+                          <UserCheck className="w-3 h-3" /> إعادة تنشيط
+                        </button>
+                        <button onClick={() => openEdit(emp)} className="p-1.5 rounded-lg hover:bg-blue-50 text-blue-500"><Edit className="w-4 h-4" /></button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+                {employees.filter(e => !e.is_active).length === 0 && (
+                  <tr><td colSpan={5} className="text-center py-8 text-gray-400">لا يوجد موظفين غير نشطين</td></tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </Card>
+      )}
+
+      {/* ========== CARDS VIEW ========== */}
+      {tab === 'cards' && (
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <h3 className="font-bold text-gray-900">قوالب البطاقات — {employees.filter(e => e.is_active).length} موظف نشط</h3>
+            <button onClick={() => { const w = window.open('', '_blank'); if (!w) return; const emps = employees.filter(e => e.is_active); const cards = emps.map(e => `<div style="width:300px;border:2px solid #059669;border-radius:16px;padding:20px;margin:10px;display:inline-block;vertical-align:top;font-family:Arial;text-align:center;page-break-inside:avoid"><div style="width:80px;height:80px;border-radius:50%;background:#ecfdf5;margin:0 auto 10px;display:flex;align-items:center;justify-content:center;font-size:32px;font-weight:bold;color:#065f46">${e.photo_path ? `<img src="${e.photo_path}" style="width:80px;height:80px;border-radius:50%;object-fit:cover">` : (e.name?.[0] || '?')}</div><h3 style="margin:0;font-size:16px;color:#1a1a1a">${e.name}</h3><p style="margin:4px 0;color:#666;font-size:12px">${e.job_title || ''}</p><p style="margin:2px 0;color:#059669;font-size:11px;font-weight:bold">${e.code}</p><div style="border-top:1px solid #e5e7eb;margin-top:10px;padding-top:8px;font-size:10px;color:#999">طلعت هائل للخدمات والاستشارات الزراعية</div></div>`).join(''); w.document.write(`<!DOCTYPE html><html lang="ar" dir="rtl"><head><meta charset="UTF-8"><title>بطاقات الموظفين</title><style>@media print{body{margin:0;padding:10px}}</style></head><body style="padding:20px;text-align:center">${cards}<script>setTimeout(()=>window.print(),500)<\/script></body></html>`); w.document.close(); }} className="flex items-center gap-2 px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 text-sm font-medium"><Printer className="w-4 h-4" /> طباعة الكل</button>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+            {employees.filter(e => e.is_active).map(emp => (
+              <div key={emp.id} className="bg-white border-2 border-primary-200 rounded-2xl p-5 text-center hover:shadow-lg transition-shadow cursor-pointer" onClick={() => loadEmployeeDetail(emp)}>
+                <div className="w-20 h-20 rounded-full mx-auto mb-3 overflow-hidden bg-primary-50 flex items-center justify-center">
+                  {emp.photo_path ? <img src={emp.photo_path} alt={emp.name} className="w-full h-full object-cover" /> : <span className="text-3xl font-bold text-primary-600">{emp.name?.[0]}</span>}
+                </div>
+                <h4 className="font-bold text-gray-900 text-sm">{emp.name}</h4>
+                <p className="text-xs text-gray-500 mt-1">{emp.job_title || '—'}</p>
+                <p className="text-xs text-primary-600 font-bold mt-1">{emp.code}</p>
+                <div className="border-t border-gray-100 mt-3 pt-3">
+                  <p className="text-[10px] text-gray-400">طلعت هائل للخدمات والاستشارات الزراعية</p>
+                </div>
+                <button onClick={(e) => { e.stopPropagation(); const w = window.open('', '_blank'); if (!w) return; w.document.write(`<!DOCTYPE html><html lang="ar" dir="rtl"><head><meta charset="UTF-8"><title>بطاقة — ${emp.name}</title><style>*{margin:0;padding:0;box-sizing:border-box}body{font-family:Arial;display:flex;justify-content:center;padding:40px;background:#f3f4f6}.card{width:350px;border:3px solid #059669;border-radius:20px;padding:30px;text-align:center;background:#fff}.avatar{width:100px;height:100px;border-radius:50%;background:#ecfdf5;margin:0 auto 15px;display:flex;align-items:center;justify-content:center;overflow:hidden}.avatar img{width:100%;height:100%;object-fit:cover}.name{font-size:20px;font-weight:bold;color:#1a1a1a;margin-bottom:5px}.job{color:#666;font-size:14px;margin-bottom:8px}.code{color:#059669;font-size:13px;font-weight:bold;margin-bottom:15px}.footer{border-top:2px solid #e5e7eb;padding-top:12px;color:#999;font-size:11px}@media print{body{padding:0;background:#fff}.card{box-shadow:none}}</style></head><body><div class="card"><div class="avatar">${emp.photo_path ? `<img src="${emp.photo_path}">` : `<span style="font-size:48px;font-weight:bold;color:#059669">${emp.name?.[0]}</span>`}</div><div class="name">${emp.name}</div><div class="job">${emp.job_title || ''}</div><div class="code">${emp.code}</div><div class="footer">طلعت هائل للخدمات والاستشارات الزراعية</div></div><script>setTimeout(()=>window.print(),300)<\/script></body></html>`); w.document.close(); }} className="mt-3 flex items-center gap-1 justify-center px-3 py-1.5 bg-primary-50 text-primary-700 rounded-lg text-xs font-medium hover:bg-primary-100"><Printer className="w-3 h-3" /> طباعة</button>
+              </div>
+            ))}
+          </div>
         </div>
       )}
 

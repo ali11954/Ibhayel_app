@@ -391,6 +391,9 @@ def auto_migrate():
     add_column('employees', 'region_id', 'INTEGER')
     add_column('employees', 'user_id', 'INTEGER')
     add_column('employees', 'worker_type', "VARCHAR(20)", "'permanent'")
+    add_column('employees', 'photo_path', "VARCHAR(500)")
+    add_column('employees', 'id_card_front', "VARCHAR(500)")
+    add_column('employees', 'id_card_back', "VARCHAR(500)")
 
     def safe_fix_column(table, column, target_type):
         try:

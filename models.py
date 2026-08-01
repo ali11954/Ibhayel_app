@@ -230,6 +230,9 @@ class Employee(db.Model):
     contractor_tax = db.Column(db.Float, default=500000)
     contractor_zakat = db.Column(db.Float, default=75000)
     allowances_updated_at = db.Column(db.DateTime, nullable=True)
+    photo_path = db.Column(db.String(500), nullable=True)
+    id_card_front = db.Column(db.String(500), nullable=True)
+    id_card_back = db.Column(db.String(500), nullable=True)
 
     company = db.relationship('Company', foreign_keys=[company_id], backref='employees')
 
@@ -373,7 +376,8 @@ class Employee(db.Model):
             'is_active': self.is_active, 'employee_type': self.employee_type,
             'worker_type': self.worker_type,
             'company_id': self.company_id, 'company_name': self.company_name,
-            'supervisor_id': self.supervisor_id
+            'supervisor_id': self.supervisor_id,
+            'photo_path': self.photo_path, 'id_card_front': self.id_card_front, 'id_card_back': self.id_card_back
         }
 
 # ==================== Evaluation Model ====================
