@@ -2377,8 +2377,10 @@ class WorkPlan(db.Model):
     closer = db.relationship('User', foreign_keys=[closed_by], backref='closed_plans')
     tasks = db.relationship('WorkPlanTask', backref='plan', cascade='all, delete-orphan', order_by='WorkPlanTask.order')
 
-    def to_dict(self):
+    def to_dict(self, active_emp_ids=None):
         tasks_list = self.tasks
+        if active_emp_ids is not None:
+            tasks_list = [t for t in tasks_list if t.assigned_to is None or t.assigned_to in active_emp_ids]
         n = len(tasks_list)
         if n > 0:
             computed_progress = round(sum(t.progress_percent or 0 for t in tasks_list) / n)

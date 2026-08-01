@@ -360,17 +360,17 @@ def api_bank_info_delete(item_id):
 @rest_api.route('/attendance')
 @login_required
 def api_attendance_list():
-    q = Attendance.query
+    q = Attendance.query.join(Employee, Attendance.employee_id == Employee.id).filter(Employee.is_active == True)
     date_str = request.args.get('date')
     emp_id = request.args.get('employee_id')
 
     if date_str:
-        q = q.filter_by(date=datetime.strptime(date_str, '%Y-%m-%d').date())
+        q = q.filter(Attendance.date == datetime.strptime(date_str, '%Y-%m-%d').date())
     if emp_id:
-        q = q.filter_by(employee_id=int(emp_id))
+        q = q.filter(Attendance.employee_id == int(emp_id))
 
     if current_user.role == 'supervisor' and current_user.company_id:
-        q = q.join(Employee, Attendance.employee_id == Employee.id).filter(Employee.company_id == current_user.company_id)
+        q = q.filter(Employee.company_id == current_user.company_id)
 
     records = q.order_by(Attendance.date.desc()).limit(200).all()
     return ok([{
@@ -389,6 +389,9 @@ def api_attendance_list():
 @login_required
 def api_attendance_add():
     data = request.get_json(force=True, silent=True) or {}
+    emp = Employee.query.get(data.get('employee_id'))
+    if not emp or not emp.is_active:
+        return fail('الموظف غير نشط أو غير موجود', 400)
     rec = Attendance(
         employee_id=data.get('employee_id'),
         date=datetime.strptime(data['date'], '%Y-%m-%d').date() if data.get('date') else datetime.now().date(),
@@ -448,10 +451,11 @@ def api_attendance_bulk():
     att_date = datetime.strptime(date_str, '%Y-%m-%d').date()
     created = 0
     skipped = 0
+    active_ids = [e.id for e in Employee.query.filter_by(is_active=True).all()]
     for rec in records:
         emp_id = rec.get('employee_id')
         status = rec.get('attendance_status', 'absent')
-        if not emp_id:
+        if not emp_id or emp_id not in active_ids:
             continue
         existing = Attendance.query.filter_by(employee_id=emp_id, date=att_date).first()
         if existing:
@@ -576,13 +580,13 @@ def api_region_locations(rid):
 @rest_api.route('/evaluations')
 @login_required
 def api_evaluations_list():
-    q = Evaluation.query
+    q = Evaluation.query.join(Employee, Evaluation.employee_id == Employee.id).filter(Employee.is_active == True)
     emp_id = request.args.get('employee_id')
     if emp_id:
-        q = q.filter_by(employee_id=int(emp_id))
+        q = q.filter(Evaluation.employee_id == int(emp_id))
 
     if current_user.role == 'supervisor' and current_user.company_id:
-        q = q.join(Employee, Evaluation.employee_id == Employee.id).filter(Employee.company_id == current_user.company_id)
+        q = q.filter(Employee.company_id == current_user.company_id)
 
     evaluations = q.order_by(Evaluation.date.desc()).limit(200).all()
     return ok([{
@@ -790,11 +794,14 @@ def api_location_delete(lid):
 @login_required
 def api_work_plans_list():
     plan_type = request.args.get('plan_type', '')
-    q = WorkPlan.query
+    active_emp_ids = [e.id for e in Employee.query.filter_by(is_active=True).all()]
+    q = WorkPlan.query.filter(
+        db.or_(WorkPlan.assigned_to == None, WorkPlan.assigned_to.in_(active_emp_ids))
+    )
     if plan_type:
         q = q.filter_by(plan_type=plan_type)
     plans = q.order_by(WorkPlan.plan_date.desc()).limit(200).all()
-    return ok([p.to_dict() for p in plans])
+    return ok([p.to_dict(active_emp_ids=active_emp_ids) for p in plans])
 
 
 @rest_api.route('/work-plans', methods=['POST'])
@@ -1255,16 +1262,16 @@ def api_financial_dashboard():
 @rest_api.route('/financial/salaries')
 @login_required
 def api_salaries_list():
-    q = Salary.query
+    q = Salary.query.join(Employee, Salary.employee_id == Employee.id).filter(Employee.is_active == True)
     month = request.args.get('month_year')
     if month:
         parts = month.split('-')
         if len(parts) == 2 and len(parts[0]) == 4:
             month = f'{parts[1]}-{parts[0]}'
-        q = q.filter_by(month_year=month)
+        q = q.filter(Salary.month_year == month)
     emp_id = request.args.get('employee_id')
     if emp_id:
-        q = q.filter_by(employee_id=int(emp_id))
+        q = q.filter(Salary.employee_id == int(emp_id))
     salaries = q.order_by(Salary.id.desc()).limit(200).all()
     return ok([s.to_dict() for s in salaries])
 
@@ -2702,9 +2709,10 @@ def api_salary_voucher(sid):
 def api_reports_dashboard():
     today = datetime.now().date()
     total_employees = Employee.query.filter_by(is_active=True).count()
-    today_attendance = Attendance.query.filter_by(date=today, attendance_status='present').count()
+    active_emp_ids = [e.id for e in Employee.query.filter_by(is_active=True).all()]
+    today_attendance = Attendance.query.filter(Attendance.date == today, Attendance.attendance_status == 'present', Attendance.employee_id.in_(active_emp_ids)).count()
     pending_transactions = FinancialTransaction.query.filter_by(is_settled=False).count()
-    pending_salaries = Salary.query.filter_by(is_paid=False).count()
+    pending_salaries = Salary.query.filter(Salary.is_paid == False, Salary.employee_id.in_(active_emp_ids)).count()
 
     data = {
         'total_employees': total_employees,
@@ -2788,8 +2796,11 @@ def api_reports_attendance():
     q = Attendance.query.filter(Attendance.date >= start_date, Attendance.date <= end_date)
 
     if company_id:
-        emp_ids = [e.id for e in Employee.query.filter_by(company_id=int(company_id)).all()]
+        emp_ids = [e.id for e in Employee.query.filter_by(company_id=int(company_id), is_active=True).all()]
         q = q.filter(Attendance.employee_id.in_(emp_ids))
+    else:
+        active_emp_ids = [e.id for e in Employee.query.filter_by(is_active=True).all()]
+        q = q.filter(Attendance.employee_id.in_(active_emp_ids))
 
     daily_counts = db.session.query(
         Attendance.date,
@@ -2798,6 +2809,8 @@ def api_reports_attendance():
     ).filter(Attendance.date >= start_date, Attendance.date <= end_date)
     if company_id:
         daily_counts = daily_counts.filter(Attendance.employee_id.in_(emp_ids))
+    else:
+        daily_counts = daily_counts.filter(Attendance.employee_id.in_(active_emp_ids))
     daily_counts = daily_counts.group_by(Attendance.date, Attendance.attendance_status).all()
 
     daily_map = {}
@@ -2812,6 +2825,8 @@ def api_reports_attendance():
     ).filter(Attendance.date >= start_date, Attendance.date <= end_date)
     if company_id:
         total_by_status = total_by_status.filter(Attendance.employee_id.in_(emp_ids))
+    else:
+        total_by_status = total_by_status.filter(Attendance.employee_id.in_(active_emp_ids))
     total_by_status = total_by_status.group_by(Attendance.attendance_status).all()
 
     total_days = sum(c for _, c in total_by_status)
@@ -2821,7 +2836,7 @@ def api_reports_attendance():
     companies = Company.query.all()
     company_map = {c.id: c.name for c in companies}
     emp_company = {}
-    for emp in Employee.query.all():
+    for emp in Employee.query.filter_by(is_active=True).all():
         emp_company[emp.id] = emp.company_id
 
     company_daily = {}
@@ -2940,17 +2955,20 @@ def api_reports_attendance_detail():
 
     q = Attendance.query.filter(Attendance.date >= start_date, Attendance.date <= end_date)
     if employee_id:
-        q = q.filter_by(employee_id=int(employee_id))
+        q = q.filter(Attendance.employee_id == int(employee_id))
 
     if company_id:
-        emp_ids = [e.id for e in Employee.query.filter_by(company_id=int(company_id)).all()]
+        emp_ids = [e.id for e in Employee.query.filter_by(company_id=int(company_id), is_active=True).all()]
         q = q.filter(Attendance.employee_id.in_(emp_ids))
+    else:
+        active_emp_ids = [e.id for e in Employee.query.filter_by(is_active=True).all()]
+        q = q.filter(Attendance.employee_id.in_(active_emp_ids))
 
     records = q.order_by(Attendance.date.desc()).all()
 
     emp_map = {}
     comp_map = {}
-    for emp in Employee.query.all():
+    for emp in Employee.query.filter_by(is_active=True).all():
         emp_map[emp.id] = emp
         if emp.company_id not in comp_map:
             comp = Company.query.get(emp.company_id)
@@ -3077,7 +3095,7 @@ def api_reports_financial():
 
     # Group by company
     company_map = {c.id: c.name for c in Company.query.all()}
-    emp_company = {e.id: e.company_id for e in Employee.query.all()}
+    emp_company = {e.id: e.company_id for e in Employee.query.filter_by(is_active=True).all()}
     company_transactions = FinancialTransaction.query.filter(
         FinancialTransaction.date >= start_date, FinancialTransaction.date <= end_date
     ).all()
@@ -3164,7 +3182,7 @@ def api_reports_employees():
 def api_reports_evaluations():
     month_year = request.args.get('month_year')
 
-    q = Evaluation.query
+    q = Evaluation.query.join(Employee, Evaluation.employee_id == Employee.id).filter(Employee.is_active == True)
     if month_year:
         parts = month_year.split('-')
         if len(parts) == 2:
