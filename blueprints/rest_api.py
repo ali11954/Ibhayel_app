@@ -4473,18 +4473,22 @@ def api_molas_payment_create():
 def api_molas_reports_summary():
     date_from = request.args.get('date_from')
     date_to = request.args.get('date_to')
+    currency = request.args.get('currency')
 
     q = MolasOrder.query.filter(MolasOrder.status != 'cancelled')
     if date_from:
         q = q.filter(MolasOrder.order_date >= date_from)
     if date_to:
         q = q.filter(MolasOrder.order_date <= date_to)
+    if currency:
+        q = q.filter(MolasOrder.currency == currency)
 
     orders = q.all()
     total_orders = len(orders)
     total_amount = sum(o.final_amount or 0 for o in orders)
     total_paid = sum(o.paid_amount or 0 for o in orders)
     total_remaining = total_amount - total_paid
+    total_tons = sum(sum(it.quantity or 0 for it in o.items) for o in orders)
 
     delivered = [o for o in orders if o.status == 'delivered']
     pending = [o for o in orders if o.status in ('pending', 'confirmed')]
@@ -4502,8 +4506,10 @@ def api_molas_reports_summary():
         'total_amount': total_amount,
         'total_paid': total_paid,
         'total_remaining': total_remaining,
+        'total_tons': round(total_tons, 2),
         'delivered_count': len(delivered),
         'pending_count': len(pending),
+        'currency': currency or 'all',
         'top_customers': sorted(top_customers.values(), key=lambda x: x['total'], reverse=True)[:10],
     })
 
@@ -4540,6 +4546,7 @@ def api_molas_reports_customer_statement():
 def api_molas_reports_customers_summary():
     date_from = request.args.get('date_from')
     date_to = request.args.get('date_to')
+    currency = request.args.get('currency')
 
     customers = MolasCustomer.query.filter_by(is_active=True).all()
     result = []
@@ -4549,6 +4556,8 @@ def api_molas_reports_customers_summary():
             q = q.filter(MolasOrder.order_date >= date_from)
         if date_to:
             q = q.filter(MolasOrder.order_date <= date_to)
+        if currency:
+            q = q.filter(MolasOrder.currency == currency)
         orders = q.all()
 
         p_q = MolasPayment.query.filter_by(customer_id=c.id)
@@ -4586,12 +4595,15 @@ def api_molas_reports_customers_summary():
 def api_molas_reports_address_summary():
     date_from = request.args.get('date_from')
     date_to = request.args.get('date_to')
+    currency = request.args.get('currency')
 
     q = MolasOrder.query.filter(MolasOrder.status != 'cancelled')
     if date_from:
         q = q.filter(MolasOrder.order_date >= date_from)
     if date_to:
         q = q.filter(MolasOrder.order_date <= date_to)
+    if currency:
+        q = q.filter(MolasOrder.currency == currency)
 
     orders = q.all()
     addresses = {}
@@ -4630,12 +4642,15 @@ def api_molas_reports_address_summary():
 def api_molas_reports_governorate_summary():
     date_from = request.args.get('date_from')
     date_to = request.args.get('date_to')
+    currency = request.args.get('currency')
 
     q = MolasOrder.query.filter(MolasOrder.status != 'cancelled')
     if date_from:
         q = q.filter(MolasOrder.order_date >= date_from)
     if date_to:
         q = q.filter(MolasOrder.order_date <= date_to)
+    if currency:
+        q = q.filter(MolasOrder.currency == currency)
 
     orders = q.all()
     governorates = {}
@@ -4674,12 +4689,15 @@ def api_molas_reports_governorate_summary():
 def api_molas_reports_period():
     date_from = request.args.get('date_from')
     date_to = request.args.get('date_to')
+    currency = request.args.get('currency')
 
     q = MolasOrder.query.filter(MolasOrder.status != 'cancelled')
     if date_from:
         q = q.filter(MolasOrder.order_date >= date_from)
     if date_to:
         q = q.filter(MolasOrder.order_date <= date_to)
+    if currency:
+        q = q.filter(MolasOrder.currency == currency)
 
     orders = q.order_by(MolasOrder.order_date).all()
 
@@ -4688,6 +4706,8 @@ def api_molas_reports_period():
         p_q = p_q.filter(MolasPayment.payment_date >= date_from)
     if date_to:
         p_q = p_q.filter(MolasPayment.payment_date <= date_to)
+    if currency:
+        p_q = p_q.join(MolasOrder, MolasPayment.order_id == MolasOrder.id).filter(MolasOrder.currency == currency)
     payments = p_q.all()
 
     daily = {}

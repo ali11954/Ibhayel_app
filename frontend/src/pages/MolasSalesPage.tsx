@@ -100,6 +100,7 @@ export default function MolasSalesPage() {
   const [stmtCustomer, setStmtCustomer] = useState('');
   const [stmtData, setStmtData] = useState<any>(null);
   const [reportLoading, setReportLoading] = useState(false);
+  const [reportCurrency, setReportCurrency] = useState('');
 
   const [saving, setSaving] = useState(false);
 
@@ -129,6 +130,7 @@ export default function MolasSalesPage() {
     const p: any = {};
     if (dateFrom) p.date_from = dateFrom;
     if (dateTo) p.date_to = dateTo;
+    if (reportCurrency) p.currency = reportCurrency;
     return p;
   };
 
@@ -150,7 +152,7 @@ export default function MolasSalesPage() {
     }).catch(console.error).finally(() => setReportLoading(false));
   };
 
-  useEffect(() => { if (tab === 'reports') loadReport(); }, [tab, dateFrom, dateTo]);
+  useEffect(() => { if (tab === 'reports') loadReport(); }, [tab, dateFrom, dateTo, reportCurrency]);
 
   const loadStatement = () => {
     if (!stmtCustomer) return;
@@ -288,6 +290,7 @@ export default function MolasSalesPage() {
   // ---- Print Functions ----
   const cur = (o: any) => o.currency === 'YER' ? 'ر.ي' : '$';
   const curName = (o: any) => o.currency === 'YER' ? 'ريال يمني' : 'دولار أمريكي';
+  const rcSym = reportCurrency === 'YER' ? 'ر.ي' : '$';
 
   const printInvoice = (o: any) => {
     const win = window.open('', '_blank');
@@ -727,6 +730,12 @@ export default function MolasSalesPage() {
               className="h-10 px-3 rounded-xl border border-gray-200 text-sm focus:border-emerald-500 outline-none" />
             <input type="date" value={dateTo} onChange={e => setDateTo(e.target.value)}
               className="h-10 px-3 rounded-xl border border-gray-200 text-sm focus:border-emerald-500 outline-none" />
+            <select value={reportCurrency} onChange={e => setReportCurrency(e.target.value)}
+              className="h-10 px-3 rounded-xl border border-gray-200 text-sm focus:border-emerald-500 outline-none bg-white">
+              <option value="">كل العملات</option>
+              <option value="USD">دولار أمريكي ($)</option>
+              <option value="YER">ريال يمني (ر.ي)</option>
+            </select>
             <Button onClick={loadReport} className="bg-emerald-600 hover:bg-emerald-700" disabled={reportLoading}>
               <BarChart3 className="w-4 h-4" /> {reportLoading ? 'جاري التحميل...' : 'عرض التقارير'}
             </Button>
@@ -751,18 +760,19 @@ export default function MolasSalesPage() {
                 <Card className="border-0 shadow-sm bg-emerald-50"><CardContent className="p-4 text-center">
                   <div className="text-3xl font-black text-emerald-700">{reportSummary.total_orders}</div>
                   <div className="text-sm text-gray-500 mt-1">إجمالي الطلبات</div>
+                  {reportSummary.total_tons > 0 && <div className="text-xs text-emerald-600">{reportSummary.total_tons} طن</div>}
                 </CardContent></Card>
                 <Card className="border-0 shadow-sm bg-blue-50"><CardContent className="p-4 text-center">
-                  <div className="text-3xl font-black text-blue-700">${formatNum(reportSummary.total_amount)}</div>
-                  <div className="text-sm text-gray-500 mt-1">إجمالي القيمة ($)</div>
+                  <div className="text-3xl font-black text-blue-700">{reportCurrency === 'YER' ? 'ر.ي' : '$'}{formatNum(reportSummary.total_amount)}</div>
+                  <div className="text-sm text-gray-500 mt-1">إجمالي القيمة {reportCurrency === 'YER' ? '(ر.ي)' : reportCurrency === 'USD' ? '($)' : ''}</div>
                 </CardContent></Card>
                 <Card className="border-0 shadow-sm bg-green-50"><CardContent className="p-4 text-center">
-                  <div className="text-3xl font-black text-green-700">${formatNum(reportSummary.total_paid)}</div>
-                  <div className="text-sm text-gray-500 mt-1">المدفوع ($)</div>
+                  <div className="text-3xl font-black text-green-700">{reportCurrency === 'YER' ? 'ر.ي' : '$'}{formatNum(reportSummary.total_paid)}</div>
+                  <div className="text-sm text-gray-500 mt-1">المدفوع {reportCurrency === 'YER' ? '(ر.ي)' : reportCurrency === 'USD' ? '($)' : ''}</div>
                 </CardContent></Card>
                 <Card className="border-0 shadow-sm bg-amber-50"><CardContent className="p-4 text-center">
-                  <div className="text-3xl font-black text-amber-700">${formatNum(reportSummary.total_remaining)}</div>
-                  <div className="text-sm text-gray-500 mt-1">المتبقي ($)</div>
+                  <div className="text-3xl font-black text-amber-700">{reportCurrency === 'YER' ? 'ر.ي' : '$'}{formatNum(reportSummary.total_remaining)}</div>
+                  <div className="text-sm text-gray-500 mt-1">المتبقي {reportCurrency === 'YER' ? '(ر.ي)' : reportCurrency === 'USD' ? '($)' : ''}</div>
                 </CardContent></Card>
                 <Card className="border-0 shadow-sm bg-green-50"><CardContent className="p-4 text-center">
                   <div className="text-3xl font-black text-green-700">{reportSummary.delivered_count}</div>
@@ -782,14 +792,14 @@ export default function MolasSalesPage() {
                       <thead><tr className="bg-gray-100 text-gray-600">
                         <th className="px-3 py-2 text-right text-xs">العميل</th>
                         <th className="px-3 py-2 text-right text-xs">عدد الطلبات</th>
-                        <th className="px-3 py-2 text-right text-xs">الإجمالي ($)</th>
+                        <th className="px-3 py-2 text-right text-xs">الإجمالي</th>
                       </tr></thead>
                       <tbody>
                         {reportSummary.top_customers.map((c: any, i: number) => (
                           <tr key={i} className="border-b border-gray-50">
                             <td className="px-3 py-2 font-bold">{c.name}</td>
                             <td className="px-3 py-2">{c.count}</td>
-                            <td className="px-3 py-2 font-bold text-emerald-700">${formatNum(c.total)}</td>
+                            <td className="px-3 py-2 font-bold text-emerald-700">{reportCurrency === 'YER' ? 'ر.ي' : '$'}{formatNum(c.total)}</td>
                           </tr>
                         ))}
                       </tbody>
@@ -833,9 +843,9 @@ export default function MolasSalesPage() {
                       <th className="px-3 py-2.5 text-right text-xs font-semibold">الشركة</th>
                       <th className="px-3 py-2.5 text-right text-xs font-semibold">الطلبات</th>
                       <th className="px-3 py-2.5 text-right text-xs font-semibold">الكمية (طن)</th>
-                      <th className="px-3 py-2.5 text-right text-xs font-semibold">القيمة ($)</th>
-                      <th className="px-3 py-2.5 text-right text-xs font-semibold">المدفوع ($)</th>
-                      <th className="px-3 py-2.5 text-right text-xs font-semibold">المتبقي ($)</th>
+                      <th className="px-3 py-2.5 text-right text-xs font-semibold">القيمة</th>
+                      <th className="px-3 py-2.5 text-right text-xs font-semibold">المدفوع</th>
+                      <th className="px-3 py-2.5 text-right text-xs font-semibold">المتبقي</th>
                     </tr></thead>
                     <tbody>
                       {customersSummary.length === 0 ? (
@@ -847,9 +857,9 @@ export default function MolasSalesPage() {
                           <td className="px-3 py-2.5 text-gray-500">{c.company || '-'}</td>
                           <td className="px-3 py-2.5 font-semibold">{c.total_orders}</td>
                           <td className="px-3 py-2.5 font-semibold">{c.total_tons} طن</td>
-                          <td className="px-3 py-2.5 font-bold text-blue-700">${formatNum(c.total_amount)}</td>
-                          <td className="px-3 py-2.5 font-bold text-green-600">${formatNum(c.total_paid)}</td>
-                          <td className="px-3 py-2.5 font-bold text-amber-600">${formatNum(c.balance)}</td>
+                          <td className="px-3 py-2.5 font-bold text-blue-700">{rcSym}{formatNum(c.total_amount)}</td>
+                          <td className="px-3 py-2.5 font-bold text-green-600">{rcSym}{formatNum(c.total_paid)}</td>
+                          <td className="px-3 py-2.5 font-bold text-amber-600">{rcSym}{formatNum(c.balance)}</td>
                         </tr>
                       ))}
                       {customersSummary.length > 0 && (
@@ -857,9 +867,9 @@ export default function MolasSalesPage() {
                           <td className="px-3 py-2.5" colSpan={3}>الإجمالي</td>
                           <td className="px-3 py-2.5">{customersSummary.reduce((s, c) => s + c.total_orders, 0)}</td>
                           <td className="px-3 py-2.5">{customersSummary.reduce((s, c) => s + c.total_tons, 0).toFixed(1)} طن</td>
-                          <td className="px-3 py-2.5 text-blue-700">${formatNum(customersSummary.reduce((s, c) => s + c.total_amount, 0))}</td>
-                          <td className="px-3 py-2.5 text-green-600">${formatNum(customersSummary.reduce((s, c) => s + c.total_paid, 0))}</td>
-                          <td className="px-3 py-2.5 text-amber-600">${formatNum(customersSummary.reduce((s, c) => s + c.balance, 0))}</td>
+                          <td className="px-3 py-2.5 text-blue-700">{rcSym}{formatNum(customersSummary.reduce((s, c) => s + c.total_amount, 0))}</td>
+                          <td className="px-3 py-2.5 text-green-600">{rcSym}{formatNum(customersSummary.reduce((s, c) => s + c.total_paid, 0))}</td>
+                          <td className="px-3 py-2.5 text-amber-600">{rcSym}{formatNum(customersSummary.reduce((s, c) => s + c.balance, 0))}</td>
                         </tr>
                       )}
                     </tbody>
@@ -893,22 +903,22 @@ export default function MolasSalesPage() {
                       </Card>
                       <Card className="border-0 shadow-sm bg-gradient-to-br from-blue-50 to-white">
                         <CardContent className="p-4 text-center">
-                          <div className="text-3xl font-black text-blue-700">${formatNum(totalAmt)}</div>
-                          <div className="text-xs text-gray-500 mt-1">إجمالي القيمة ($)</div>
+                          <div className="text-3xl font-black text-blue-700">{rcSym}{formatNum(totalAmt)}</div>
+                          <div className="text-xs text-gray-500 mt-1">إجمالي القيمة</div>
                           <div className="text-[10px] text-blue-600 mt-0.5">{totalTons.toFixed(1)} طن</div>
                         </CardContent>
                       </Card>
                       <Card className="border-0 shadow-sm bg-gradient-to-br from-green-50 to-white">
                         <CardContent className="p-4 text-center">
-                          <div className="text-3xl font-black text-green-700">${formatNum(totalPaid)}</div>
-                          <div className="text-xs text-gray-500 mt-1">المدفوع ($)</div>
+                          <div className="text-3xl font-black text-green-700">{rcSym}{formatNum(totalPaid)}</div>
+                          <div className="text-xs text-gray-500 mt-1">المدفوع</div>
                           <div className="text-[10px] text-green-600 mt-0.5">{paymentRate}% نسبة التحصيل</div>
                         </CardContent>
                       </Card>
                       <Card className="border-0 shadow-sm bg-gradient-to-br from-amber-50 to-white">
                         <CardContent className="p-4 text-center">
-                          <div className="text-3xl font-black text-amber-700">${formatNum(totalAmt - totalPaid)}</div>
-                          <div className="text-xs text-gray-500 mt-1">المتبقي ($)</div>
+                          <div className="text-3xl font-black text-amber-700">{rcSym}{formatNum(totalAmt - totalPaid)}</div>
+                          <div className="text-xs text-gray-500 mt-1">المتبقي</div>
                           <div className="text-[10px] text-amber-600 mt-0.5">{totalTons.toFixed(1)} طن متبقي</div>
                         </CardContent>
                       </Card>
@@ -931,7 +941,7 @@ export default function MolasSalesPage() {
                                   <div className="flex-1 bg-gray-100 rounded-full h-6 overflow-hidden">
                                     <div className="h-full rounded-full flex items-center justify-end pr-2 transition-all duration-500"
                                       style={{ width: `${Math.max(pct, 8)}%`, backgroundColor: colors[i % colors.length] }}>
-                                      <span className="text-[10px] font-bold text-white drop-shadow-sm">${formatNum(g.total_amount)}</span>
+                                      <span className="text-[10px] font-bold text-white drop-shadow-sm">{rcSym}{formatNum(g.total_amount)}</span>
                                     </div>
                                   </div>
                                 </div>
@@ -963,7 +973,7 @@ export default function MolasSalesPage() {
                                   return (
                                     <path key={i} d={`M100,100 L${x1},${y1} A${r},${r} 0 ${largeArc},1 ${x2},${y2} Z`}
                                       fill={colors[i % colors.length]} opacity="0.85" stroke="#fff" strokeWidth="2">
-                                      <title>{g.governorate}: ${formatNum(g.total_amount)} ({pct.toFixed(1)}%)</title>
+                                      <title>{g.governorate}: {rcSym}{formatNum(g.total_amount)} ({pct.toFixed(1)}%)</title>
                                     </path>
                                   );
                                 });
@@ -1023,7 +1033,7 @@ export default function MolasSalesPage() {
                               const maxStack = g.total_amount || 1;
                               return (
                                 <div key={i}>
-                                  <div className="text-xs font-semibold text-gray-600 mb-1">{g.governorate} — ${formatNum(g.total_amount)}</div>
+                                  <div className="text-xs font-semibold text-gray-600 mb-1">{g.governorate} — {rcSym}{formatNum(g.total_amount)}</div>
                                   <div className="flex h-5 rounded-full overflow-hidden bg-gray-100">
                                     <div className="h-full transition-all duration-500" style={{ width: `${(g.total_paid / maxStack) * 100}%`, backgroundColor: '#16a34a' }} />
                                     <div className="h-full transition-all duration-500" style={{ width: `${(remaining / maxStack) * 100}%`, backgroundColor: '#fbbf24' }} />
@@ -1075,9 +1085,9 @@ export default function MolasSalesPage() {
                                     <td className="px-3 py-2.5 font-bold">{g.governorate}</td>
                                     <td className="px-3 py-2.5 font-semibold">{g.orders_count}</td>
                                     <td className="px-3 py-2.5 font-semibold">{g.total_tons} طن</td>
-                                    <td className="px-3 py-2.5 font-bold text-blue-700">${formatNum(g.total_amount)}</td>
-                                    <td className="px-3 py-2.5 font-bold text-green-600">${formatNum(g.total_paid)}</td>
-                                    <td className="px-3 py-2.5 font-bold text-amber-600">${formatNum(g.total_amount - g.total_paid)}</td>
+                                    <td className="px-3 py-2.5 font-bold text-blue-700">{rcSym}{formatNum(g.total_amount)}</td>
+                                    <td className="px-3 py-2.5 font-bold text-green-600">{rcSym}{formatNum(g.total_paid)}</td>
+                                    <td className="px-3 py-2.5 font-bold text-amber-600">{rcSym}{formatNum(g.total_amount - g.total_paid)}</td>
                                     <td className="px-3 py-2.5">
                                       <span className={`px-2 py-0.5 rounded-full text-xs font-bold ${numRate >= 80 ? 'bg-green-100 text-green-700' : numRate >= 50 ? 'bg-amber-100 text-amber-700' : 'bg-red-100 text-red-700'}`}>
                                         {rate}%
@@ -1093,9 +1103,9 @@ export default function MolasSalesPage() {
                                   <td className="px-3 py-2.5" colSpan={2}>الإجمالي</td>
                                   <td className="px-3 py-2.5">{governorateSummary.reduce((s: number, g: any) => s + g.orders_count, 0)}</td>
                                   <td className="px-3 py-2.5">{governorateSummary.reduce((s: number, g: any) => s + g.total_tons, 0).toFixed(1)} طن</td>
-                                  <td className="px-3 py-2.5 text-blue-700">${formatNum(totalAmt)}</td>
-                                  <td className="px-3 py-2.5 text-green-600">${formatNum(totalPaid)}</td>
-                                  <td className="px-3 py-2.5 text-amber-600">${formatNum(totalAmt - totalPaid)}</td>
+                                  <td className="px-3 py-2.5 text-blue-700">{rcSym}{formatNum(totalAmt)}</td>
+                                  <td className="px-3 py-2.5 text-green-600">{rcSym}{formatNum(totalPaid)}</td>
+                                  <td className="px-3 py-2.5 text-amber-600">{rcSym}{formatNum(totalAmt - totalPaid)}</td>
                                   <td className="px-3 py-2.5">{paymentRate}%</td>
                                 </tr>
                               </tfoot>
@@ -1149,16 +1159,16 @@ export default function MolasSalesPage() {
                       </Card>
                       <Card className="border-0 shadow-sm bg-gradient-to-br from-green-50 to-white">
                         <CardContent className="p-4 text-center">
-                          <div className="text-3xl font-black text-green-700">${formatNum(totalAmt)}</div>
+                          <div className="text-3xl font-black text-green-700">{rcSym}{formatNum(totalAmt)}</div>
                           <div className="text-xs text-gray-500 mt-1">إجمالي القيمة</div>
-                          <div className="text-[10px] text-green-600 mt-0.5">متوسط ${formatNum(avgPerAddress)}/عنوان</div>
+                          <div className="text-[10px] text-green-600 mt-0.5">متوسط {rcSym}{formatNum(avgPerAddress)}/عنوان</div>
                         </CardContent>
                       </Card>
                       <Card className="border-0 shadow-sm bg-gradient-to-br from-violet-50 to-white">
                         <CardContent className="p-4 text-center">
                           <div className="text-3xl font-black text-violet-700">{paymentRate}%</div>
                           <div className="text-xs text-gray-500 mt-1">نسبة التحصيل</div>
-                          <div className="text-[10px] text-violet-600 mt-0.5">${formatNum(totalPaid)} مدفوع</div>
+                          <div className="text-[10px] text-violet-600 mt-0.5">{rcSym}{formatNum(totalPaid)} مدفوع</div>
                         </CardContent>
                       </Card>
                     </div>
@@ -1166,7 +1176,7 @@ export default function MolasSalesPage() {
                     {/* Bar Chart — Value by Address */}
                     <Card className="border-0 shadow-sm">
                       <CardContent className="p-5">
-                        <h3 className="font-bold text-gray-900 mb-4">📊 القيمة ($) حسب العنوان</h3>
+                        <h3 className="font-bold text-gray-900 mb-4">قيمة المبيعات حسب العنوان</h3>
                         <div className="space-y-3">
                           {addressSummary.map((a: any, i: number) => {
                             const maxVal = Math.max(...addressSummary.map((x: any) => x.total_amount), 1);
@@ -1176,13 +1186,13 @@ export default function MolasSalesPage() {
                               <div key={i}>
                                 <div className="flex items-center justify-between mb-1">
                                   <span className="text-xs font-bold text-gray-700">{a.address}</span>
-                                  <span className="text-xs text-gray-500">${formatNum(a.total_amount)} — {a.total_tons} طن</span>
+                                  <span className="text-xs text-gray-500">{rcSym}{formatNum(a.total_amount)} — {a.total_tons} طن</span>
                                 </div>
                                 <div className="relative h-7 bg-gray-100 rounded-lg overflow-hidden">
                                   <div className="absolute inset-y-0 right-0 bg-blue-400/30 rounded-lg transition-all duration-700" style={{ width: `${pct}%` }} />
                                   <div className="absolute inset-y-0 right-0 bg-gradient-to-l from-emerald-500 to-emerald-400 rounded-lg transition-all duration-700" style={{ width: `${pct * paidPct / 100}%` }} />
                                   <div className="absolute inset-0 flex items-center justify-center text-[10px] font-bold text-gray-700">
-                                    ${formatNum(a.total_amount)} | تحصيل {paidPct.toFixed(0)}%
+                                    {rcSym}{formatNum(a.total_amount)} | تحصيل {paidPct.toFixed(0)}%
                                   </div>
                                 </div>
                               </div>
@@ -1209,7 +1219,7 @@ export default function MolasSalesPage() {
                                 <div className={`w-3 h-8 rounded ${colors[i % colors.length]}`} />
                                 <div>
                                   <div className="text-xs font-bold text-gray-800">{a.address}</div>
-                                  <div className="text-[10px] text-gray-500">{pct}% — ${formatNum(a.total_amount)}</div>
+                                  <div className="text-[10px] text-gray-500">{pct}% — {rcSym}{formatNum(a.total_amount)}</div>
                                 </div>
                               </div>
                             );
@@ -1222,9 +1232,9 @@ export default function MolasSalesPage() {
                     <Card className="border-0 shadow-sm">
                       <CardContent className="p-4">
                         <div className="flex items-center justify-between mb-4">
-                          <h3 className="font-bold text-gray-900">📋 جدول العناوين التفصيلي</h3>
+                           <h3 className="font-bold text-gray-900">جدول العناوين التفصيلي</h3>
                           <button onClick={() => {
-                            exportExcel(['العنوان', 'عدد الطلبات', 'العملاء', 'الكمية (طن)', 'القيمة ($)', 'المدفوع ($)', 'المتبقي ($)'],
+                            exportExcel(['العنوان', 'عدد الطلبات', 'العملاء', 'الكمية (طن)', 'القيمة', 'المدفوع', 'المتبقي'],
                               addressSummary.map(a => [a.address, a.orders_count, a.customers_count, a.total_tons, a.total_amount, a.total_paid, a.balance]),
                               'molas_addresses_report');
                           }} className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-green-50 text-green-600 hover:bg-green-100 text-xs font-semibold">
@@ -1238,9 +1248,9 @@ export default function MolasSalesPage() {
                               <th className="px-3 py-2.5 text-right text-xs font-semibold">الطلبات</th>
                               <th className="px-3 py-2.5 text-right text-xs font-semibold">العملاء</th>
                               <th className="px-3 py-2.5 text-right text-xs font-semibold">الكمية (طن)</th>
-                              <th className="px-3 py-2.5 text-right text-xs font-semibold">القيمة ($)</th>
-                              <th className="px-3 py-2.5 text-right text-xs font-semibold">المدفوع ($)</th>
-                              <th className="px-3 py-2.5 text-right text-xs font-semibold">المتبقي ($)</th>
+                              <th className="px-3 py-2.5 text-right text-xs font-semibold">القيمة</th>
+                              <th className="px-3 py-2.5 text-right text-xs font-semibold">المدفوع</th>
+                              <th className="px-3 py-2.5 text-right text-xs font-semibold">المتبقي</th>
                             </tr></thead>
                             <tbody>
                               {addressSummary.map((a, i) => (
@@ -1249,9 +1259,9 @@ export default function MolasSalesPage() {
                                   <td className="px-3 py-2.5">{a.orders_count}</td>
                                   <td className="px-3 py-2.5 text-gray-500 text-xs">{a.customers_names}</td>
                                   <td className="px-3 py-2.5 font-semibold">{a.total_tons} طن</td>
-                                  <td className="px-3 py-2.5 font-bold text-blue-700">${formatNum(a.total_amount)}</td>
-                                  <td className="px-3 py-2.5 font-bold text-green-600">${formatNum(a.total_paid)}</td>
-                                  <td className="px-3 py-2.5 font-bold text-amber-600">${formatNum(a.balance)}</td>
+                                  <td className="px-3 py-2.5 font-bold text-blue-700">{rcSym}{formatNum(a.total_amount)}</td>
+                                  <td className="px-3 py-2.5 font-bold text-green-600">{rcSym}{formatNum(a.total_paid)}</td>
+                                  <td className="px-3 py-2.5 font-bold text-amber-600">{rcSym}{formatNum(a.balance)}</td>
                                 </tr>
                               ))}
                               <tr className="bg-emerald-50 font-bold">
@@ -1259,9 +1269,9 @@ export default function MolasSalesPage() {
                                 <td className="px-3 py-2.5">{totalOrders}</td>
                                 <td className="px-3 py-2.5"></td>
                                 <td className="px-3 py-2.5">{totalTons.toFixed(1)} طن</td>
-                                <td className="px-3 py-2.5 text-blue-700">${formatNum(totalAmt)}</td>
-                                <td className="px-3 py-2.5 text-green-600">${formatNum(totalPaid)}</td>
-                                <td className="px-3 py-2.5 text-amber-600">${formatNum(totalAmt - totalPaid)}</td>
+                                <td className="px-3 py-2.5 text-blue-700">{rcSym}{formatNum(totalAmt)}</td>
+                                <td className="px-3 py-2.5 text-green-600">{rcSym}{formatNum(totalPaid)}</td>
+                                <td className="px-3 py-2.5 text-amber-600">{rcSym}{formatNum(totalAmt - totalPaid)}</td>
                               </tr>
                             </tbody>
                           </table>
@@ -1307,9 +1317,9 @@ export default function MolasSalesPage() {
                       </Card>
                       <Card className="border-0 shadow-sm bg-gradient-to-br from-green-50 to-white">
                         <CardContent className="p-4 text-center">
-                          <div className="text-3xl font-black text-green-700">${formatNum(s.total_amount)}</div>
+                          <div className="text-3xl font-black text-green-700">{rcSym}{formatNum(s.total_amount)}</div>
                           <div className="text-xs text-gray-500 mt-1">إجمالي القيمة</div>
-                          <div className="text-[10px] text-green-600 mt-0.5">متوسط ${formatNum(avgDaily)}/يوم</div>
+                          <div className="text-[10px] text-green-600 mt-0.5">متوسط {rcSym}{formatNum(avgDaily)}/يوم</div>
                         </CardContent>
                       </Card>
                       <Card className="border-0 shadow-sm bg-gradient-to-br from-violet-50 to-white">
@@ -1324,7 +1334,7 @@ export default function MolasSalesPage() {
                     {/* Daily Bar Chart */}
                     <Card className="border-0 shadow-sm">
                       <CardContent className="p-5">
-                        <h3 className="font-bold text-gray-900 mb-4">📊 المبيعات اليومية ($)</h3>
+                        <h3 className="font-bold text-gray-900 mb-4">المبيعات اليومية</h3>
                         <div className="flex items-end gap-2 h-48 border-b border-gray-200 pb-2">
                           {daily.map((d: any, i: number) => {
                             const h = (d.amount / maxDaily) * 100;
@@ -1332,7 +1342,7 @@ export default function MolasSalesPage() {
                             return (
                               <div key={i} className="flex-1 flex flex-col items-center gap-1 group relative">
                                 <div className="absolute -top-8 bg-gray-800 text-white text-[9px] px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-10">
-                                  ${formatNum(d.amount)} | {d.tons} طن
+                                  {rcSym}{formatNum(d.amount)} | {d.tons} طن
                                 </div>
                                 <div className="w-full flex flex-col justify-end" style={{ height: '100%' }}>
                                   <div className="relative w-full rounded-t-md transition-all duration-500" style={{ height: `${h}%`, minHeight: '4px' }}>
@@ -1422,13 +1432,13 @@ export default function MolasSalesPage() {
                     <Card className="border-0 shadow-sm">
                       <CardContent className="p-4">
                         <div className="flex items-center justify-between mb-4">
-                          <h3 className="font-bold text-gray-900">📋 جدول الفترات التفصيلي</h3>
+                          <h3 className="font-bold text-gray-900">جدول الفترات التفصيلي</h3>
                           <button onClick={() => {
                             exportPDF('تقرير فترات المولاس',
-                              ['التاريخ', 'الطلبات', 'الكمية (طن)', 'القيمة ($)', 'المدفوع ($)', 'المتبقي ($)'],
-                              daily.map((d: any) => [d.date, d.orders, d.tons + ' طن', '$' + formatNum(d.amount), '$' + formatNum(d.paid), '$' + formatNum(d.balance)]),
+                              ['التاريخ', 'الطلبات', 'الكمية (طن)', 'القيمة', 'المدفوع', 'المتبقي'],
+                              daily.map((d: any) => [d.date, d.orders, d.tons + ' طن', rcSym + formatNum(d.amount), rcSym + formatNum(d.paid), rcSym + formatNum(d.balance)]),
                               'molas_period',
-                              [`إجمالي الطلبات: ${s.total_orders}`, `إجمالي الطن: ${s.total_tons}`, `القيمة: $${formatNum(s.total_amount)}`, `المدفوع: $${formatNum(s.total_paid)}`]
+                              [`إجمالي الطلبات: ${s.total_orders}`, `إجمالي الطن: ${s.total_tons}`, `القيمة: ${rcSym}${formatNum(s.total_amount)}`, `المدفوع: ${rcSym}${formatNum(s.total_paid)}`]
                             );
                           }} className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-red-50 text-red-600 hover:bg-red-100 text-xs font-semibold">
                             <FileText className="w-3.5 h-3.5" /> تصدير PDF
@@ -1440,9 +1450,9 @@ export default function MolasSalesPage() {
                               <th className="px-3 py-2.5 text-right text-xs font-semibold">التاريخ</th>
                               <th className="px-3 py-2.5 text-right text-xs font-semibold">الطلبات</th>
                               <th className="px-3 py-2.5 text-right text-xs font-semibold">الكمية (طن)</th>
-                              <th className="px-3 py-2.5 text-right text-xs font-semibold">القيمة ($)</th>
-                              <th className="px-3 py-2.5 text-right text-xs font-semibold">المدفوع ($)</th>
-                              <th className="px-3 py-2.5 text-right text-xs font-semibold">المتبقي ($)</th>
+                              <th className="px-3 py-2.5 text-right text-xs font-semibold">القيمة</th>
+                              <th className="px-3 py-2.5 text-right text-xs font-semibold">المدفوع</th>
+                              <th className="px-3 py-2.5 text-right text-xs font-semibold">المتبقي</th>
                             </tr></thead>
                             <tbody>
                               {daily.map((d: any, i: number) => (
@@ -1450,9 +1460,9 @@ export default function MolasSalesPage() {
                                   <td className="px-3 py-2.5 font-semibold">{d.date}</td>
                                   <td className="px-3 py-2.5">{d.orders}</td>
                                   <td className="px-3 py-2.5 font-semibold">{d.tons} طن</td>
-                                  <td className="px-3 py-2.5 font-bold text-blue-700">${formatNum(d.amount)}</td>
-                                  <td className="px-3 py-2.5 font-bold text-green-600">${formatNum(d.paid)}</td>
-                                  <td className="px-3 py-2.5 font-bold text-amber-600">${formatNum(d.balance)}</td>
+                                  <td className="px-3 py-2.5 font-bold text-blue-700">{rcSym}{formatNum(d.amount)}</td>
+                                  <td className="px-3 py-2.5 font-bold text-green-600">{rcSym}{formatNum(d.paid)}</td>
+                                  <td className="px-3 py-2.5 font-bold text-amber-600">{rcSym}{formatNum(d.balance)}</td>
                                 </tr>
                               ))}
                             </tbody>
@@ -1480,11 +1490,12 @@ export default function MolasSalesPage() {
                   <Button onClick={loadStatement} variant="outline"><Search className="w-4 h-4" /> بحث</Button>
                   {stmtData && (
                     <button onClick={() => {
+                      const sc = stmtData.orders[0]?.currency === 'YER' ? 'ر.ي' : '$';
                       exportPDF(`كشف حساب — ${stmtData.customer.name}`,
-                        ['رقم الطلب', 'التاريخ', 'القيمة ($)', 'المدفوع ($)', 'المتبقي ($)', 'الحالة'],
-                        stmtData.orders.map((o: any) => [o.order_number, o.order_date, '$' + formatNum(o.final_amount), '$' + formatNum(o.paid_amount), '$' + formatNum(o.remaining_amount), o.status_name]),
+                        ['رقم الطلب', 'التاريخ', 'القيمة', 'المدفوع', 'المتبقي', 'الحالة'],
+                        stmtData.orders.map((o: any) => [o.order_number, o.order_date, (o.currency === 'YER' ? 'ر.ي' : '$') + formatNum(o.final_amount), (o.currency === 'YER' ? 'ر.ي' : '$') + formatNum(o.paid_amount), (o.currency === 'YER' ? 'ر.ي' : '$') + formatNum(o.remaining_amount), o.status_name]),
                         `stmt_${stmtData.customer.name}`,
-                        [`الإجمالي: $${formatNum(stmtData.total_orders)}`, `المدفوع: $${formatNum(stmtData.total_paid)}`, `الرصيد: $${formatNum(stmtData.balance)}`]
+                        [`الإجمالي: ${sc}${formatNum(stmtData.total_orders)}`, `المدفوع: ${sc}${formatNum(stmtData.total_paid)}`, `الرصيد: ${sc}${formatNum(stmtData.balance)}`]
                       );
                     }} className="flex items-center gap-1 px-3 py-2 rounded-xl bg-red-50 text-red-600 hover:bg-red-100 text-sm font-semibold">
                       <FileText className="w-4 h-4" /> PDF
@@ -1496,15 +1507,15 @@ export default function MolasSalesPage() {
                     <div className="grid grid-cols-3 gap-4">
                       <div className="bg-blue-50 rounded-xl p-3 text-center">
                         <div className="text-xl font-black text-blue-700">${formatNum(stmtData.total_orders)}</div>
-                        <div className="text-xs text-gray-500">إجمالي الطلبات ($)</div>
+                        <div className="text-xs text-gray-500">إجمالي القيمة</div>
                       </div>
                       <div className="bg-green-50 rounded-xl p-3 text-center">
                         <div className="text-xl font-black text-green-700">${formatNum(stmtData.total_paid)}</div>
-                        <div className="text-xs text-gray-500">المدفوع ($)</div>
+                        <div className="text-xs text-gray-500">المدفوع</div>
                       </div>
                       <div className="bg-amber-50 rounded-xl p-3 text-center">
                         <div className="text-xl font-black text-amber-700">${formatNum(stmtData.balance)}</div>
-                        <div className="text-xs text-gray-500">الرصيد ($)</div>
+                        <div className="text-xs text-gray-500">الرصيد</div>
                       </div>
                     </div>
                     <div className="overflow-x-auto">
@@ -1512,9 +1523,9 @@ export default function MolasSalesPage() {
                         <thead><tr className="bg-gray-100 text-gray-600">
                           <th className="px-3 py-2 text-right text-xs">رقم الطلب</th>
                           <th className="px-3 py-2 text-right text-xs">التاريخ</th>
-                          <th className="px-3 py-2 text-right text-xs">القيمة ($)</th>
-                          <th className="px-3 py-2 text-right text-xs">المدفوع ($)</th>
-                          <th className="px-3 py-2 text-right text-xs">المتبقي ($)</th>
+                          <th className="px-3 py-2 text-right text-xs">القيمة</th>
+                          <th className="px-3 py-2 text-right text-xs">المدفوع</th>
+                          <th className="px-3 py-2 text-right text-xs">المتبقي</th>
                           <th className="px-3 py-2 text-right text-xs">الحالة</th>
                         </tr></thead>
                         <tbody>
@@ -1522,9 +1533,9 @@ export default function MolasSalesPage() {
                             <tr key={o.id} className="border-b border-gray-50">
                               <td className="px-3 py-2 font-bold text-emerald-700">{o.order_number}</td>
                               <td className="px-3 py-2 text-gray-500">{o.order_date}</td>
-                              <td className="px-3 py-2 font-bold">${formatNum(o.final_amount)}</td>
-                              <td className="px-3 py-2 text-green-600">${formatNum(o.paid_amount)}</td>
-                              <td className="px-3 py-2 text-amber-600">${formatNum(o.remaining_amount)}</td>
+                              <td className="px-3 py-2 font-bold">{o.currency === 'YER' ? 'ر.ي' : '$'}{formatNum(o.final_amount)}</td>
+                              <td className="px-3 py-2 text-green-600">{o.currency === 'YER' ? 'ر.ي' : '$'}{formatNum(o.paid_amount)}</td>
+                              <td className="px-3 py-2 text-amber-600">{o.currency === 'YER' ? 'ر.ي' : '$'}{formatNum(o.remaining_amount)}</td>
                               <td className="px-3 py-2"><span className={`px-2 py-0.5 rounded-full text-xs font-bold ${STATUS_COLORS[o.status] || ''}`}>{o.status_name}</span></td>
                             </tr>
                           ))}
