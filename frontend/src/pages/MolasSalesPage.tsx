@@ -6,6 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Modal } from '@/components/ui/modal';
 import { formatNum } from '@/lib/utils';
 import api from '@/api/client';
+import { LOGO } from './logo';
 
 type Tab = 'orders' | 'customers' | 'payments' | 'reports';
 type ReportTab = 'summary' | 'customers' | 'governorates' | 'addresses' | 'periods' | 'statement';
@@ -53,10 +54,12 @@ function exportPDF(title: string, headers: string[], rows: any[][], filename: st
   win.document.write(`<!DOCTYPE html><html lang="ar" dir="rtl"><head><meta charset="UTF-8"><title>${title}</title>
     <style>*{margin:0;padding:0;box-sizing:border-box}body{font-family:Arial,sans-serif;padding:30px;color:#1a1a1a;direction:rtl}
     h1{text-align:center;font-size:20px;margin-bottom:5px;color:#065f46}.sub{text-align:center;color:#6b7280;font-size:11px;margin-bottom:20px}
+    .logo{text-align:center;margin-bottom:10px}.logo img{height:50px}
     table{width:100%;border-collapse:collapse;font-size:11px}th{background:#059669;color:#fff;padding:8px 6px;text-align:right}
     td{padding:6px;border-bottom:1px solid #e5e7eb;text-align:right}tr:nth-child(even){background:#f9fafb}.tot{background:#ecfdf5;font-weight:800}
     @media print{body{padding:15px}}</style></head><body>
-    <h1>🌿 ${title}</h1><div class="sub">طلعت هائل للخدمات والاستشارات الزراعية — ${new Date().toLocaleDateString('ar')}</div>
+    <div class="logo"><img src="${LOGO}"></div>
+    <h1>${title}</h1><div class="sub">طلعت هائل للخدمات والاستشارات الزراعية — ${new Date().toLocaleDateString('ar')}</div>
     ${summaryHtml}
     <table><thead><tr>${headers.map(h => `<th>${h}</th>`).join('')}</tr></thead>
     <tbody>${rows.map(r => `<tr>${r.map(c => `<td>${c ?? ''}</td>`).join('')}</tr>`).join('')}</tbody></table>
@@ -302,7 +305,7 @@ export default function MolasSalesPage() {
     win.document.write(`<!DOCTYPE html><html lang="ar" dir="rtl"><head><meta charset="UTF-8"><title>فاتورة بيع — ${o.order_number}</title>
     <style>*{margin:0;padding:0;box-sizing:border-box}body{font-family:Arial,sans-serif;padding:30px;color:#1a1a1a;direction:rtl}
     .header{display:flex;justify-content:space-between;align-items:flex-start;border-bottom:3px solid #059669;padding-bottom:15px;margin-bottom:20px}
-    .logo{font-size:20px;font-weight:900;color:#065f46}.logo small{display:block;font-size:10px;color:#666;font-weight:400}
+    .logo img{height:50px}
     .inv-info{text-align:left;font-size:12px}.inv-info div{margin-bottom:3px}
     .badge{display:inline-block;padding:3px 10px;border-radius:20px;font-size:10px;font-weight:700}
     .badge-green{background:#dcfce7;color:#166534}.badge-amber{background:#fef3c7;color:#92400e}
@@ -318,7 +321,7 @@ export default function MolasSalesPage() {
     .sigs div{width:30%;text-align:center;border-top:1px solid #333;padding-top:5px}
     @media print{body{padding:15px}}</style></head><body>
     <div class="header">
-      <div class="logo">🌿 طلعت هائل<small>للخدمات والاستشارات الزراعية</small></div>
+      <div class="logo"><img src="${LOGO}"></div>
       <div class="inv-info">
         <div><strong>فاتورة بيع رقم:</strong> ${o.order_number}</div>
         <div><strong>التاريخ:</strong> ${o.order_date}</div>
@@ -358,7 +361,7 @@ export default function MolasSalesPage() {
     win.document.write(`<!DOCTYPE html><html lang="ar" dir="rtl"><head><meta charset="UTF-8"><title>سند قبض — ${o.order_number}</title>
     <style>*{margin:0;padding:0;box-sizing:border-box}body{font-family:Arial,sans-serif;padding:30px;color:#1a1a1a;direction:rtl}
     .header{display:flex;justify-content:space-between;align-items:flex-start;border-bottom:3px solid #2563eb;padding-bottom:15px;margin-bottom:20px}
-    .logo{font-size:20px;font-weight:900;color:#1e40af}.logo small{display:block;font-size:10px;color:#666;font-weight:400}
+    .logo img{height:50px}
     .info{text-align:left;font-size:12px}.info div{margin-bottom:3px}
     table{width:100%;border-collapse:collapse;font-size:12px;margin:15px 0}th{background:#2563eb;color:#fff;padding:8px;text-align:right}
     td{padding:7px;border-bottom:1px solid #e5e7eb;text-align:right}
@@ -369,7 +372,7 @@ export default function MolasSalesPage() {
     .footer{margin-top:30px;text-align:center;font-size:10px;color:#999;border-top:1px solid #e5e7eb;padding-top:10px}
     @media print{body{padding:15px}}</style></head><body>
     <div class="header">
-      <div class="logo">🌿 طلعت هائل<small>للخدمات والاستشارات الزراعية</small></div>
+      <div class="logo"><img src="${LOGO}"></div>
       <div class="info">
         <div><strong>سند قبض رقم:</strong> RCP-${o.order_number}</div>
         <div><strong>التاريخ:</strong> ${new Date().toISOString().split('T')[0]}</div>
@@ -407,7 +410,7 @@ export default function MolasSalesPage() {
     win.document.write(`<!DOCTYPE html><html lang="ar" dir="rtl"><head><meta charset="UTF-8"><title>كشف تسديد — ${o.order_number}</title>
     <style>*{margin:0;padding:0;box-sizing:border-box}body{font-family:Arial,sans-serif;padding:30px;color:#1a1a1a;direction:rtl}
     .header{display:flex;justify-content:space-between;align-items:flex-start;border-bottom:3px solid #d97706;padding-bottom:15px;margin-bottom:20px}
-    .logo{font-size:20px;font-weight:900;color:#92400e}.logo small{display:block;font-size:10px;color:#666;font-weight:400}
+    .logo img{height:50px}
     .info{text-align:left;font-size:12px}.info div{margin-bottom:3px}
     .progress{background:#e5e7eb;border-radius:20px;height:20px;margin:15px 0;overflow:hidden}
     .progress-bar{background:linear-gradient(90deg,#16a34a,#22c55e);height:100%;border-radius:20px;transition:width .3s}
@@ -419,7 +422,7 @@ export default function MolasSalesPage() {
     .footer{margin-top:30px;text-align:center;font-size:10px;color:#999;border-top:1px solid #e5e7eb;padding-top:10px}
     @media print{body{padding:15px}}</style></head><body>
     <div class="header">
-      <div class="logo">🌿 طلعت هائل<small>للخدمات والاستشارات الزراعية</small></div>
+      <div class="logo"><img src="${LOGO}"></div>
       <div class="info">
         <div><strong>كشف تسديد رقم:</strong> STL-${o.order_number}</div>
         <div><strong>التاريخ:</strong> ${new Date().toISOString().split('T')[0]}</div>
