@@ -177,13 +177,21 @@ export default function WorkPlansPage() {
     setSaving(true);
     try {
       await api.post(`/work-plans/tasks/${completeModal.taskId}/complete`, {
-        evaluation_score: completeModal.score,
+        evaluation_score: completeModal.score || undefined,
         evaluation_notes: completeModal.notes,
       });
       setCompleteModal({ open: false, taskId: 0, score: 0, notes: '' });
       loadData();
     } catch (err: any) { alert(err.response?.data?.message || 'حدث خطأ'); }
     finally { setSaving(false); }
+  };
+
+  const handleUncompleteTask = async (taskId: number) => {
+    if (!confirm('هل تريد إرجاع هذه المهمة إلى غير مكتملة؟')) return;
+    try {
+      await api.post(`/work-plans/tasks/${taskId}/uncomplete`);
+      loadData();
+    } catch (err: any) { alert(err.response?.data?.message || 'حدث خطأ'); }
   };
 
   const handleAddLog = async () => {
@@ -451,6 +459,16 @@ export default function WorkPlansPage() {
                                   </button>
                                 </>
                               )}
+                              {!isLocked && task.is_completed && (
+                                <button onClick={() => handleUncompleteTask(task.id)} className="p-1.5 rounded-lg hover:bg-amber-50 text-amber-500" title="إرجاع المهمة">
+                                  <Clock className="w-4 h-4" />
+                                </button>
+                              )}
+                              {!isLocked && task.is_completed && !task.evaluation_score && (
+                                <button onClick={() => setCompleteModal({ open: true, taskId: task.id, score: 0, notes: '' })} className="p-1.5 rounded-lg hover:bg-indigo-50 text-indigo-500" title="تقييم">
+                                  <BarChart3 className="w-4 h-4" />
+                                </button>
+                              )}
                               <button onClick={() => loadTaskLogs(task)} className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-500" title="السجلات">
                                 <FileText className="w-4 h-4" />
                               </button>
@@ -684,7 +702,7 @@ export default function WorkPlansPage() {
           </div>
           <div className="flex justify-end gap-2 pt-4 border-t">
             <Button variant="outline" onClick={() => setCompleteModal({ open: false, taskId: 0, score: 0, notes: '' })}>إلغاء</Button>
-            <Button onClick={handleCompleteTask} disabled={saving || completeModal.score === 0}>{saving ? 'جاري الحفظ...' : 'إتمام وتقييم'}</Button>
+            <Button onClick={handleCompleteTask} disabled={saving}>{saving ? 'جاري الحفظ...' : completeModal.score > 0 ? 'إتمام وتقييم' : 'إتمام المهمة'}</Button>
           </div>
         </div>
       </Modal>

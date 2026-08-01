@@ -832,23 +832,7 @@ def api_work_plan_update(pid):
                 db.session.delete(ot)
 
     total = len(p.tasks) + sum(1 for t in data.get('tasks', []) if not t.get('id') and t.get('title'))
-    if total > 0:
-        all_tasks = list(p.tasks)
-        completed = sum(1 for t in all_tasks if t.is_completed)
-        if completed == total:
-            p.progress = 100
-        else:
-            avg_progress = sum(t.progress_percent or 0 for t in all_tasks)
-            p.progress = round(avg_progress / total) if all_tasks else 0
-    else:
-        p.progress = 0
-    if p.progress >= 100:
-        p.progress = 100
-        p.status = 'completed'
-        for t in p.tasks:
-            if not t.is_completed:
-                t.is_completed = True
-        _generate_next_recurring_plan(p)
+    _recalc_plan_progress(p)
 
     db.session.commit()
     return ok(p.to_dict(), 'تم تحديث خطة العمل')
@@ -861,6 +845,33 @@ def api_work_plan_delete(pid):
     db.session.delete(p)
     db.session.commit()
     return ok(message='تم حذف خطة العمل')
+
+
+def _recalc_plan_progress(plan):
+    """إعادة حساب نسبة إنجاز الخطة بناءً على المهام"""
+    all_tasks = list(plan.tasks)
+    total = len(all_tasks)
+    if total > 0:
+        completed = sum(1 for t in all_tasks if t.is_completed)
+        if completed == total:
+            plan.progress = 100
+        else:
+            avg_progress = sum(t.progress_percent or 0 for t in all_tasks)
+            plan.progress = round(avg_progress / total)
+    else:
+        plan.progress = 0
+    if plan.progress >= 100:
+        plan.progress = 100
+        plan.status = 'completed'
+        for t in all_tasks:
+            if not t.is_completed:
+                t.is_completed = True
+                t.progress_percent = 100
+                if not t.completed_at:
+                    t.completed_at = datetime.utcnow()
+        _generate_next_recurring_plan(plan)
+    elif plan.progress > 0 and plan.status == 'pending':
+        plan.status = 'in_progress'
 
 
 @rest_api.route('/work-plans/<int:pid>/tasks', methods=['POST'])
@@ -895,25 +906,41 @@ def api_work_plan_task_complete(tid):
     task.is_completed = True
     task.progress_percent = 100
     task.completed_at = datetime.utcnow()
-    task.completed_by = data.get('completed_by')
-    task.evaluation_score = data.get('evaluation_score')
+    task.completed_by = data.get('completed_by') or current_user.employee_id
+    if data.get('evaluation_score'):
+        task.evaluation_score = data['evaluation_score']
     task.evaluation_notes = data.get('evaluation_notes', '')
 
-    all_tasks = list(task.plan.tasks)
-    total = len(all_tasks)
-    if total > 0:
-        avg_progress = sum(t.progress_percent or 0 for t in all_tasks)
-        task.plan.progress = round(avg_progress / total)
-    else:
-        task.plan.progress = 0
-    if task.plan.progress >= 100:
-        task.plan.status = 'completed'
-        _generate_next_recurring_plan(task.plan)
-    elif task.plan.progress > 0:
-        task.plan.status = 'in_progress'
+    _recalc_plan_progress(task.plan)
 
     db.session.commit()
     return ok(task.to_dict(), 'تم إتمام المهمة')
+
+
+@rest_api.route('/work-plans/tasks/<int:tid>/uncomplete', methods=['POST'])
+@login_required
+def api_work_plan_task_uncomplete(tid):
+    task = WorkPlanTask.query.get_or_404(tid)
+    if task.plan.is_locked:
+        return fail('الخطة مغلقة', 403)
+    task.is_completed = False
+    task.completed_at = None
+    task.completed_by = None
+    task.progress_percent = 0
+    _recalc_plan_progress(task.plan)
+    db.session.commit()
+    return ok(task.to_dict(), 'تم إرجاع المهمة')
+
+
+@rest_api.route('/work-plans/tasks/<int:tid>/evaluate', methods=['POST'])
+@login_required
+def api_work_plan_task_evaluate(tid):
+    task = WorkPlanTask.query.get_or_404(tid)
+    data = request.get_json(force=True, silent=True) or {}
+    task.evaluation_score = data.get('evaluation_score')
+    task.evaluation_notes = data.get('evaluation_notes', '')
+    db.session.commit()
+    return ok(task.to_dict(), 'تم حفظ التقييم')
 
 
 @rest_api.route('/work-plans/tasks/<int:tid>', methods=['DELETE'])
@@ -939,6 +966,15 @@ def api_work_plan_task_update(tid):
         task.start_date = datetime.strptime(data['start_date'], '%Y-%m-%d').date()
     if 'end_date' in data and data['end_date']:
         task.end_date = datetime.strptime(data['end_date'], '%Y-%m-%d').date()
+    if 'progress_percent' in data:
+        task.progress_percent = min(100, max(0, int(data['progress_percent'])))
+        if task.progress_percent >= 100:
+            task.is_completed = True
+            task.completed_at = datetime.utcnow()
+        elif task.progress_percent < 100:
+            task.is_completed = False
+            task.completed_at = None
+        _recalc_plan_progress(task.plan)
     db.session.commit()
     return ok(task.to_dict(), 'تم تحديث المهمة')
 
@@ -979,21 +1015,11 @@ def api_work_plan_task_log_add(tid):
     if task.progress_percent >= 100:
         task.is_completed = True
         task.completed_at = datetime.utcnow()
+    elif task.progress_percent < 100:
+        task.is_completed = False
+        task.completed_at = None
 
-    # تحديث نسبة إنجاز الخطة بناءً على متوسط تقدم المهام
-    all_tasks = list(task.plan.tasks)
-    total = len(all_tasks)
-    if total > 0:
-        avg_progress = sum(t.progress_percent or 0 for t in all_tasks)
-        task.plan.progress = round(avg_progress / total)
-    else:
-        task.plan.progress = 0
-    if task.plan.progress >= 100:
-        task.plan.progress = 100
-        task.plan.status = 'completed'
-        _generate_next_recurring_plan(task.plan)
-    elif task.plan.progress > 0 and task.plan.status == 'pending':
-        task.plan.status = 'in_progress'
+    _recalc_plan_progress(task.plan)
 
     db.session.commit()
     return ok(log.to_dict(), 'تم إضافة سجل العمل')
@@ -1076,6 +1102,7 @@ def api_work_plan_close(pid):
     if p.is_locked:
         return fail('الخطة مغلقة بالفعل')
     data = request.get_json(force=True, silent=True) or {}
+    _recalc_plan_progress(p)
     p.is_locked = True
     p.status = 'closed'
     p.closed_at = datetime.utcnow()
