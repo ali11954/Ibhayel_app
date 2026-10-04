@@ -1,41 +1,93 @@
 import { useState, useEffect, Fragment } from 'react';
-import { Calculator, CheckCircle, Clock, DollarSign, Trash2, Printer } from 'lucide-react';
+import { Calculator, CheckCircle, Clock, DollarSign, Trash2, Printer, CalendarRange } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Modal } from '@/components/ui/modal';
 import { formatNum } from '@/lib/utils';
 import api from '@/api/client';
 
+function toISODate(d: Date) {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+function daysBetween(from: string, to: string) {
+  const a = new Date(from).getTime();
+  const b = new Date(to).getTime();
+  if (Number.isNaN(a) || Number.isNaN(b)) return 0;
+  return Math.round((b - a) / 86400000) + 1;
+}
+
+const inputCls = 'h-10 px-3 rounded-lg border-2 border-gray-200 text-sm focus:border-primary-500 outline-none';
+
 export default function SalariesPage() {
   const [salaries, setSalaries] = useState<any[]>([]);
   const [employees, setEmployees] = useState<any[]>([]);
   const [companies, setCompanies] = useState<any[]>([]);
+  const [periods, setPeriods] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [calcModal, setCalcModal] = useState(false);
   const [expandedId, setExpandedId] = useState<number | null>(null);
-  const [monthYear, setMonthYear] = useState(new Date().toISOString().slice(0, 7));
+  const [periodId, setPeriodId] = useState('');
+  const [dateFrom, setDateFrom] = useState(() => {
+    const n = new Date();
+    return toISODate(new Date(n.getFullYear(), n.getMonth(), 1));
+  });
+  const [dateTo, setDateTo] = useState(() => toISODate(new Date()));
   const [companyFilter, setCompanyFilter] = useState('');
   const [calculating, setCalculating] = useState(false);
 
+  const periodDays = daysBetween(dateFrom, dateTo);
+
   const loadData = () => {
+    setLoading(true);
+    const salaryParams = periodId ? { period_id: periodId } : { start_date: dateFrom, end_date: dateTo };
     Promise.all([
-      api.get(`/financial/salaries?month_year=${monthYear}`),
+      api.get('/financial/salaries', { params: salaryParams }),
       api.get('/employees'),
       api.get('/companies'),
-    ]).then(([sRes, eRes, cRes]) => {
+      api.get('/periods'),
+    ]).then(([sRes, eRes, cRes, pRes]) => {
       setSalaries(sRes.data.data || []);
       setEmployees((eRes.data.data || []).filter((e: any) => e.is_active !== false));
       setCompanies(cRes.data.data || []);
+      setPeriods(pRes.data.data || []);
     }).catch(console.error).finally(() => setLoading(false));
   };
 
-  useEffect(() => { loadData(); }, [monthYear]);
+  useEffect(() => { loadData(); }, [periodId, dateFrom, dateTo]);
+
+  // اختيار فترة مخزنة يضبط تواريخ من - إلى تلقائياً
+  const handlePeriodSelect = (value: string) => {
+    setPeriodId(value);
+    if (value) {
+      const p = periods.find((x: any) => String(x.id) === value);
+      if (p) {
+        setDateFrom(p.start_date);
+        setDateTo(p.end_date);
+      }
+    }
+  };
+
+  const handleDateChange = (which: 'from' | 'to', value: string) => {
+    setPeriodId('');
+    if (which === 'from') setDateFrom(value);
+    else setDateTo(value);
+  };
+
+  const openPeriod = periods.find((p: any) => p.status === 'open');
+  const invalidRange = !dateFrom || !dateTo || dateTo < dateFrom;
 
   const handleCalculate = async () => {
+    if (invalidRange) {
+      alert('يرجى التأكد من أن تاريخ النهاية بعد تاريخ البداية');
+      return;
+    }
     setCalculating(true);
     try {
       const res = await api.post('/financial/salary-calculation', {
-        month_year: monthYear,
+        period_id: periodId ? Number(periodId) : null,
+        start_date: dateFrom,
+        end_date: dateTo,
         company_id: companyFilter ? Number(companyFilter) : null,
       });
       setCalcModal(false);
@@ -83,7 +135,8 @@ export default function SalariesPage() {
         <div class="header"><h1>سند صرف راتب</h1><h2>طلعت هائل للخدمات والاستشارات الزراعية</h2></div>
         <div class="row"><span class="label">رقم السند:</span><span class="value">#${v.salary_id}</span></div>
         <div class="row"><span class="label">التاريخ:</span><span class="value">${v.paid_date || '—'}</span></div>
-        <div class="row"><span class="label">الشهر:</span><span class="value">${v.month_year}</span></div>
+        <div class="row"><span class="label">الفترة المحتسب عنها:</span><span class="value">${v.period_label || v.month_year}</span></div>
+        <div class="row"><span class="label">أيام الدوام:</span><span class="value">${v.attendance_days != null ? v.attendance_days + ' يوم' : '—'}</span></div>
         <div class="row"><span class="label">اسم الموظف:</span><span class="value">${v.employee_name}</span></div>
         <div class="row"><span class="label">الكود:</span><span class="value">${v.employee_code}</span></div>
         <div class="row"><span class="label">الشركة:</span><span class="value">${v.company_name}</span></div>
@@ -142,7 +195,7 @@ export default function SalariesPage() {
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">احتساب الرواتب</h1>
-          <p className="text-gray-500 text-sm mt-1">حساب رواتب العمال حسب أيام الدوام والبدلات والخصومات</p>
+          <p className="text-gray-500 text-sm mt-1">حساب رواتب العمال عن الفترة التي تختارها (من تاريخ - إلى تاريخ)</p>
         </div>
         <Button onClick={() => setCalcModal(true)}><Calculator className="w-4 h-4" /> احتساب الرواتب</Button>
       </div>
@@ -175,12 +228,56 @@ export default function SalariesPage() {
         </CardContent></Card>
       </div>
 
-      {/* Month Selector */}
-      <div className="flex gap-3 items-center">
-        <input type="month" value={monthYear} onChange={(e) => setMonthYear(e.target.value)}
-          className="h-10 px-4 rounded-lg border-2 border-gray-200 text-sm focus:border-primary-500 outline-none" />
-        <span className="text-sm text-gray-500">{salaries.length} راتب</span>
-      </div>
+      {/* Period Selector - من تاريخ إلى تاريخ */}
+      <Card>
+        <CardContent className="p-4 space-y-3">
+          <div className="flex flex-wrap items-end gap-3">
+            <div className="min-w-[220px]">
+              <label className="block text-xs font-medium text-gray-600 mb-1">الفترة المالية</label>
+              <select
+                value={periodId}
+                onChange={(e) => handlePeriodSelect(e.target.value)}
+                className={`${inputCls} w-full`}
+              >
+                <option value="">فترة مخصصة (من - إلى)</option>
+                {periods.map((p: any) => (
+                  <option key={p.id} value={p.id}>
+                    {p.name} ({p.start_date} ← {p.end_date}){p.status === 'open' ? ' - مفتوحة' : ''}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-600 mb-1">من تاريخ *</label>
+              <input type="date" value={dateFrom} onChange={(e) => handleDateChange('from', e.target.value)} className={inputCls} />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-600 mb-1">إلى تاريخ *</label>
+              <input type="date" value={dateTo} onChange={(e) => handleDateChange('to', e.target.value)} className={inputCls} />
+            </div>
+            <div className="pb-1">
+              <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium ${invalidRange ? 'bg-red-100 text-red-700' : 'bg-primary-100 text-primary-700'}`}>
+                <CalendarRange className="w-3.5 h-3.5" />
+                {invalidRange ? 'تواريخ غير صحيحة' : `${periodDays} يوم`}
+              </span>
+            </div>
+          </div>
+          {!openPeriod && (
+            <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+              لا توجد فترة مالية مفتوحة. أنشئ فترة تغطي المدى المختار من صفحة «الفترات المالية» قبل الاحتساب.
+            </p>
+          )}
+          {openPeriod && !periodId && (
+            <p className="text-xs text-gray-500">
+              الفترة المفتوحة حالياً: <span className="font-semibold">{openPeriod.name}</span> ({openPeriod.start_date} ← {openPeriod.end_date})
+            </p>
+          )}
+          <div className="flex items-center gap-3 pt-1 border-t border-gray-100">
+            <span className="text-sm text-gray-500">{salaries.length} راتب</span>
+            {salaries[0]?.period_label && <span className="text-xs text-gray-400">تُعرض رواتب الفترة: {salaries[0].period_label}</span>}
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Salaries Grouped by Company */}
       {(() => {
@@ -228,7 +325,7 @@ export default function SalariesPage() {
                             <tr className="border-b border-gray-100 hover:bg-gray-50 cursor-pointer" onClick={() => setExpandedId(isExpanded ? null : sal.id)}>
                               <td className="px-3 py-2.5 font-mono text-primary-600 font-bold text-xs">{sal.employee_code}</td>
                               <td className="px-3 py-2.5 font-medium">{sal.employee_name}</td>
-                              <td className="px-3 py-2.5 text-center"><span className="bg-primary-100 text-primary-700 px-2 py-0.5 rounded-full text-xs font-bold">{sal.attendance_days}/30</span></td>
+                              <td className="px-3 py-2.5 text-center"><span className="bg-primary-100 text-primary-700 px-2 py-0.5 rounded-full text-xs font-bold">{sal.attendance_days} يوم</span></td>
                               <td className="px-3 py-2.5 font-medium text-blue-600">{formatNum(sal.basic_salary_amount || 0)}</td>
                               <td className="px-3 py-2.5 text-green-600">{formatNum(sal.resident_allowance_amount || 0)}</td>
                               <td className="px-3 py-2.5 text-blue-500">{formatNum(totalExtras)}</td>
@@ -326,31 +423,55 @@ export default function SalariesPage() {
         <Card>
           <div className="text-center py-12 text-gray-400">
             <Calculator className="w-12 h-12 mx-auto mb-3 text-gray-300" />
-            <p>لا توجد رواتب محسوبة لهذا الشهر</p>
+            <p>لا توجد رواتب محسوبة لهذه الفترة</p>
             <p className="text-sm mt-1">اضغط "احتساب الرواتب" لبدء الحساب</p>
           </div>
         </Card>
       )}
 
       {/* Calculation Modal */}
-      <Modal open={calcModal} onClose={() => setCalcModal(false)} title="احتساب الرواتب الشهرية">
+      <Modal open={calcModal} onClose={() => setCalcModal(false)} title="احتساب رواتب الفترة">
         <div className="space-y-4">
           <div className="bg-blue-50 rounded-xl p-4 border border-blue-200">
             <h4 className="font-bold text-blue-800 mb-2 text-sm">طريقة الاحتساب</h4>
             <ul className="text-xs text-blue-700 space-y-1.5">
+              <li>• تُحتسب أيام الحضور والمعاملات من تواريخ الفترة المختارة فقط</li>
               <li>• الراتب اليومي = الراتب الأساسي ÷ 30 يوم</li>
               <li>• الراتب الأساسي = الراتب اليومي × أيام الحضور</li>
               <li>• بدل الإقامة = 500 ريال/يوم × أيام الحضور (للسكان فقط)</li>
-              <li>• العمل الإضافي من المعاملات المالية</li>
+              <li>• العمل الإضافي من المعاملات المالية ضمن الفترة</li>
               <li>• الخصومات = سلف + خصومات + غرامات + بوفية + مطعم</li>
               <li>• الصافي = الإيرادات − الخصومات</li>
             </ul>
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">الشهر *</label>
-            <input type="month" value={monthYear} onChange={(e) => setMonthYear(e.target.value)}
-              className="w-full h-10 px-3 rounded-lg border-2 border-gray-200 text-sm" />
+            <label className="block text-sm font-medium text-gray-700 mb-1">الفترة المالية</label>
+            <select
+              value={periodId}
+              onChange={(e) => handlePeriodSelect(e.target.value)}
+              className={`${inputCls} w-full`}
+            >
+              <option value="">فترة مخصصة (من - إلى)</option>
+              {periods.map((p: any) => (
+                <option key={p.id} value={p.id}>
+                  {p.name} ({p.start_date} ← {p.end_date}){p.status === 'open' ? ' - مفتوحة' : ''}
+                </option>
+              ))}
+            </select>
           </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">من تاريخ *</label>
+              <input type="date" value={dateFrom} onChange={(e) => handleDateChange('from', e.target.value)} className={`${inputCls} w-full`} />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">إلى تاريخ *</label>
+              <input type="date" value={dateTo} onChange={(e) => handleDateChange('to', e.target.value)} className={`${inputCls} w-full`} />
+            </div>
+          </div>
+          <p className="text-xs text-gray-500">
+            مدة الفترة: <span className="font-semibold">{invalidRange ? 'غير صحيحة' : `${periodDays} يوم`}</span>
+          </p>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">الشركة</label>
             <select value={companyFilter} onChange={(e) => setCompanyFilter(e.target.value)} className="w-full h-10 px-3 rounded-lg border-2 border-gray-200 text-sm">
@@ -360,13 +481,19 @@ export default function SalariesPage() {
           </div>
           <div className="bg-amber-50 rounded-lg p-3 border border-amber-200">
             <p className="text-xs text-amber-700">
-              سيتم احتساب رواتب {companyFilter ? 'الموظفين في الشركة المحددة' : 'جميع الموظفين النشطين'}.
-              إذا كان للموظف راتب محسوب سابقاً لنفس الشهر سيتم تخطيه.
+              سيتم احتساب رواتب {companyFilter ? 'الموظفين في الشركة المحددة' : 'جميع الموظفين النشطين'} للفترة
+              {' '}<span className="font-semibold">{dateFrom} ← {dateTo}</span>.
+              إذا كان للموظف راتب محتسب سابقاً لنفس الفترة سيتم تخطيه.
             </p>
           </div>
+          {!openPeriod && (
+            <div className="bg-red-50 rounded-lg p-3 border border-red-200">
+              <p className="text-xs text-red-700">لا توجد فترة مالية مفتوحة تغطي هذه التواريخ. أنشئها من صفحة «الفترات المالية» أولاً.</p>
+            </div>
+          )}
           <div className="flex justify-end gap-2 pt-4 border-t">
             <Button variant="outline" onClick={() => setCalcModal(false)}>إلغاء</Button>
-            <Button onClick={handleCalculate} disabled={calculating}>
+            <Button onClick={handleCalculate} disabled={calculating || invalidRange}>
               {calculating ? 'جاري الاحتساب...' : 'احسب الرواتب'}
             </Button>
           </div>

@@ -103,6 +103,14 @@ export const reportsAPI = {
   employees: () => api.get('/reports/employees'),
 };
 
+export const periodsAPI = {
+  list: () => api.get('/periods'),
+  create: (data: any) => api.post('/periods', data),
+  close: (id: number) => api.post(`/periods/${id}/close`),
+  reopen: (id: number) => api.post(`/periods/${id}/reopen`),
+  check: (date: string) => api.get('/periods/check', { params: { date } }),
+};
+
 export const dashboardAPI = {
   stats: () => api.get('/dashboard/stats'),
 };

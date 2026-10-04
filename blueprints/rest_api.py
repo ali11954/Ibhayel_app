@@ -1,8 +1,9 @@
 from flask import Blueprint, jsonify, request
 from flask_login import login_required, current_user, login_user, logout_user
 from werkzeug.security import check_password_hash
-from datetime import datetime, timedelta
-from sqlalchemy import func
+from datetime import datetime, timedelta, date
+from calendar import monthrange
+from sqlalchemy import func, case
 from models import (
     db, User, Employee, Attendance, Company, Region, Location,
     Evaluation, EvaluationCriteria, EvaluationDetail, FinancialTransaction, Salary,
@@ -34,7 +35,135 @@ def fail(message='error', status=400):
     return jsonify({'success': False, 'message': message}), status
 
 
+# ==================== فترات احتساب الرواتب (يختارها المستخدم من - إلى) ====================
+
+def parse_iso_date(value, field_name):
+    """تحويل نص ISO إلى تاريخ مع رسالة خطأ واضحة"""
+    if isinstance(value, date) and not isinstance(value, datetime):
+        return value
+    try:
+        return datetime.strptime(str(value).strip()[:10], '%Y-%m-%d').date()
+    except (ValueError, TypeError):
+        raise ValueError(f'صيغة التاريخ غير صحيحة في {field_name}، المتوقع YYYY-MM-DD')
+
+
+def period_key(start_date, end_date):
+    """مفتاح فريد للفترة: شهر ميلادي كامل يُحفظ كـ MM-YYYY، وأي فترة أخرى بمفتاح من تواريخها"""
+    if start_date.year == end_date.year and start_date.month == end_date.month:
+        last_day = monthrange(start_date.year, start_date.month)[1]
+        if start_date.day == 1 and end_date.day == last_day:
+            return f'{start_date.month:02d}-{start_date.year}'
+    return f'P{start_date:%Y%m%d}-{end_date:%y%m%d}'
+
+
+def find_covering_period(start_date, end_date, status='open'):
+    """الفترة المالية المفتوحة التي تغطي المدى المطلوب بالكامل"""
+    return FinancialPeriod.query.filter(
+        FinancialPeriod.start_date <= start_date,
+        FinancialPeriod.end_date >= end_date,
+        FinancialPeriod.status == status,
+    ).first()
+
+
+def resolve_period_dates(data):
+    """قراءة مدى الفترة (من - إلى) من اختيار المستخدم.
+    يقبل period_id أو start_date/end_date، ويعيد (start_date, end_date, period).
+    period قد يكون None إن لم يُرسل period_id.
+    """
+    period = None
+
+    period_id = data.get('period_id')
+    if period_id:
+        period = FinancialPeriod.query.get(int(period_id))
+        if not period:
+            raise ValueError('الفترة المالية المحددة غير موجودة')
+
+    start_date = data.get('start_date') or data.get('date_from')
+    end_date = data.get('end_date') or data.get('date_to')
+
+    if period:
+        start_date = period.start_date
+        end_date = period.end_date
+    elif start_date or end_date:
+        if not start_date or not end_date:
+            raise ValueError('يجب تحديد تاريخ البداية وتاريخ النهاية معاً')
+        start_date = parse_iso_date(start_date, 'تاريخ البداية')
+        end_date = parse_iso_date(end_date, 'تاريخ النهاية')
+    else:
+        # طريقة قديمة: شهر ميلادي
+        month_year = data.get('month_year')
+        if not month_year:
+            today = date.today()
+            start_date = today.replace(day=1)
+            end_date = today
+        else:
+            parts = str(month_year).split('-')
+            if len(parts) != 2 or len(parts[0]) not in (2, 4):
+                raise ValueError('صيغة الشهر غير صحيحة، المتوقع MM-YYYY أو YYYY-MM')
+            if len(parts[0]) == 4:
+                year, month = int(parts[0]), int(parts[1])
+            else:
+                month, year = int(parts[0]), int(parts[1])
+            start_date = date(year, month, 1)
+            end_date = date(year, month, monthrange(year, month)[1])
+
+    if end_date < start_date:
+        raise ValueError('تاريخ النهاية يجب أن يكون بعد تاريخ البداية أو مساوياً له')
+
+    return start_date, end_date, period
+
+
+def resolve_payroll_period(data):
+    """تحديد فترة الاحتساب من اختيار المستخدم، والتأكد من وجود فترة مالية مفتوحة تغطيها.
+    يرمي ValueError برسالة عربية عند الخطأ.
+    """
+    start_date, end_date, period = resolve_period_dates(data)
+    if not period:
+        period = find_covering_period(start_date, end_date)
+        if not period:
+            raise ValueError(
+                f'لا توجد فترة مالية مفتوحة تغطي الفترة من {start_date} إلى {end_date}. '
+                'قم بإنشائها من صفحة الفترات المالية أولاً.'
+            )
+    return start_date, end_date, period
+
+
+def apply_salary_period_filter(query, start_date, end_date):
+    """فلترة الرواتب حسب الفترة المختارة، مع دعم السجلات القديمة التي لا تحمل تواريخ فترة"""
+    return query.filter(
+        Salary.period_start_date.isnot(None),
+        Salary.period_start_date == start_date,
+        Salary.period_end_date == end_date,
+    )
+
+
+def salary_period_title(salary):
+    """عنوان مقروء للفترة المحتسب عنها الراتب"""
+    if salary.period_name:
+        return salary.period_name
+    return salary.month_year
+
+
+def salary_period_range(salary):
+    """مدى الفترة المحتسب عنها الراتب، مع الرجوع لشهر month_year للسجلات القديمة"""
+    if salary.period_start_date and salary.period_end_date:
+        return salary.period_start_date, salary.period_end_date
+
+    parts = (salary.month_year or '').split('-')
+    if len(parts) != 2:
+        return None, None
+    try:
+        if len(parts[0]) == 4:
+            year, month = int(parts[0]), int(parts[1])
+        else:
+            month, year = int(parts[0]), int(parts[1])
+    except ValueError:
+        return None, None
+    return date(year, month, 1), date(year, month, monthrange(year, month)[1])
+
+
 # ==================== AUTH ====================
+
 
 @rest_api.route('/auth/login', methods=['POST'])
 def api_login():
@@ -1263,12 +1392,25 @@ def api_financial_dashboard():
 @login_required
 def api_salaries_list():
     q = Salary.query.join(Employee, Salary.employee_id == Employee.id).filter(Employee.is_active == True)
-    month = request.args.get('month_year')
-    if month:
-        parts = month.split('-')
-        if len(parts) == 2 and len(parts[0]) == 4:
-            month = f'{parts[1]}-{parts[0]}'
-        q = q.filter(Salary.month_year == month)
+    start_date = request.args.get('start_date') or request.args.get('date_from')
+    end_date = request.args.get('end_date') or request.args.get('date_to')
+    period_id = request.args.get('period_id')
+
+    if period_id or start_date or end_date:
+        try:
+            p_start, p_end, _period = resolve_period_dates({
+                'period_id': period_id, 'start_date': start_date, 'end_date': end_date,
+            })
+        except ValueError as e:
+            return fail(str(e), 400)
+        q = apply_salary_period_filter(q, p_start, p_end)
+    else:
+        month = request.args.get('month_year')
+        if month:
+            parts = month.split('-')
+            if len(parts) == 2 and len(parts[0]) == 4:
+                month = f'{parts[1]}-{parts[0]}'
+            q = q.filter(Salary.month_year == month)
     emp_id = request.args.get('employee_id')
     if emp_id:
         q = q.filter(Salary.employee_id == int(emp_id))
@@ -1339,7 +1481,7 @@ def create_transaction_journal_entry(txn, data):
     return entry
 
 
-def create_salary_journal_entry(salary, emp, month_year):
+def create_salary_journal_entry(salary, emp, entry_date, period_label):
     """إنشاء قيد محاسبي متوازن للراتب
     القيد يسجل:
     1. مصروفات الدخل (أساسي + إقامة + إضافي) ← دائن مستحق الرواتب (total_earnings)
@@ -1347,7 +1489,6 @@ def create_salary_journal_entry(salary, emp, month_year):
     3. خصومات الموظف ← مدين مستحق الرواتب (خفض ما يحصل عليه)
     4. مطعم/بوفية بدون مورد ← مدين مصروف + دائن مستحق الرواتب
     """
-    year, month = int(month_year.split('-')[1]), int(month_year.split('-')[0])
 
     salary_expense = Account.query.filter_by(code='511001').first() or Account.query.filter_by(code='510001').first()
     resident_expense = Account.query.filter_by(code='511002').first()
@@ -1439,10 +1580,11 @@ def create_salary_journal_entry(salary, emp, month_year):
                 details.append({'account_id': salary_payable.id, 'debit': round(abs(diff), 2), 'credit': 0, 'description': f'فرق تصحيح - {emp.name}'})
                 total_debit += round(abs(diff), 2)
 
+    ref = period_key(*salary_period_range(salary)) if salary.period_start_date else salary.month_year
     entry = JournalEntry(
-        entry_number=f'SAL-{month_year}-{emp.code or emp.id}',
-        date=datetime(year, month, min(28, 28)).date(),
-        description=f'رواتب {emp.name} - {month_year}',
+        entry_number=f'SAL-{ref}-{emp.code or emp.id}',
+        date=entry_date,
+        description=f'رواتب {emp.name} - {period_label}',
         reference_type='salary',
         reference_id=salary.id,
         created_by=current_user.id,
@@ -1460,37 +1602,18 @@ def create_salary_journal_entry(salary, emp, month_year):
 @login_required
 def api_salary_calculation():
     data = request.get_json(force=True, silent=True) or {}
-    month_year_input = data.get('month_year', datetime.now().strftime('%m-%Y'))
     company_id = data.get('company_id')
     create_entries = data.get('create_journal_entries', True)
 
-    parts = month_year_input.split('-')
-    if len(parts) == 2:
-        if len(parts[0]) == 4:
-            month_year = f'{parts[1]}-{parts[0]}'
-            year, month = int(parts[0]), int(parts[1])
-        else:
-            month_year = month_year_input
-            year, month = int(parts[1]), int(parts[0])
-    else:
-        month_year = datetime.now().strftime('%m-%Y')
-        year, month = datetime.now().year, datetime.now().month
+    # الفترة يختارها المستخدم من - إلى (أو يختار فترة مالية مخزنة)
+    try:
+        start_date, end_date, period = resolve_payroll_period(data)
+    except ValueError as e:
+        return fail(str(e), 400)
 
-    # التحقق من الفترة المالية المفتوحة
-    period_start = datetime(year, month, 1).date()
-    period_end = datetime(year, month, 28).date() if month == 2 else datetime(year, month, 30).date()
-    if month == 12:
-        period_end = datetime(year, 12, 31).date()
-    else:
-        period_end = datetime(year, month + 1, 1).date() - timedelta(days=1)
-
-    period = FinancialPeriod.query.filter(
-        FinancialPeriod.start_date <= period_start,
-        FinancialPeriod.end_date >= period_end,
-        FinancialPeriod.status == 'open'
-    ).first()
-    if not period:
-        return fail(f'لا توجد فترة مالية مفتوحة لشهر {month_year}', 400)
+    month_year = period_key(start_date, end_date)
+    period_label = f'{start_date} إلى {end_date}'
+    period_days = (end_date - start_date).days + 1
 
     employees = Employee.query.filter_by(is_active=True)
     if company_id:
@@ -1499,6 +1622,7 @@ def api_salary_calculation():
 
     results = []
     created_entries = 0
+    skipped = 0
 
     # قراءة إعدادات الخصومات التلقائية من النظام
     insurance_setting = SystemSettings.query.filter_by(setting_key='monthly_insurance', is_active=True).first()
@@ -1513,12 +1637,8 @@ def api_salary_calculation():
         existing = Salary.query.filter_by(employee_id=emp.id, month_year=month_year).first()
         if existing:
             results.append(existing.to_dict())
+            skipped += 1
             continue
-
-        from calendar import monthrange
-        days_in_month = monthrange(year, month)[1]
-        start_date = datetime(year, month, 1).date()
-        end_date = datetime(year, month, days_in_month).date()
 
         attendances = Attendance.query.filter(
             Attendance.employee_id == emp.id,
@@ -1540,6 +1660,8 @@ def api_salary_calculation():
         transactions = FinancialTransaction.query.filter(
             FinancialTransaction.employee_id == emp.id,
             FinancialTransaction.is_settled == False,
+            FinancialTransaction.date >= start_date,
+            FinancialTransaction.date <= end_date,
         ).all()
 
         advances = sum(float(t.monthly_installment or t.amount) for t in transactions if t.transaction_type == 'advance' and not t.is_settled)
@@ -1575,9 +1697,15 @@ def api_salary_calculation():
         total_earnings_after_deductions = basic_after_deductions + resident_allowance + overtime
         net_salary = round(total_earnings_after_deductions - advances, 2)
 
+        notes = f'احتساب راتب للفترة من {start_date} إلى {end_date} ({period_days} يوم) - أيام الحضور: {present_days}'
+
         salary = Salary(
             employee_id=emp.id,
             month_year=month_year,
+            period_id=period.id if period else None,
+            period_start_date=start_date,
+            period_end_date=end_date,
+            period_name=period.name if period else None,
             base_salary=emp.salary,
             attendance_days=present_days,
             basic_salary_amount=basic_after_deductions,
@@ -1595,6 +1723,7 @@ def api_salary_calculation():
             cafeteria_supplier_id=cafeteria_supplier_id,
             restaurant_supplier_id=restaurant_supplier_id,
             total_salary=net_salary,
+            notes=notes,
             is_calculated=True,
             calculated_at=datetime.utcnow(),
         )
@@ -1603,7 +1732,7 @@ def api_salary_calculation():
 
         if create_entries:
             if not check_duplicate_journal_entry('salary', salary.id):
-                entry = create_salary_journal_entry(salary, emp, month_year)
+                entry = create_salary_journal_entry(salary, emp, end_date, period_label)
                 if entry:
                     salary.journal_entry_id = entry.id
                     created_entries += 1
@@ -1611,7 +1740,10 @@ def api_salary_calculation():
         results.append(salary.to_dict())
 
     db.session.commit()
-    return ok(results, f'تم حساب {len(results)} راتب - {created_entries} قيد محاسبي')
+    message = f'تم احتساب {len(results)} راتب للفترة {period_label} ({period_days} يوم) - {created_entries} قيد محاسبي'
+    if skipped:
+        message += f' - {skipped} راتب كان محتسباً مسبقاً لنفس الفترة وتم تخطيه'
+    return ok(results, message)
 
 
 @rest_api.route('/financial/salaries/<int:sid>', methods=['DELETE'])
@@ -1654,7 +1786,7 @@ def api_salary_pay(sid):
         entry = JournalEntry(
             entry_number=f'SALPAY-{s.id}-{datetime.now().strftime("%Y%m%d%H%M")}',
             date=datetime.now().date(),
-            description=f'دفع راتب {emp_name} - {s.month_year}',
+            description=f'دفع راتب {emp_name} - {salary_period_title(s)}',
             reference_type='salary_pay',
             reference_id=s.id,
             created_by=current_user.id,
@@ -1678,22 +1810,14 @@ def api_salary_pay(sid):
         ))
         s.journal_entry_id = entry.id
 
-    parts = s.month_year.split('-')
-    if len(parts) == 2:
-        if len(parts[0]) == 4:
-            year, month = int(parts[0]), int(parts[1])
-        else:
-            year, month = int(parts[1]), int(parts[0])
-        from calendar import monthrange
-        days_in_month = monthrange(year, month)[1]
-        start_date = datetime(year, month, 1).date()
-        end_date = datetime(year, month, days_in_month).date()
-
+    # ترحيل معاملات الفترة (من - إلى) التي تم خصمها في الراتب
+    tx_start, tx_end = salary_period_range(s)
+    if tx_start and tx_end:
         txns = FinancialTransaction.query.filter(
             FinancialTransaction.employee_id == s.employee_id,
             FinancialTransaction.is_settled == False,
-            FinancialTransaction.date >= start_date,
-            FinancialTransaction.date <= end_date,
+            FinancialTransaction.date >= tx_start,
+            FinancialTransaction.date <= tx_end,
         ).all()
         for t in txns:
             t.is_settled = True
@@ -2291,7 +2415,7 @@ def api_supplier_invoices():
         total_caf = sum(float(s.cafeteria_deduction or 0) for s in unpaid_caf)
         total_caf_all = sum(float(s.cafeteria_deduction or 0) for s in caf_salaries)
         if total_caf_all > 0:
-            month = caf_salaries[0].month_year if caf_salaries else ''
+            month = salary_period_title(caf_salaries[0]) if caf_salaries else ''
             all_paid = all(s.cafeteria_paid_to_supplier for s in caf_salaries)
             result.append({
                 'id': 'sal_group_cafeteria',
@@ -2317,7 +2441,7 @@ def api_supplier_invoices():
         total_rest = sum(float(s.restaurant_deduction or 0) for s in unpaid_rest)
         total_rest_all = sum(float(s.restaurant_deduction or 0) for s in rest_salaries)
         if total_rest_all > 0:
-            month = rest_salaries[0].month_year if rest_salaries else ''
+            month = salary_period_title(rest_salaries[0]) if rest_salaries else ''
             all_paid = all(s.restaurant_paid_to_supplier for s in rest_salaries)
             result.append({
                 'id': 'sal_group_restaurant',
@@ -2409,7 +2533,7 @@ def api_salary_deduction_pay():
             return fail('حساب المورد غير موجود', 400)
 
         type_name = 'بوفية' if deduction_type == 'cafeteria' else 'مطعم'
-        month = salaries[0].month_year if salaries else ''
+        month = salary_period_title(salaries[0]) if salaries else ''
 
         if cash_account and supplier_account:
             entry = JournalEntry(
@@ -2471,11 +2595,12 @@ def api_salary_deduction_voucher():
             emp = sal.employee
             amt = float(sal.cafeteria_deduction or 0) if deduction_type == 'cafeteria' else float(sal.restaurant_deduction or 0)
             total += amt
-            month = sal.month_year
+            month = salary_period_title(sal)
             details.append({
                 'employee_name': emp.name if emp else '',
                 'employee_code': emp.code if emp else '',
                 'month_year': sal.month_year,
+                'period_label': sal.get_period_label(),
                 'amount': amt,
             })
 
@@ -2684,6 +2809,11 @@ def api_salary_voucher(sid):
         'employee_code': emp.code if emp else '',
         'company_name': company.name if company else '',
         'month_year': s.month_year,
+        'period_name': s.period_name or '',
+        'period_start_date': s.period_start_date.strftime('%Y-%m-%d') if s.period_start_date else '',
+        'period_end_date': s.period_end_date.strftime('%Y-%m-%d') if s.period_end_date else '',
+        'period_label': s.get_period_label(),
+        'attendance_days': s.attendance_days,
         'total_salary': float(s.total_salary) if s.total_salary else 0,
         'basic_salary_amount': float(s.basic_salary_amount) if s.basic_salary_amount else 0,
         'resident_allowance_amount': float(s.resident_allowance_amount) if s.resident_allowance_amount else 0,
@@ -3859,7 +3989,29 @@ def api_contractor_profit():
 @login_required
 def api_periods_list():
     periods = FinancialPeriod.query.order_by(FinancialPeriod.start_date.desc()).all()
-    return ok([p.to_dict() for p in periods])
+
+    stats = {}
+    period_ids = [p.id for p in periods]
+    if period_ids:
+        paid_col = func.sum(case((Salary.is_paid == True, 1), else_=0))
+        for row in db.session.query(
+            Salary.period_id,
+            func.count(Salary.id),
+            paid_col,
+            func.sum(Salary.total_salary),
+        ).filter(Salary.period_id.in_(period_ids)).group_by(Salary.period_id).all():
+            stats[row[0]] = {'total': row[1] or 0, 'paid': row[2] or 0, 'net': float(row[3] or 0)}
+
+    result = []
+    for p in periods:
+        item = p.to_dict()
+        stat = stats.get(p.id, {'total': 0, 'paid': 0, 'net': 0.0})
+        item['salaries_total'] = stat['total']
+        item['salaries_paid'] = stat['paid']
+        item['salaries_unpaid'] = stat['total'] - stat['paid']
+        item['salaries_net'] = stat['net']
+        result.append(item)
+    return ok(result)
 
 
 @rest_api.route('/periods', methods=['POST'])
@@ -3869,8 +4021,13 @@ def api_period_create():
         return fail('غير مصرح لك بإنشاء فترات', 403)
     data = request.get_json(force=True, silent=True) or {}
     name = data.get('name', '')
-    start_date = datetime.strptime(data['start_date'], '%Y-%m-%d').date()
-    end_date = datetime.strptime(data['end_date'], '%Y-%m-%d').date()
+    try:
+        start_date = parse_iso_date(data['start_date'], 'تاريخ البداية')
+        end_date = parse_iso_date(data['end_date'], 'تاريخ النهاية')
+    except KeyError:
+        return fail('تاريخ البداية وتاريخ النهاية مطلوبان')
+    except ValueError as e:
+        return fail(str(e))
     if end_date <= start_date:
         return fail('تاريخ النهاية يجب أن يكون بعد تاريخ البداية')
     overlap = FinancialPeriod.query.filter(
@@ -3898,9 +4055,22 @@ def api_period_close(pid):
     period = FinancialPeriod.query.get_or_404(pid)
     if period.status != 'open':
         return fail('هذه الفترة ليست مفتوحة')
+
+    # لا تُغلق فترة فيها رواتب محتسبة لم تُدفع بعد
+    pending = Salary.query.filter(
+        Salary.period_id == period.id,
+        Salary.is_calculated == True,
+        Salary.is_paid == False,
+    ).count()
+    if pending:
+        return fail(
+            f'لا يمكن إغلاق الفترة: يوجد {pending} راتب محتسب ولم يُصرف بعد. '
+            ' الصرف الرواتب أولاً ثم أعد المحاولة.', 400
+        )
+
     period.close(current_user.id)
     db.session.commit()
-    return ok(period.to_dict(), 'تم إغلاق الفترة')
+    return ok(period.to_dict(), f'تم إغلاق الفترة {period.name}')
 
 
 @rest_api.route('/periods/<int:pid>/reopen', methods=['POST'])
@@ -4172,9 +4342,12 @@ def api_employee_my_salaries():
     emp = Employee.query.get(current_user.employee_id)
     if not emp:
         return fail('لم يتم ربط حسابك بموظف', 404)
-    salaries = Salary.query.filter_by(employee_id=emp.id).order_by(Salary.month_year.desc()).all()
+    salaries = Salary.query.filter_by(employee_id=emp.id).order_by(
+        Salary.period_start_date.desc(), Salary.id.desc()).all()
     return ok([{
-        'id': s.id, 'month_year': s.month_year,
+        'id': s.id, 'month_year': s.month_year, 'period_label': s.get_period_label(),
+        'period_start_date': s.period_start_date.strftime('%Y-%m-%d') if s.period_start_date else None,
+        'period_end_date': s.period_end_date.strftime('%Y-%m-%d') if s.period_end_date else None,
         'basic_salary_amount': s.basic_salary_amount,
         'overtime_amount': s.overtime_amount,
         'advance_amount': s.advance_amount,

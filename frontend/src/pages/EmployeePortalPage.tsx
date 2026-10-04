@@ -260,7 +260,7 @@ export default function EmployeePortalPage() {
                   <tr><td colSpan={7} className="text-center py-8 text-gray-400">لا توجد رواتب</td></tr>
                 ) : salaries.map(s => (
                   <tr key={s.id} className="hover:bg-gray-50">
-                    <td className="px-4 py-3 text-sm font-medium">{s.month_year}</td>
+                    <td className="px-4 py-3 text-sm font-medium">{s.period_label || s.month_year}</td>
                     <td className="px-4 py-3 text-sm">{s.basic_salary_amount?.toLocaleString()}</td>
                     <td className="px-4 py-3 text-sm text-green-600">+{s.overtime_amount?.toLocaleString()}</td>
                     <td className="px-4 py-3 text-sm text-red-600">-{(s.deduction_amount + s.penalty_amount)?.toLocaleString()}</td>

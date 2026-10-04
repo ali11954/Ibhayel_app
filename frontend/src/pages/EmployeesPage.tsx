@@ -595,7 +595,7 @@ export default function EmployeesPage() {
                           <tr><td colSpan={5} className="text-center py-8 text-gray-400">لا توجد رواتب</td></tr>
                         ) : detailData.salaries.map((s: any) => (
                           <tr key={s.id} className="border-b hover:bg-gray-50">
-                            <td className="px-3 py-3 font-medium">{s.month_year}</td>
+                            <td className="px-3 py-3 font-medium">{s.period_label || s.month_year}</td>
                             <td className="px-3 py-3 text-blue-600">{formatNum(s.basic_payout || 0)}</td>
                             <td className="px-3 py-3 text-green-600">{formatNum(s.overtime_payout || 0)}</td>
                             <td className="px-3 py-3 text-red-600">{formatNum(s.total_deductions || 0)}</td>

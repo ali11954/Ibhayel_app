@@ -613,6 +613,12 @@ class Salary(db.Model):
     employee_id = db.Column(db.Integer, db.ForeignKey('employees.id'), nullable=False)
     month_year = db.Column(db.String(20), nullable=False)
 
+    # ✅ الفترة المالية المحتسب عنها الراتب (يختارها المستخدم من - إلى)
+    period_id = db.Column(db.Integer, db.ForeignKey('financial_periods.id'), nullable=True)
+    period_start_date = db.Column(db.Date, nullable=True)
+    period_end_date = db.Column(db.Date, nullable=True)
+    period_name = db.Column(db.String(120), nullable=True)
+
     # ✅ الأساسيات
     base_salary = db.Column(db.Numeric(12, 2), default=0)
     attendance_days = db.Column(db.Integer, default=0)
@@ -664,6 +670,7 @@ class Salary(db.Model):
 
     # ✅ العلاقات
     employee = db.relationship('Employee', backref='salaries')
+    period = db.relationship('FinancialPeriod', foreign_keys=[period_id])
     journal_entry = db.relationship('JournalEntry', foreign_keys=[journal_entry_id], backref='salary')
     cafeteria_supplier = db.relationship('Supplier', foreign_keys=[cafeteria_supplier_id], backref='cafeteria_salaries')
     restaurant_supplier = db.relationship('Supplier', foreign_keys=[restaurant_supplier_id], backref='restaurant_salaries')
@@ -704,6 +711,14 @@ class Salary(db.Model):
             'contractor_profit': self.contractor_profit
         }
 
+    def get_period_label(self):
+        """وصف الفترة المحتسب عنها الراتب"""
+        if self.period_start_date and self.period_end_date:
+            if self.period_name:
+                return f"{self.period_name} ({self.period_start_date.strftime('%Y-%m-%d')} ← {self.period_end_date.strftime('%Y-%m-%d')})"
+            return f"{self.period_start_date.strftime('%Y-%m-%d')} ← {self.period_end_date.strftime('%Y-%m-%d')}"
+        return self.month_year
+
     def to_dict(self):
         emp = self.employee
         return {
@@ -714,6 +729,11 @@ class Salary(db.Model):
             'company_id': emp.company_id if emp else None,
             'company_name': emp.company.name if emp and emp.company else '',
             'month_year': self.month_year,
+            'period_id': self.period_id,
+            'period_name': self.period_name or '',
+            'period_start_date': self.period_start_date.strftime('%Y-%m-%d') if self.period_start_date else None,
+            'period_end_date': self.period_end_date.strftime('%Y-%m-%d') if self.period_end_date else None,
+            'period_label': self.get_period_label(),
             'attendance_days': self.attendance_days,
             'base_salary': float(self.base_salary) if self.base_salary else 0,
             'basic_salary_amount': float(self.basic_salary_amount) if self.basic_salary_amount else 0,

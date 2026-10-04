@@ -565,6 +565,10 @@ def auto_migrate():
     add_column('salaries', 'contractor_profit', 'NUMERIC(12,2)', '0')
     add_column('salaries', 'is_calculated', 'BOOLEAN', 'FALSE')
     add_column('salaries', 'calculated_at', 'TIMESTAMP')
+    add_column('salaries', 'period_id', 'INTEGER')
+    add_column('salaries', 'period_start_date', 'DATE')
+    add_column('salaries', 'period_end_date', 'DATE')
+    add_column('salaries', 'period_name', 'VARCHAR(120)', "''")
 
     add_column('companies', 'receivable_account_id', 'INTEGER')
 

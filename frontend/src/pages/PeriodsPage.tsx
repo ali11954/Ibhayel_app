@@ -33,6 +33,10 @@ export default function PeriodsPage() {
 
   const handleCreate = async () => {
     if (!form.name || !form.start_date || !form.end_date) return;
+    if (form.end_date <= form.start_date) {
+      alert('تاريخ النهاية يجب أن يكون بعد تاريخ البداية');
+      return;
+    }
     setCreating(true);
     try {
       await api.post('/periods', form);
@@ -46,7 +50,7 @@ export default function PeriodsPage() {
   };
 
   const handleClose = async (id: number) => {
-    if (!confirm('هل تريد إغلاق هذه الفترة؟ لن يتمكن من إنشاء معاملات جديدة')) return;
+    if (!confirm('هل تريد إغلاق هذه الفترة؟\nلن يتمكن أحد من إنشاء معاملات جديدة داخلها، ولا يمكن إغلاقها قبل صرف كل رواتبها المحتسبة.')) return;
     try {
       await api.post(`/periods/${id}/close`);
       loadData();
@@ -72,7 +76,7 @@ export default function PeriodsPage() {
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">الفترات المالية</h1>
-          <p className="text-sm text-gray-500 mt-1">إدارة وإغلاق الفترات المالية الشهرية</p>
+          <p className="text-sm text-gray-500 mt-1">أنشئ الفترة بتواريخها (من - إلى)، ثم احسب رواتبها وأغلقها</p>
         </div>
         <button onClick={() => setModalOpen(true)} className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700">
           <Plus size={18} /> فترة جديدة
@@ -102,6 +106,11 @@ export default function PeriodsPage() {
         </div>
       )}
 
+      <div className="bg-blue-50 border border-blue-200 rounded-xl p-3 mb-6 text-xs text-blue-800">
+        الفترة تُحدَّد بتاريخي البداية والنهاية اللذين تختارهما، وليست مرتبطة تلقائياً ببداية الشهر ونهايته.
+        يُحتسب الراتب عن أيام الحضور والمعاملات الواقعة داخل هذه التواريخ فقط، ولا يمكن إغلاق الفترة قبل صرف كل رواتبها المحتسبة.
+      </div>
+
       {/* Periods Table */}
       <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
         <div className="overflow-x-auto">
@@ -113,14 +122,15 @@ export default function PeriodsPage() {
                 <th className="text-right px-4 py-3 text-xs font-semibold text-gray-500 uppercase">تاريخ البداية</th>
                 <th className="text-right px-4 py-3 text-xs font-semibold text-gray-500 uppercase">تاريخ النهاية</th>
                 <th className="text-right px-4 py-3 text-xs font-semibold text-gray-500 uppercase">الحالة</th>
+                <th className="text-right px-4 py-3 text-xs font-semibold text-gray-500 uppercase">رواتب الفترة</th>
                 <th className="text-right px-4 py-3 text-xs font-semibold text-gray-500 uppercase">الإجراءات</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
               {loading ? (
-                <tr><td colSpan={6} className="text-center py-8 text-gray-400">جاري التحميل...</td></tr>
+                <tr><td colSpan={7} className="text-center py-8 text-gray-400">جاري التحميل...</td></tr>
               ) : periods.length === 0 ? (
-                <tr><td colSpan={6} className="text-center py-8 text-gray-400">لا توجد فترات</td></tr>
+                <tr><td colSpan={7} className="text-center py-8 text-gray-400">لا توجد فترات</td></tr>
               ) : periods.map(p => {
                 const StatusIcon = statusIcons[p.status] || Unlock;
                 return (
@@ -134,6 +144,16 @@ export default function PeriodsPage() {
                         <StatusIcon size={14} />
                         {p.status_name}
                       </span>
+                    </td>
+                    <td className="px-4 py-3 text-sm text-gray-600">
+                      {p.salaries_total > 0 ? (
+                        <span>
+                          <span className="font-medium text-gray-800">{p.salaries_total}</span> راتب
+                          {p.salaries_unpaid > 0 && <span className="text-amber-600"> ({p.salaries_unpaid} غير مدفوع)</span>}
+                        </span>
+                      ) : (
+                        <span className="text-gray-400">لم تُحتسب</span>
+                      )}
                     </td>
                     <td className="px-4 py-3">
                       {p.status === 'open' && (
@@ -180,6 +200,9 @@ export default function PeriodsPage() {
                 <label className="block text-sm font-medium text-gray-700 mb-1">ملاحظات</label>
                 <textarea value={form.notes} onChange={e => setForm({...form, notes: e.target.value})} className="w-full h-20 px-3 py-2 rounded-lg border-2 border-gray-200 text-sm resize-none" />
               </div>
+              <p className="text-xs text-gray-500 bg-gray-50 border border-gray-200 rounded-lg p-3">
+                هذه التواريخ هي التي ستُستخدم في احتساب الرواتب (أيام الحضور والسلف والخصومات) عند اختيار هذه الفترة في صفحة «احتساب الرواتب».
+              </p>
             </div>
             <div className="p-6 border-t border-gray-100 flex gap-3 justify-end">
               <button onClick={() => setModalOpen(false)} className="px-4 py-2 text-sm text-gray-600 hover:text-gray-800">إلغاء</button>

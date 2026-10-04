@@ -79,6 +79,11 @@ export interface Salary {
   employee_id: number;
   employee_name?: string;
   month_year: string;
+  period_id?: number | null;
+  period_name?: string;
+  period_start_date?: string | null;
+  period_end_date?: string | null;
+  period_label?: string;
   attendance_days: number;
   attendance_amount: number;
   daily_allowance_amount: number;
