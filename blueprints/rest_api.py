@@ -3127,22 +3127,24 @@ def api_reports_attendance_detail():
         all_emps = all_emps.filter_by(company_id=int(company_id))
     all_emp_ids = [e.id for e in all_emps.all()]
 
+    total_period_days = (end_date - start_date).days + 1 if start_date and end_date else 0
+
     emp_summary = {}
     for eid in all_emp_ids:
         emp = emp_map.get(eid)
         if not emp:
             continue
         emp_recs = [r for r in records_data if r['employee_id'] == eid]
-        working_days = len(emp_recs)
+        working_days = total_period_days
         present = len([r for r in emp_recs if r['status'] == 'present'])
         late = len([r for r in emp_recs if r['status'] == 'late'])
-        absent = len([r for r in emp_recs if r['status'] == 'absent'])
         leave = len([r for r in emp_recs if r['status'] in ('annual_leave', 'unpaid_leave', 'sick')])
+        absent = max(0, working_days - present - late - leave)
         emp_summary[eid] = {
             'employee_id': eid,
             'employee_name': emp.name,
             'employee_code': emp.code,
-            'company_name': comp_map.get(emp.company_id, 'بدون شركة'),
+            'company_name': comp_map.get(emp.company_id, '�?�?�?�? �?�?�?�?'),
             'company_id': emp.company_id,
             'working_days': working_days,
             'present': present,
@@ -3155,18 +3157,19 @@ def api_reports_attendance_detail():
     total_late = sum(e['late'] for e in emp_summary.values())
     total_absent = sum(e['absent'] for e in emp_summary.values())
     total_leave = sum(e['leave'] for e in emp_summary.values())
+    total_working_days = total_period_days * len(emp_summary) if emp_summary else total_period_days
     total_all = total_present + total_late + total_absent + total_leave
 
     return ok({
         'records': records_data,
         'employees_summary': list(emp_summary.values()),
-        'working_days': (end_date - start_date).days + 1,
+        'working_days': total_period_days,
         'summary': {
             'total_present': total_present,
             'total_late': total_late,
             'total_absent': total_absent,
             'total_leave': total_leave,
-            'attendance_rate': round(total_present / total_all * 100, 1) if total_all > 0 else 0,
+            'attendance_rate': round((total_present + total_late) / (total_working_days) * 100, 1) if total_working_days > 0 else 0,
         },
     })
 
