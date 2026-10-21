@@ -394,6 +394,7 @@ def auto_migrate():
     add_column('employees', 'photo_path', "VARCHAR(500)")
     add_column('employees', 'id_card_front', "VARCHAR(500)")
     add_column('employees', 'id_card_back', "VARCHAR(500)")
+    add_column('employees', 'biometric_pin', "VARCHAR(50)")
 
     def safe_fix_column(table, column, target_type):
         try:
@@ -671,6 +672,15 @@ def init_db():
                     db.session.add(lt)
                 db.session.commit()
                 print("Created leave types")
+
+            # تهيئة إعدادات أجهزة البصمة
+            try:
+                import biometric as bio
+                created = bio.init_default_biometric_settings()
+                if created:
+                    print(f"Created {created} biometric settings")
+            except Exception as e:
+                print(f"Biometric settings init error: {e}")
 
             # تهيئة الفترة المالية الحالية
             now = datetime.now()

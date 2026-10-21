@@ -3004,16 +3004,68 @@ def api_reports_attendance():
     })
 
 
+WEEKDAY_NAMES = ['الإثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة', 'السبت', 'الأحد']
+WEEKDAY_SHORT = ['إث', 'ثل', 'أر', 'خم', 'جم', 'سب', 'أح']
+
+
 @rest_api.route('/reports/attendance-grid')
 @login_required
 def api_reports_attendance_grid():
+    """جدول التحضير الشجري.
+    يقبل تحديد الفترة اما عبر period_id او عبر start_date/end_date او عبر year/month (شهر ميلادي).
+    """
     import calendar as cal
-    year = int(request.args.get('year', datetime.now().year))
-    month = int(request.args.get('month', datetime.now().month))
     company_id = request.args.get('company_id')
-    days_in_month = cal.monthrange(year, month)[1]
-    start_date = datetime(year, month, 1).date()
-    end_date = datetime(year, month, days_in_month).date()
+
+    period = None
+    start_date = end_date = None
+
+    period_id = request.args.get('period_id')
+    if period_id:
+        period = FinancialPeriod.query.get(int(period_id))
+        if not period:
+            return fail('الفترة المالية المحددة غير موجودة', 404)
+        start_date, end_date = period.start_date, period.end_date
+    else:
+        date_from = request.args.get('start_date') or request.args.get('date_from')
+        date_to = request.args.get('end_date') or request.args.get('date_to')
+        if date_from and date_to:
+            try:
+                start_date = parse_iso_date(date_from, 'تاريخ البداية')
+                end_date = parse_iso_date(date_to, 'تاريخ النهاية')
+            except ValueError as e:
+                return fail(str(e))
+        elif date_from or date_to:
+            return fail('يجب تحديد تاريخ البداية وتاريخ النهاية معاً')
+        else:
+            year = int(request.args.get('year', datetime.now().year))
+            month = int(request.args.get('month', datetime.now().month))
+            days_in_month = cal.monthrange(year, month)[1]
+            start_date = datetime(year, month, 1).date()
+            end_date = datetime(year, month, days_in_month).date()
+
+    if end_date < start_date:
+        return fail('تاريخ النهاية يجب أن يكون بعد تاريخ البداية أو مساوياً له')
+
+    total_days = (end_date - start_date).days + 1
+    if total_days > 400:
+        return fail('المدة المطلوبة كبيرة جداً (الحد الأقصى 400 يوم)، اختر مدة أقصر')
+
+    # الفترة المفتوحة التي تغطي المدى (للعرض فقط)
+    if not period:
+        period = find_covering_period(start_date, end_date)
+
+    dates = []
+    for i in range(total_days):
+        d = start_date + timedelta(days=i)
+        dates.append({
+            'date': d.strftime('%Y-%m-%d'),
+            'day': d.day,
+            'month': d.month,
+            'weekday': WEEKDAY_NAMES[d.weekday()],
+            'weekday_short': WEEKDAY_SHORT[d.weekday()],
+            'is_holiday': d.weekday() == 4,  # الجمعة عطلة
+        })
 
     q = Employee.query.filter_by(is_active=True)
     if company_id:
@@ -3027,7 +3079,7 @@ def api_reports_attendance_grid():
     for a in attendances:
         if a.employee_id not in att_map:
             att_map[a.employee_id] = {}
-        att_map[a.employee_id][a.date.day] = a.attendance_status
+        att_map[a.employee_id][a.date.strftime('%Y-%m-%d')] = a.attendance_status
 
     company_cache = {}
     result = []
@@ -3040,9 +3092,10 @@ def api_reports_attendance_grid():
         absent_count = 0
         late_count = 0
         leave_count = 0
-        for d in range(1, days_in_month + 1):
-            status = att_map.get(emp.id, {}).get(d)
-            days[d] = status or ''
+        emp_att = att_map.get(emp.id, {})
+        for d in dates:
+            status = emp_att.get(d['date'])
+            days[d['date']] = status or ''
             if status == 'present':
                 present_count += 1
             elif status == 'late':
@@ -3052,8 +3105,7 @@ def api_reports_attendance_grid():
             elif status == 'absent':
                 absent_count += 1
             else:
-                date_obj = datetime(year, month, d).date()
-                if date_obj.weekday() != 4:
+                if not d['is_holiday']:
                     absent_count += 1
         result.append({
             'employee_id': emp.id,
@@ -3067,7 +3119,21 @@ def api_reports_attendance_grid():
             'leave_count': leave_count,
         })
 
-    return ok({'employees': result, 'days_in_month': days_in_month, 'year': year, 'month': month})
+    return ok({
+        'employees': result,
+        'dates': dates,
+        'days_in_month': total_days,
+        'year': start_date.year,
+        'month': start_date.month,
+        'start_date': start_date.strftime('%Y-%m-%d'),
+        'end_date': end_date.strftime('%Y-%m-%d'),
+        'total_days': total_days,
+        'period': period.to_dict() if period else None,
+        'period_label': (
+            f"{period.name} ({period.start_date.strftime('%Y-%m-%d')} ← {period.end_date.strftime('%Y-%m-%d')})"
+            if period else ''
+        ),
+    })
 
 
 @rest_api.route('/reports/attendance-detail')

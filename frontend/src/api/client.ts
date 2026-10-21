@@ -115,4 +115,20 @@ export const dashboardAPI = {
   stats: () => api.get('/dashboard/stats'),
 };
 
+export const biometricAPI = {
+  status: () => api.get('/biometric/status'),
+  devices: () => api.get('/biometric/devices'),
+  createDevice: (data: any) => api.post('/biometric/devices', data),
+  updateDevice: (id: number, data: any) => api.put(`/biometric/devices/${id}`, data),
+  deleteDevice: (id: number) => api.delete(`/biometric/devices/${id}`),
+  pullDevice: (id: number) => api.post(`/biometric/devices/${id}/pull`),
+  logs: (params?: Record<string, any>) => api.get('/biometric/logs', { params }),
+  process: (data: any = {}) => api.post('/biometric/process', data),
+  markAbsent: (data: any) => api.post('/biometric/mark-absent', data),
+  settings: () => api.get('/biometric/settings'),
+  saveSettings: (settings: Record<string, any>) => api.put('/biometric/settings', { settings }),
+  employeeLinks: (params?: Record<string, any>) => api.get('/biometric/employee-links', { params }),
+  linkEmployee: (empId: number, biometric_pin: string) => api.put(`/biometric/employee-links/${empId}`, { biometric_pin }),
+};
+
 export default api;

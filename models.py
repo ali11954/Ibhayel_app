@@ -233,6 +233,7 @@ class Employee(db.Model):
     photo_path = db.Column(db.String(500), nullable=True)
     id_card_front = db.Column(db.String(500), nullable=True)
     id_card_back = db.Column(db.String(500), nullable=True)
+    biometric_pin = db.Column(db.String(50), nullable=True)  # رقم البصمة (PIN) في جهاز البصمة
 
     company = db.relationship('Company', foreign_keys=[company_id], backref='employees')
 
@@ -2916,6 +2917,135 @@ class MolasOrderItem(db.Model):
             'unit': self.unit or 'طن',
             'unit_price': self.unit_price or 0,
             'total_price': self.total_price or 0,
+        }
+
+
+# ==================== أجهزة البصمة (ZKTeco) ====================
+
+class BiometricDevice(db.Model):
+    """جهاز بصمة (ZKTeco / ZKTimeWeb)"""
+    __tablename__ = 'biometric_devices'
+
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(100), nullable=False)
+    serial_number = db.Column(db.String(60), nullable=True, unique=True)
+    ip_address = db.Column(db.String(60), nullable=True)
+    port = db.Column(db.Integer, default=4370)
+    password = db.Column(db.String(60), nullable=True)  # كلمة مرور الاتصال بالجهاز
+    api_key = db.Column(db.String(64), nullable=True)  # مفتاح السحب/الدفع
+    direction = db.Column(db.String(20), nullable=False, default='pull')  # pull (سحب) | push (دفع)
+    company_id = db.Column(db.Integer, db.ForeignKey('companies.id'), nullable=True)
+    is_active = db.Column(db.Boolean, default=True)
+
+    last_heartbeat = db.Column(db.DateTime, nullable=True)
+    last_sync_at = db.Column(db.DateTime, nullable=True)
+    last_sync_message = db.Column(db.String(500), nullable=True)
+    last_sync_count = db.Column(db.Integer, default=0)
+
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    company = db.relationship('Company', foreign_keys=[company_id], backref='biometric_devices')
+    logs = db.relationship('BiometricLog', backref='device', cascade='all, delete-orphan', lazy=True)
+
+    def to_dict(self):
+        from models import User
+        return {
+            'id': self.id,
+            'name': self.name,
+            'serial_number': self.serial_number or '',
+            'ip_address': self.ip_address or '',
+            'port': self.port or 4370,
+            'api_key': self.api_key or '',
+            'direction': self.direction,
+            'direction_name': 'سحب من الجهاز' if self.direction == 'pull' else 'دفع من الجهاز',
+            'company_id': self.company_id,
+            'company_name': self.company.name if self.company else '',
+            'is_active': self.is_active,
+            'last_heartbeat': self.last_heartbeat.strftime('%Y-%m-%d %H:%M') if self.last_heartbeat else None,
+            'last_sync_at': self.last_sync_at.strftime('%Y-%m-%d %H:%M') if self.last_sync_at else None,
+            'last_sync_message': self.last_sync_message or '',
+            'last_sync_count': self.last_sync_count or 0,
+            'logs_count': len(self.logs),
+            'created_at': self.created_at.strftime('%Y-%m-%d %H:%M') if self.created_at else None,
+        }
+
+
+class BiometricLog(db.Model):
+    """سجل بصمة خام كما ورد من الجهاز (قبل التحويل لحضور)"""
+    __tablename__ = 'biometric_logs'
+
+    id = db.Column(db.Integer, primary_key=True)
+    device_id = db.Column(db.Integer, db.ForeignKey('biometric_devices.id'), nullable=False)
+    employee_id = db.Column(db.Integer, db.ForeignKey('employees.id'), nullable=True)
+    pin = db.Column(db.String(50), nullable=False)  # رقم المستخدم (PIN) في الجهاز
+    card_number = db.Column(db.String(50), nullable=True)
+    log_time = db.Column(db.DateTime, nullable=False)
+    log_date = db.Column(db.Date, nullable=False)
+    log_type = db.Column(db.String(10), nullable=False, default='unknown')  # in | out | unknown
+    verify_mode = db.Column(db.String(30), nullable=True)  # fp | face | card | palm | password
+    work_code = db.Column(db.String(50), nullable=True)
+    is_processed = db.Column(db.Boolean, default=False)
+    processed_at = db.Column(db.DateTime, nullable=True)
+    notes = db.Column(db.String(500), nullable=True)
+    raw_data = db.Column(db.Text, nullable=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    employee = db.relationship('Employee', foreign_keys=[employee_id], backref='biometric_logs')
+
+    __table_args__ = (
+        db.UniqueConstraint('device_id', 'pin', 'log_time', 'log_type', name='unique_biometric_log'),
+    )
+
+    VERIFY_MODES = {
+        'fp': 'بصمة إصبع',
+        'face': 'وجه',
+        'card': 'بطاقة',
+        'palm': 'بصمة الكف',
+        'password': 'كلمة مرور',
+        'finger_vein': 'وريد الإصبع',
+    }
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'device_id': self.device_id,
+            'device_name': self.device.name if self.device else '',
+            'employee_id': self.employee_id,
+            'employee_name': self.employee.name if self.employee else '',
+            'pin': self.pin,
+            'card_number': self.card_number or '',
+            'log_time': self.log_time.strftime('%Y-%m-%d %H:%M:%S') if self.log_time else None,
+            'log_date': self.log_date.strftime('%Y-%m-%d') if self.log_date else None,
+            'log_type': self.log_type,
+            'verify_mode': self.verify_mode or '',
+            'verify_mode_name': self.VERIFY_MODES.get(self.verify_mode, self.verify_mode or ''),
+            'work_code': self.work_code or '',
+            'is_processed': self.is_processed,
+            'notes': self.notes or '',
+        }
+
+
+class BiometricSetting(db.Model):
+    """إعدادات أجهزة البصمة (نصوص وأرقام)"""
+    __tablename__ = 'biometric_settings'
+
+    id = db.Column(db.Integer, primary_key=True)
+    setting_key = db.Column(db.String(60), unique=True, nullable=False)
+    setting_name = db.Column(db.String(200), nullable=False)
+    value = db.Column(db.String(200), nullable=True)
+    value_type = db.Column(db.String(20), default='text')  # text | number | bool
+    description = db.Column(db.Text, nullable=True)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'key': self.setting_key,
+            'name': self.setting_name,
+            'value': self.value if self.value is not None else '',
+            'value_type': self.value_type,
+            'description': self.description or '',
         }
 
 

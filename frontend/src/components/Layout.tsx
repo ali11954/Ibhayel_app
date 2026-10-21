@@ -4,7 +4,7 @@ import {
   Home, Users, CalendarCheck, Building2, Star, DollarSign,
   BookOpen, Truck, BarChart3, Settings, LogOut, Menu, X,
   FileText, UserCog, FileCheck, Bell, Search, Plus, ClipboardList, Coins,
-  Calendar, Clock, User, Grid3x3, ClipboardCheck, Package
+  Calendar, Clock, User, Grid3x3, ClipboardCheck, Package, Fingerprint
 } from 'lucide-react';
 import api from '@/api/client';
 
@@ -14,6 +14,7 @@ const navItems = [
   { path: '/attendance', label: 'الحضور', icon: CalendarCheck, roles: ['admin', 'supervisor'] },
   { path: '/attendance-grid', label: 'الحضور الشجري', icon: Grid3x3, roles: ['admin', 'supervisor'] },
   { path: '/attendance-report', label: 'تقرير الحضور', icon: ClipboardCheck, roles: ['admin', 'supervisor'] },
+  { path: '/biometric', label: 'أجهزة البصمة', icon: Fingerprint, roles: ['admin', 'supervisor'] },
   { path: '/companies', label: 'الشركات', icon: Building2, roles: ['admin', 'supervisor', 'accountant'] },
   { path: '/contracts', label: 'العقود', icon: FileCheck, roles: ['admin', 'supervisor'] },
   { path: '/invoices', label: 'الفواتير', icon: FileText, roles: ['admin', 'supervisor', 'accountant'] },

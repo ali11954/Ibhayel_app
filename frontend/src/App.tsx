@@ -24,6 +24,7 @@ import LeavesPage from '@/pages/LeavesPage';
 import EmployeePortalPage from '@/pages/EmployeePortalPage';
 import AttendanceGridPage from '@/pages/AttendanceGridPage';
 import AttendanceReportPage from '@/pages/AttendanceReportPage';
+import BiometricPage from '@/pages/BiometricPage';
 import ProfilePage from '@/pages/ProfilePage';
 import MolasSalesPage from '@/pages/MolasSalesPage';
 
@@ -232,6 +233,14 @@ export default function App() {
           element={
             <ProtectedRoute>
               <Layout><AttendanceReportPage /></Layout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/biometric"
+          element={
+            <ProtectedRoute>
+              <Layout><BiometricPage /></Layout>
             </ProtectedRoute>
           }
         />
