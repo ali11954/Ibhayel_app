@@ -1,0 +1,143 @@
+{% extends "daily_tasks/base.html" %}
+{% block content %}
+{% set dt_embedded = request.args.get('embed') == '1' or 'embed=1' in (request.referrer or '') %}
+<style>
+.dt-page{direction:rtl;text-align:right;padding:1rem 0 2rem;color:var(--bs-body-color,#253348)}
+.dt-page .dt-heading{display:flex;gap:1rem;align-items:center;justify-content:space-between;flex-wrap:wrap;margin-bottom:1.25rem}
+.dt-page .dt-heading h1{font-size:1.55rem;font-weight:700;margin:0}
+.dt-page .dt-muted{color:var(--bs-secondary-color,#697586);font-size:.9rem}
+.dt-page .dt-card{background:var(--bs-body-bg,#fff);border:1px solid var(--bs-border-color,#dfe5ec);border-radius:12px;padding:1.15rem;margin-bottom:1rem;box-shadow:0 3px 12px rgba(20,40,70,.04)}
+.dt-page .dt-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:.9rem}
+.dt-page .dt-field{display:flex;flex-direction:column;gap:.4rem;min-width:0}
+.dt-page .dt-field label{font-weight:600;font-size:.9rem}
+.dt-page input,.dt-page textarea,.dt-page select{width:100%;padding:.65rem .75rem;border:1px solid var(--bs-border-color,#cdd5df);border-radius:8px;background:var(--bs-body-bg,#fff);color:inherit;min-height:42px}
+.dt-page textarea{min-height:80px;resize:vertical}
+.dt-page .dt-span-all{grid-column:1/-1}
+.dt-page .dt-actions{display:flex;flex-wrap:wrap;gap:.5rem;align-items:center}
+.dt-page .dt-btn{display:inline-flex;justify-content:center;align-items:center;gap:.4rem;padding:.58rem .9rem;border-radius:8px;border:1px solid transparent;text-decoration:none;cursor:pointer;font-weight:600;font-size:.9rem;white-space:nowrap}
+.dt-page .dt-primary{background:var(--bs-primary,#2457a7);color:#fff}
+.dt-page .dt-secondary{background:var(--bs-secondary-bg,#eef2f7);border-color:var(--bs-border-color,#d5dce5);color:inherit}
+.dt-page .dt-danger{background:#fff1f0;border-color:#ffc7c2;color:#a61b1b}
+.dt-page .dt-stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:.85rem;margin-bottom:1rem}
+.dt-page .dt-stat{border:1px solid var(--bs-border-color,#dfe5ec);border-radius:10px;padding:.9rem 1rem;background:var(--bs-tertiary-bg,#f8fafc)}
+.dt-page .dt-stat strong{display:block;font-size:1.45rem;margin-top:.3rem}
+.dt-page .dt-table-wrap{overflow:auto;width:100%}
+.dt-page table{border-collapse:collapse;width:100%;min-width:900px}
+.dt-page th,.dt-page td{padding:.7rem .65rem;border-bottom:1px solid var(--bs-border-color,#e4e9ef);vertical-align:middle;text-align:right}
+.dt-page th{background:var(--bs-tertiary-bg,#f3f6fa);font-weight:700;font-size:.88rem}
+.dt-page tbody tr:hover{background:var(--bs-tertiary-bg,#fafcff)}
+.dt-page .dt-progress{height:9px;background:#e9eef5;border-radius:99px;overflow:hidden;min-width:70px}
+.dt-page .dt-progress span{display:block;height:100%;background:#16845b;border-radius:99px}
+.dt-page .dt-pill{display:inline-block;padding:.2rem .5rem;border-radius:999px;background:#e8f3ed;color:#176b49;font-size:.8rem;font-weight:700}
+.dt-page .dt-flash{padding:.75rem 1rem;border-radius:8px;margin-bottom:.75rem;border:1px solid #dce5ef}
+.dt-page .dt-success{background:#eaf7ef;color:#145c34}.dt-page .dt-error{background:#fff0ef;color:#9a1b1b}
+.dt-page .dt-small{font-size:.82rem}
+@media(max-width:900px){.dt-page .dt-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.dt-page .dt-stats{grid-template-columns:1fr}}
+@media(max-width:560px){.dt-page .dt-grid{grid-template-columns:1fr}.dt-page .dt-heading h1{font-size:1.3rem}}
+@media print{.dt-page .dt-no-print,.dt-page form,.dt-page .dt-actions{display:none!important}.dt-page .dt-card{box-shadow:none}}
+
+.dt-pagination{display:flex;align-items:center;justify-content:space-between;gap:.85rem;flex-wrap:wrap;margin-top:1rem;padding-top:1rem;border-top:1px solid #e5e7eb}
+.dt-pagination-pages{display:flex;align-items:center;gap:.35rem;flex-wrap:wrap}
+.dt-pagination a,.dt-pagination .dt-page-number{display:inline-flex;align-items:center;justify-content:center;min-width:36px;min-height:36px;padding:.4rem .65rem;border:1px solid #dbe2ea;border-radius:9px;text-decoration:none;font-size:.88rem;font-weight:600;background:#fff;color:#475569}
+.dt-pagination a:hover{background:#f8fafc;border-color:#94a3b8}
+.dt-pagination .dt-page-number.active{background:#15803d;border-color:#15803d;color:#fff}
+.dt-pagination .dt-page-disabled{color:#9ca3af;background:#f8fafc;border-color:#e5e7eb;padding:.4rem .65rem;border-radius:9px}
+@media(max-width:560px){.dt-pagination{align-items:flex-start;flex-direction:column}.dt-pagination-pages{width:100%}}
+</style>
+<div class="dt-page container-fluid">
+  <div class="dt-heading">
+    <div><h1>المهام اليومية</h1><div class="dt-muted">تسجيل أعمال فرق العمل ومتابعة الإنجاز والتوثيق</div></div>
+    <div class="dt-actions dt-no-print">
+      <a class="dt-btn dt-secondary" href="{{ url_for('daily_tasks.export_pdf', start_date=start_date, end_date=end_date, embed='1' if dt_embedded else None) }}">تصدير PDF</a>
+      <a class="dt-btn dt-secondary" href="{{ url_for('daily_tasks.export_xlsx', start_date=start_date, end_date=end_date, embed='1' if dt_embedded else None) }}">تصدير Excel</a>
+    </div>
+  </div>
+
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}{% for category, message in messages %}<div class="dt-flash {{ 'dt-success' if category in ['success','message'] else 'dt-error' }}">{{ message }}</div>{% endfor %}{% endif %}
+  {% endwith %}
+
+  <div class="dt-stats">
+    <div class="dt-stat"><span class="dt-muted">إجمالي المهام المسجلة</span><strong>{{ total_tasks }}</strong></div>
+    <div class="dt-stat"><span class="dt-muted">متوسط نسبة الإنجاز</span><strong>{{ avg_completion }}%</strong></div>
+    <div class="dt-stat"><span class="dt-muted">مجموع العمال المسجلين بالمهام</span><strong>{{ total_workers }}</strong></div>
+  </div>
+
+  <section class="dt-card dt-no-print">
+    <h2 style="font-size:1.1rem;font-weight:700;margin:0 0 1rem">إضافة مهمة يومية</h2>
+    <form method="post" enctype="multipart/form-data" action="{{ url_for('daily_tasks.index', embed='1' if dt_embedded else None) }}">
+      {% if csrf_token is defined %}<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">{% endif %}
+      <div class="dt-grid">
+        <div class="dt-field"><label for="task_name">مهمة العمل *</label><input id="task_name" name="task_name" maxlength="240" required placeholder="مثال: تنظيف المنطقة الصناعية"></div>
+        <div class="dt-field"><label for="work_area">منطقة العمل *</label><input id="work_area" name="work_area" maxlength="200" required placeholder="اسم المنطقة أو الموقع"></div>
+        <div class="dt-field"><label for="worker_count">عدد العمال *</label><input id="worker_count" name="worker_count" type="number" min="0" max="100000" step="1" value="0" required></div>
+        <div class="dt-field"><label for="completion_pct">نسبة الإنجاز (%) *</label><input id="completion_pct" name="completion_pct" type="number" min="0" max="100" step="0.1" value="0" required></div>
+        <div class="dt-field"><label for="task_date">تاريخ تنفيذ المهمة *</label><input id="task_date" name="task_date" type="date" value="{{ today }}" required></div>
+        <div class="dt-field dt-span-all"><label for="attachments">التوثيق والمرفقات</label><input id="attachments" name="attachments" type="file" multiple accept=".png,.jpg,.jpeg,.webp,.pdf,.doc,.docx,.xls,.xlsx,.txt"><span class="dt-muted">حتى 10 ملفات، بحد أقصى 20 ميغابايت لكل ملف. الصور وPDF وWord وExcel وTXT.</span></div>
+        <div class="dt-field dt-span-all"><label for="notes">ملاحظات (اختياري)</label><textarea id="notes" name="notes" maxlength="4000" placeholder="تفاصيل إضافية عن العمل أو ملاحظات المشرف"></textarea></div>
+      </div>
+      <div class="dt-actions" style="margin-top:1rem"><button type="submit" class="dt-btn dt-primary">+ حفظ المهمة</button><button type="reset" class="dt-btn dt-secondary">مسح الحقول</button></div>
+    </form>
+  </section>
+
+  <section class="dt-card">
+    <div class="dt-heading" style="margin-bottom:1rem"><div><h2 style="font-size:1.1rem;font-weight:700;margin:0">تقرير المهام</h2><div class="dt-muted">تصفية حسب تاريخ البداية والنهاية ثم تصدير النتيجة</div></div></div>
+    <form method="get" action="{{ url_for('daily_tasks.index', embed='1' if dt_embedded else None) }}" class="dt-no-print" style="margin-bottom:1rem">
+      <div class="dt-grid" style="grid-template-columns:repeat(3,minmax(0,1fr));align-items:end">
+        <div class="dt-field"><label for="start_date">من تاريخ</label><input type="date" id="start_date" name="start_date" value="{{ start_date }}"></div>
+        <div class="dt-field"><label for="end_date">إلى تاريخ</label><input type="date" id="end_date" name="end_date" value="{{ end_date }}"></div>
+        <div class="dt-actions"><button type="submit" class="dt-btn dt-primary">عرض التقرير</button><a class="dt-btn dt-secondary" href="{{ url_for('daily_tasks.index', embed='1' if dt_embedded else None) }}">إلغاء التصفية</a></div>
+      </div>
+    </form>
+    <div class="dt-table-wrap">
+      <table>
+        <thead><tr><th>م</th><th>التاريخ</th><th>مهمة العمل</th><th>منطقة العمل</th><th>عدد العمال</th><th>نسبة الإنجاز</th><th>التوثيق</th><th class="dt-no-print">الإجراءات</th></tr></thead>
+        <tbody>
+        {% for task in tasks %}
+          <tr>
+            <td>{{ loop.index }}</td><td>{{ task.task_date }}</td><td><strong>{{ task.task_name }}</strong>{% if task.notes %}<div class="dt-muted dt-small">{{ task.notes }}</div>{% endif %}</td><td>{{ task.work_area }}</td><td>{{ task.worker_count }}</td>
+            <td><span class="dt-pill">{{ '%.1f'|format(task.completion_pct|float) }}%</span><div class="dt-progress" style="margin-top:.35rem"><span style="width:{{ [0, [100, task.completion_pct|float]|min]|max }}%"></span></div></td>
+            <td>{% if task.attachment_count %}<a href="{{ url_for('daily_tasks.edit', task_id=task.id, embed='1' if dt_embedded else None) }}">{{ task.attachment_count }} ملف</a>{% else %}<span class="dt-muted">لا يوجد</span>{% endif %}</td>
+            <td class="dt-no-print"><div class="dt-actions"><a class="dt-btn dt-secondary" href="{{ url_for('daily_tasks.edit', task_id=task.id, embed='1' if dt_embedded else None) }}">تعديل</a><form method="post" action="{{ url_for('daily_tasks.delete', task_id=task.id, embed='1' if dt_embedded else None) }}" onsubmit="return confirm('هل تريد حذف هذه المهمة ومرفقاتها؟');">{% if csrf_token is defined %}<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">{% endif %}<button type="submit" class="dt-btn dt-danger">حذف</button></form></div></td>
+          </tr>
+        {% else %}<tr><td colspan="8" style="text-align:center;padding:2rem" class="dt-muted">لا توجد مهام في الفترة المحددة. يمكنك إضافة مهمة جديدة من النموذج أعلاه.</td></tr>{% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    {% if pages > 1 %}
+    <nav class="dt-pagination dt-no-print" aria-label="صفحات المهام اليومية">
+      <div class="dt-muted dt-small">
+        عرض {{ tasks|length }} من {{ filtered_task_count }} مهمة — الصفحة {{ page }} من {{ pages }}
+      </div>
+      <div class="dt-pagination-pages">
+        {% if page > 1 %}
+          <a href="{{ url_for('daily_tasks.index', start_date=start_date or None, end_date=end_date or None, page=page-1, embed=request.args.get('embed') or None) }}" rel="prev">السابق</a>
+        {% else %}<span class="dt-page-disabled">السابق</span>{% endif %}
+        {% set pagination_start = [1, page - 2]|max %}
+        {% set pagination_end = [pages, page + 2]|min %}
+        {% if pagination_start > 1 %}
+          <a href="{{ url_for('daily_tasks.index', start_date=start_date or None, end_date=end_date or None, page=1, embed=request.args.get('embed') or None) }}">1</a>
+          {% if pagination_start > 2 %}<span class="dt-muted">…</span>{% endif %}
+        {% endif %}
+        {% for p in range(pagination_start, pagination_end + 1) %}
+          {% if p == page %}
+            <span class="dt-page-number active" aria-current="page">{{ p }}</span>
+          {% else %}
+            <a href="{{ url_for('daily_tasks.index', start_date=start_date or None, end_date=end_date or None, page=p, embed=request.args.get('embed') or None) }}">{{ p }}</a>
+          {% endif %}
+        {% endfor %}
+        {% if pagination_end < pages %}
+          {% if pagination_end < pages - 1 %}<span class="dt-muted">…</span>{% endif %}
+          <a href="{{ url_for('daily_tasks.index', start_date=start_date or None, end_date=end_date or None, page=pages, embed=request.args.get('embed') or None) }}">{{ pages }}</a>
+        {% endif %}
+        {% if page < pages %}
+          <a href="{{ url_for('daily_tasks.index', start_date=start_date or None, end_date=end_date or None, page=page+1, embed=request.args.get('embed') or None) }}" rel="next">التالي</a>
+        {% else %}<span class="dt-page-disabled">التالي</span>{% endif %}
+      </div>
+    </nav>
+    {% endif %}
+<div class="dt-muted dt-small" style="margin-top:1rem">عدد النتائج في هذه الصفحة: {{ tasks|length }} | إجمالي نتائج التصفية: {{ filtered_task_count }} | بيانات المهام محفوظة في قاعدة مستقلة.</div>
+  </section>
+</div>
+{% endblock %}

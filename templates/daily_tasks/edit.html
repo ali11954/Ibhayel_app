@@ -1,0 +1,24 @@
+{% extends "daily_tasks/base.html" %}
+{% block content %}
+{% set dt_embedded = request.args.get('embed') == '1' or 'embed=1' in (request.referrer or '') %}
+<style>
+.dt-page{direction:rtl;text-align:right;padding:1rem 0 2rem}.dt-card{background:var(--bs-body-bg,#fff);border:1px solid var(--bs-border-color,#dfe5ec);border-radius:12px;padding:1.2rem;margin-bottom:1rem}.dt-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:1rem}.dt-field{display:flex;flex-direction:column;gap:.4rem}.dt-field label{font-weight:600}.dt-page input,.dt-page textarea{width:100%;padding:.65rem;border:1px solid var(--bs-border-color,#cdd5df);border-radius:8px;background:var(--bs-body-bg,#fff);color:inherit}.dt-page .dt-btn{display:inline-block;padding:.6rem .9rem;border-radius:8px;text-decoration:none;border:1px solid var(--bs-border-color,#d5dce5);cursor:pointer}.dt-primary{background:var(--bs-primary,#2457a7);color:#fff}.dt-muted{color:var(--bs-secondary-color,#697586)}@media(max-width:600px){.dt-grid{grid-template-columns:1fr}}
+</style>
+<div class="dt-page container-fluid">
+ <div style="display:flex;justify-content:space-between;align-items:center;gap:1rem;flex-wrap:wrap;margin-bottom:1rem"><div><h1 style="font-size:1.45rem;font-weight:700">تعديل المهمة اليومية</h1><div class="dt-muted">رقم المهمة: {{ task.id }}</div></div><a class="dt-btn" href="{{ url_for('daily_tasks.index', embed='1' if dt_embedded else None) }}">العودة إلى المهام</a></div>
+ {% with messages = get_flashed_messages(with_categories=true) %}{% if messages %}{% for category,message in messages %}<div class="dt-card">{{ message }}</div>{% endfor %}{% endif %}{% endwith %}
+ <section class="dt-card"><form method="post" enctype="multipart/form-data" action="{{ url_for('daily_tasks.edit', task_id=task.id, embed='1' if dt_embedded else None) }}">
+      {% if csrf_token is defined %}<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">{% endif %}<div class="dt-grid">
+  <div class="dt-field"><label for="task_name">مهمة العمل *</label><input id="task_name" name="task_name" required maxlength="240" value="{{ request.form.get('task_name', task.task_name) }}"></div>
+  <div class="dt-field"><label for="work_area">منطقة العمل *</label><input id="work_area" name="work_area" required maxlength="200" value="{{ request.form.get('work_area', task.work_area) }}"></div>
+  <div class="dt-field"><label for="worker_count">عدد العمال *</label><input id="worker_count" type="number" name="worker_count" min="0" step="1" required value="{{ request.form.get('worker_count', task.worker_count) }}"></div>
+  <div class="dt-field"><label for="completion_pct">نسبة الإنجاز (%) *</label><input id="completion_pct" type="number" name="completion_pct" min="0" max="100" step="0.1" required value="{{ request.form.get('completion_pct', task.completion_pct) }}"></div>
+  <div class="dt-field"><label for="task_date">تاريخ تنفيذ المهمة *</label><input id="task_date" type="date" name="task_date" required value="{{ request.form.get('task_date', task.task_date) }}"></div>
+  <div class="dt-field"><label for="attachments">إضافة توثيق جديد</label><input id="attachments" type="file" name="attachments" multiple accept=".png,.jpg,.jpeg,.webp,.pdf,.doc,.docx,.xls,.xlsx,.txt"><small class="dt-muted">يمكن إضافة مرفقات جديدة دون حذف المرفقات الحالية.</small></div>
+  <div class="dt-field" style="grid-column:1/-1"><label for="notes">ملاحظات</label><textarea id="notes" name="notes" maxlength="4000" rows="4">{{ request.form.get('notes', task.notes) }}</textarea></div>
+ </div><p style="margin-top:1rem"><button class="dt-btn dt-primary" type="submit">حفظ التعديلات</button> <a class="dt-btn" href="{{ url_for('daily_tasks.index', embed='1' if dt_embedded else None) }}">إلغاء</a></p></form></section>
+ <section class="dt-card"><h2 style="font-size:1.1rem;font-weight:700">التوثيق الحالي</h2>
+ {% if attachments %}<ul>{% for file in attachments %}<li style="padding:.35rem 0"><a href="{{ url_for('daily_tasks.attachment', attachment_id=file.id, embed='1' if dt_embedded else None) }}">{{ file.original_name }}</a> <span class="dt-muted">— {{ file.uploaded_at }}</span></li>{% endfor %}</ul>{% else %}<p class="dt-muted">لا توجد مرفقات لهذه المهمة.</p>{% endif %}
+ </section>
+</div>
+{% endblock %}

@@ -20,6 +20,7 @@ const navItems = [
   { path: '/invoices', label: 'الفواتير', icon: FileText, roles: ['admin', 'supervisor', 'accountant'] },
   { path: '/evaluations', label: 'التقييمات', icon: Star, roles: ['admin', 'supervisor'] },
   { path: '/work-plans', label: 'خطط العمل', icon: ClipboardList, roles: ['admin', 'supervisor'] },
+  { path: '/daily-tasks-app', label: 'المهام اليومية', icon: ClipboardList, roles: ['admin', 'supervisor'] },
   { path: '/molas-sales', label: 'تسويق وبيع المولاس', icon: Package, roles: ['admin', 'supervisor', 'accountant'] },
   { path: '/salaries', label: 'الرواتب', icon: Coins, roles: ['admin', 'accountant'] },
   { path: '/financial', label: 'المالية', icon: DollarSign, roles: ['admin', 'accountant'] },
@@ -171,7 +172,9 @@ export default function Layout({ children }: { children: React.ReactNode }) {
               {sidebarOpen && <span>بوابة الموظف</span>}
             </Link>
           )}
-        </nav>
+
+
+      </nav>
 
         {/* Logout */}
         <div className="p-2 border-t border-gray-50 space-y-2">

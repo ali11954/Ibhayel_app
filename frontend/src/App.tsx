@@ -27,6 +27,7 @@ import AttendanceReportPage from '@/pages/AttendanceReportPage';
 import BiometricPage from '@/pages/BiometricPage';
 import ProfilePage from '@/pages/ProfilePage';
 import MolasSalesPage from '@/pages/MolasSalesPage';
+import DailyTasksPage from '@/pages/DailyTasksPage';
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const [checking, setChecking] = useState(true);
@@ -257,6 +258,14 @@ export default function App() {
           element={
             <ProtectedRoute>
               <Layout><MolasSalesPage /></Layout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/daily-tasks-app"
+          element={
+            <ProtectedRoute>
+              <Layout><DailyTasksPage /></Layout>
             </ProtectedRoute>
           }
         />

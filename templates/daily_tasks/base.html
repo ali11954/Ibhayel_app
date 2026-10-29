@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>ابن حايل | المهام اليومية</title>
+  <style>
+    :root { --app-header-surface: #ffffff; --app-header-border: #f3f4f6; --app-accent: #2563eb; --app-foreground: #374151; --app-muted: #6b7280; --app-page-bg: #f7f8fc; --app-radius: 14px; }
+    * { box-sizing: border-box; }
+    html, body { min-height: 100%; }
+    body { margin: 0; background: var(--app-page-bg); color: var(--app-foreground); font-family: "Segoe UI", Tahoma, Arial, sans-serif; line-height: 1.55; }
+    a { color: inherit; }
+    .dt-app-header { position: sticky; top: 0; z-index: 50; background: var(--app-header-surface); border-bottom: 1px solid var(--app-header-border); box-shadow: 0 2px 8px rgba(15,23,42,.035); }
+    .dt-app-header-inner { width: min(1540px, calc(100% - 36px)); min-height: 76px; margin: 0 auto; display: flex; align-items: center; justify-content: space-between; gap: 20px; padding: 10px 0; }
+    .dt-app-brand { min-width: 0; display: inline-flex; align-items: center; gap: 12px; text-decoration: none; border-radius: 12px; }
+    .dt-app-logo { width: 44px; height: 44px; flex: 0 0 44px; object-fit: contain; border-radius: 12px; background: #fff; border: 1px solid rgba(148,163,184,.24); padding: 3px; }
+    .dt-app-logo-fallback { display: inline-flex; align-items: center; justify-content: center; color: var(--app-accent); font-size: 1.35rem; font-weight: 800; }
+    .dt-app-brand-copy { display: flex; flex-direction: column; line-height: 1.25; min-width: 0; }
+    .dt-app-brand-title { color: var(--app-foreground); font-size: 1.02rem; font-weight: 800; letter-spacing: -.01em; white-space: nowrap; }
+    .dt-app-brand-subtitle { color: var(--app-muted); margin-top: 4px; font-size: .77rem; font-weight: 500; white-space: nowrap; }
+    .dt-app-page-context { display: flex; flex-direction: column; align-items: flex-start; gap: 3px; margin-inline-start: auto; margin-inline-end: 18px; min-width: 0; }
+    .dt-app-breadcrumb { color: var(--app-muted); font-size: .78rem; display: flex; align-items: center; gap: 7px; }
+    .dt-app-breadcrumb a { text-decoration: none; }
+    .dt-app-breadcrumb a:hover { color: var(--app-accent); }
+    .dt-app-current-page { color: var(--app-foreground); font-size: 1.02rem; font-weight: 750; white-space: nowrap; }
+    .dt-app-home { flex: 0 0 auto; display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 40px; padding: 8px 13px; color: var(--app-muted); background: transparent; border: 1px solid var(--app-header-border); border-radius: 12px; text-decoration: none; font-size: .86rem; font-weight: 600; transition: background .15s ease, color .15s ease, border-color .15s ease; }
+    .dt-app-home:hover { background: #f9fafb; color: var(--app-foreground); border-color: #cbd5e1; }
+    .dt-app-home svg { width: 17px; height: 17px; flex: 0 0 auto; }
+    .dt-app-section-line { height: 3px; background: linear-gradient(90deg, transparent, var(--app-accent), transparent); opacity: .18; }
+    .dt-shell-main { width: min(1540px, calc(100% - 36px)); margin: 0 auto; min-height: calc(100vh - 116px); padding: 22px 0 34px; }
+
+
+    body.dt-embedded {
+      background: transparent !important;
+    }
+
+    body.dt-embedded .dt-shell-main {
+      width: 100% !important;
+      min-height: 0 !important;
+      margin: 0 !important;
+      padding: 0 !important;
+    }
+    @media (max-width: 760px) { .dt-app-header-inner { width: calc(100% - 24px); min-height: 68px; gap: 10px; flex-wrap: wrap; } .dt-app-page-context { order: 3; flex-basis: 100%; margin: 0; padding: 2px 0 5px 56px; } .dt-app-home { min-height: 38px; padding: 7px 10px; } .dt-app-home-label { display: none; } .dt-shell-main { width: calc(100% - 20px); padding-top: 15px; } }
+    @media (max-width: 420px) { .dt-app-brand-subtitle { display: none; } .dt-app-brand-title { font-size: .93rem; } .dt-app-logo { width: 39px; height: 39px; flex-basis: 39px; } .dt-app-page-context { padding-inline-start: 49px; } }
+  </style>
+</head>
+<body{% if request.args.get("embed") == "1" or "embed=1" in (request.referrer or "") %} class="dt-embedded"{% endif %}>
+<main class="dt-shell-main">
+    {% block content %}{% endblock %}
+  </main>
+{% if request.args.get("embed") == "1" or "embed=1" in (request.referrer or "") %}
+<script>
+(function () {
+  const sendHeight = function () {
+    const bodyHeight = document.body ? document.body.scrollHeight : 0;
+    const documentHeight = document.documentElement
+      ? document.documentElement.scrollHeight : 0;
+
+    const height = Math.max(bodyHeight, documentHeight, 760);
+
+    window.parent.postMessage(
+      { type: "daily-tasks:height", height: height },
+      window.location.origin
+    );
+  };
+
+  window.addEventListener("load", sendHeight);
+  window.addEventListener("resize", sendHeight);
+
+  if ("ResizeObserver" in window) {
+    new ResizeObserver(sendHeight).observe(document.documentElement);
+  }
+
+  if ("MutationObserver" in window) {
+    new MutationObserver(sendHeight).observe(document.body, {
+      subtree: true,
+      childList: true,
+      attributes: true
+    });
+  }
+
+  [0, 120, 350, 900].forEach(function (delay) {
+    window.setTimeout(sendHeight, delay);
+  });
+})();
+</script>
+{% endif %}
+
+</body>
+</html>

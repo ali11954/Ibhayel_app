@@ -929,6 +929,12 @@ if not hasattr(app, '_init_db_done'):
     init_db()
     app._init_db_done = True
 
+# --- AL-GHAITH DAILY TASKS FEATURE (managed by installer) ---
+from daily_tasks_feature import register_daily_tasks as _register_daily_tasks
+_register_daily_tasks(app, login_required=globals().get('login_required'))
+# --- END AL-GHAITH DAILY TASKS FEATURE ---
+
+
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
     app.run(debug=False, host='0.0.0.0', port=port)
